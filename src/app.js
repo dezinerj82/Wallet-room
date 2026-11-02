@@ -109,7 +109,6 @@ let withdrawApproved = false;
 let lastAddGroup = "IN";
 let walletMetadata = new Map();
 let walletRemarkHistory = new Map();
-  walletRecurringRules = new Map();
 let walletRecurringRules = new Map();
 let walletCatalog = [];
 let walletSchedules = [];
