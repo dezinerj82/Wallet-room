@@ -404,8 +404,8 @@ export async function addWalletItem(token, folderId, entry) {
     ...entry.meta,
     noteLoggedAt: entry.meta.note?.trim() ? new Date().toISOString() : ""
   })) : "";
-  if (recurring && item.group !== "Bills") {
-    throw new Error("Only Bills can repeat.");
+  if (recurring && !isExpenseGroup(item.group)) {
+    throw new Error("Only expense categories can repeat.");
   }
   const filename = await itemFileName(item.group, item.item);
   const files = await listWalletFileMetadata(token, folderId);
@@ -431,7 +431,7 @@ export async function addWalletItem(token, folderId, entry) {
     let newLines = item.line + metadataLine;
     if (recurring) {
       const rule = {
-        item: item.item, month: item.month, amount: Number(entry.amount),
+        group:item.group, item: item.item, month: item.month, amount: Number(entry.amount),
         remark: String(entry.remark || "").trim(), active: true,
         type:entry.repeatRule?.type||"monthly",
         end:entry.repeatRule?.end||"",
@@ -456,7 +456,7 @@ export async function addWalletItem(token, folderId, entry) {
       throw new Error("An existing TXT file conflicts with this item. No changes were saved.");
     }
     if (monthIsPresent(existing.content, item.group, item.item, item.month)) {
-      if (item.group !== "Bills" || recurring) {
+      if (!isExpenseGroup(item.group) || recurring) {
         throw new Error("This item is already listed for that month. Use Update to change it.");
       }
       const prev=lastMonthSnapshot(existing.content,item.group,item.item,item.month);
@@ -683,23 +683,23 @@ export async function updateWalletItem(token, folderId, changes) {
   if (JSON.stringify(priorMeta) !== JSON.stringify(expectedPriorMeta)) {
     throw new Error("Item details changed. Refresh and try again.");
   }
-  const savedRule = item.group === "Bills"
-    ? latestRecurringRule(existing.content, item.item) : null;
+  const savedRule = isExpenseGroup(item.group)
+    ? latestRecurringRule(existing.content, item.item, item.group) : null;
   const currentlyRecurring = savedRule?.active === true;
-  if (item.group === "Bills" &&
+  if (isExpenseGroup(item.group) &&
       Boolean(prior.recurring) !== currentlyRecurring) {
     throw new Error("Recurring setting changed. Refresh and try again.");
   }
-  const wantsRecurring = item.group === "Bills" && changes.recurring === true;
+  const wantsRecurring = isExpenseGroup(item.group) && changes.recurring === true;
   if (wantsRecurring &&
       lastSchedule(existing.content, item.group, item.item)?.active) {
     throw new Error("This item already has a schedule.");
   }
-  if (changes.recurring === true && item.group !== "Bills") {
+  if (changes.recurring === true && !isExpenseGroup(item.group)) {
     throw new Error("Only Bills can repeat.");
   }
   const proposedRule = {
-    item:item.item,month:item.month,amount:Number(revised[3]),
+    group:item.group,item:item.item,month:item.month,amount:Number(revised[3]),
     remark:String(changes.remark||"").trim(),active:wantsRecurring,
     type:changes.repeatRule?.type||"monthly",
     end:changes.repeatRule?.end||"",
@@ -710,7 +710,7 @@ export async function updateWalletItem(token, folderId, changes) {
     days:r.type==="weekly"?r.days:[],
     amount:r.type==="weekly"?null:r.amount
   } : {active:false});
-  const ruleChanged = item.group==="Bills" &&
+  const ruleChanged = isExpenseGroup(item.group) &&
     ruleSignature(proposedRule)!==ruleSignature(savedRule);
   const newNote = String(changes?.meta?.note || "").trim();
   const oldNote = String(priorMeta?.note || "").trim();
@@ -737,11 +737,11 @@ export async function updateWalletItem(token, folderId, changes) {
     const months=new Set();
     for(const line of existing.content.split("\n")) {
       const f=line.replace(/\r$/,"").split("\t");
-      if(f[0]==="Bills" && f[1].toLocaleLowerCase("en")===item.item.toLocaleLowerCase("en") &&
+      if(f[0]===item.group && f[1].toLocaleLowerCase("en")===item.item.toLocaleLowerCase("en") &&
          /^\d{6}$/.test(f[2]) && f[2]>item.month)months.add(f[2]);
     }
     for(const month of [...months].sort()) {
-      const original=lastMonthSnapshot(existing.content,"Bills",item.item,month);
+      const original=lastMonthSnapshot(existing.content,item.group,item.item,month);
       if(!original || original[3]==="DELETE" || Number(original[4])>0)continue;
       const oldBase=currentlyRecurring && (!savedRule.end||month<=savedRule.end)
         ? recurringAmount(savedRule,month):0;
@@ -750,7 +750,7 @@ export async function updateWalletItem(token, folderId, changes) {
         ? recurringAmount(proposedRule,month):0;
       const cents=extras+Math.round(newBase*100);
       if(cents===Math.round(Number(original[3])*100))continue;
-      if(cents===0) appended+=["Bills",item.item,month,"DELETE"].join("\t")+"\n";
+      if(cents===0) appended+=[item.group,item.item,month,"DELETE"].join("\t")+"\n";
       else {
         const f=[...original]; f[3]=(cents/100).toFixed(2);
         f[4]="0.00";f[5]=f[3];
@@ -881,7 +881,7 @@ export async function renewRecurringBills(token, folderId, files) {
       throw new Error("Recurring bill file needs review.");
     }
     for (const itemName of uniqueItems) {
-      const rule = latestRecurringRule(file.content, itemName);
+      const rule = latestRecurringRule(file.content, itemName, target?.group||"Bills");
       if (rule?.active && recurringMonthsDue(file.content, rule, now).length) {
         dueFiles.push({ name: file.name, item: rule.item });
       }
@@ -904,7 +904,7 @@ export async function renewRecurringBills(token, folderId, files) {
       throw new Error("Recurring bill history is full.");
     }
     // Re-check after the current read: a repeat may already be disabled.
-    const rule = latestRecurringRule(content, target.item);
+    const rule = latestRecurringRule(content, target.item, target.group);
     const due = recurringMonthsDue(content, rule, now);
     if (!due.length) continue;
     const additions = due.map(month => recurringBillLine(rule, month)).join("");
