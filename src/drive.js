@@ -690,7 +690,20 @@ export async function updateWalletItem(token, folderId, changes) {
   if (changes.recurring === true && item.group !== "Bills") {
     throw new Error("Only Bills can repeat.");
   }
-  const switchRule = item.group === "Bills" && wantsRecurring !== currentlyRecurring;
+  const proposedRule = {
+    item:item.item,month:item.month,amount:Number(revised[3]),
+    remark:String(changes.remark||"").trim(),active:wantsRecurring,
+    type:changes.repeatRule?.type||"monthly",
+    end:changes.repeatRule?.end||"",
+    days:changes.repeatRule?.days||[]
+  };
+  const ruleSignature = r => JSON.stringify(r && r.active ? {
+    active:true,type:r.type||"monthly",end:r.end||"",
+    days:r.type==="weekly"?r.days:[],
+    amount:r.type==="weekly"?null:r.amount
+  } : {active:false});
+  const ruleChanged = item.group==="Bills" &&
+    ruleSignature(proposedRule)!==ruleSignature(savedRule);
   const newNote = String(changes?.meta?.note || "").trim();
   const oldNote = String(priorMeta?.note || "").trim();
   const combinedNote = [oldNote, newNote].filter(Boolean).join("\n");
@@ -705,25 +718,41 @@ export async function updateWalletItem(token, folderId, changes) {
     : priorMeta ? buildMeta(item.group, item.item, priorMeta) : null;
   const metaChanged = JSON.stringify(priorMeta) !== JSON.stringify(newMeta);
   const itemChanged = last.join("\t") !== revised.join("\t");
-  if (!itemChanged && !switchRule && !metaChanged) {
+  if (!itemChanged && !ruleChanged && !metaChanged)
     throw new Error("No changes to save.");
-  }
   let appended = itemChanged ? revised.join("\t") + "\n" : "";
   if (metaChanged && newMeta) appended += metaLine(newMeta);
-  if (switchRule) {
-    const rule = {
-      item: item.item, month: item.month,
-      amount: Number(revised[3]), remark: String(changes.remark || "").trim(),
-      active: wantsRecurring
-    };
-    appended += recurringDirectiveLine(rule, wantsRecurring);
-    if (wantsRecurring) {
-      const seenContent = existing.content +
-        (existing.content && !existing.content.endsWith("\n") ? "\n" : "") +
-        appended;
-      for (const month of recurringMonthsDue(seenContent, rule, new Date())) {
-        appended += recurringBillLine(rule, month);
+  if (ruleChanged) {
+    appended += recurringDirectiveLine(proposedRule,wantsRecurring);
+    // Recalculate only un-paid, open future snapshots; preserve separate
+    // extra charges by subtracting the previous scheduled estimate.
+    const months=new Set();
+    for(const line of existing.content.split("\n")) {
+      const f=line.replace(/\r$/,"").split("\t");
+      if(f[0]==="Bills" && f[1].toLocaleLowerCase("en")===item.item.toLocaleLowerCase("en") &&
+         /^\d{6}$/.test(f[2]) && f[2]>item.month)months.add(f[2]);
+    }
+    for(const month of [...months].sort()) {
+      const original=lastMonthSnapshot(existing.content,"Bills",item.item,month);
+      if(!original || original[3]==="DELETE" || Number(original[4])>0)continue;
+      const oldBase=currentlyRecurring && (!savedRule.end||month<=savedRule.end)
+        ? recurringAmount(savedRule,month):0;
+      const extras=Math.max(0,Math.round(Number(original[3])*100)-Math.round(oldBase*100));
+      const newBase=wantsRecurring && (!proposedRule.end||month<=proposedRule.end)
+        ? recurringAmount(proposedRule,month):0;
+      const cents=extras+Math.round(newBase*100);
+      if(cents===Math.round(Number(original[3])*100))continue;
+      if(cents===0) appended+=["Bills",item.item,month,"DELETE"].join("\t")+"\n";
+      else {
+        const f=[...original]; f[3]=(cents/100).toFixed(2);
+        f[4]="0.00";f[5]=f[3];
+        appended+=f.join("\t")+"\n";
       }
+    }
+    if(wantsRecurring) {
+      const seen=existing.content+(existing.content.endsWith("\n")?"":"\n")+appended;
+      for(const month of recurringMonthsDue(seen,proposedRule,new Date()))
+        appended+=recurringBillLine(proposedRule,month);
     }
   }
   const log = existing.content +
