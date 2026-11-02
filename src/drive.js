@@ -1,6 +1,6 @@
 import {
   latestRecurringRule, recurringDirectiveLine,
-  recurringMonthsDue, recurringBillLine
+  recurringMonthsDue, recurringBillLine, recurringAmount
 } from "./recurring.js";
 import { isWalletGroup } from "./groups.js";
 import { buildMeta, metaLine, lastMeta } from "./private-meta.js";
@@ -432,7 +432,10 @@ export async function addWalletItem(token, folderId, entry) {
     if (recurring) {
       const rule = {
         item: item.item, month: item.month, amount: Number(entry.amount),
-        remark: String(entry.remark || "").trim(), active: true
+        remark: String(entry.remark || "").trim(), active: true,
+        type:entry.repeatRule?.type||"monthly",
+        end:entry.repeatRule?.end||"",
+        days:entry.repeatRule?.days||[]
       };
       newLines += recurringDirectiveLine(rule, true);
       const combined = base +
@@ -453,7 +456,25 @@ export async function addWalletItem(token, folderId, entry) {
       throw new Error("An existing TXT file conflicts with this item. No changes were saved.");
     }
     if (monthIsPresent(existing.content, item.group, item.item, item.month)) {
-      throw new Error("This item is already listed for that month. Use Update to change it.");
+      if (item.group !== "Bills" || recurring) {
+        throw new Error("This item is already listed for that month. Use Update to change it.");
+      }
+      const prev=lastMonthSnapshot(existing.content,item.group,item.item,item.month);
+      if (!prev || prev[3]==="DELETE") throw new Error("This item was deleted for this month. Use Update.");
+      const oldAmount=Number(prev[3]), paid=Number(prev[4]);
+      const extra=Number(entry.amount);
+      if (![oldAmount,paid,extra].every(Number.isFinite) || extra<=0)
+        throw new Error("Enter a positive extra charge.");
+      const amount=Math.round((oldAmount+extra)*100)/100;
+      const fields=[...prev];fields[3]=amount.toFixed(2);
+      fields[5]=(Math.round((amount-paid)*100)/100).toFixed(2);
+      const extraLine=fields.join("\\t")+"\\n";
+      const expected=existing.content+(existing.content.endsWith("\\n")?"":"\\n")+extraLine;
+      if (new Blob([expected]).size>WRITE_LIMIT) throw new Error("This item history is full.");
+      await replaceWalletText(token,existing.file.id,expected);
+      if(await getFileText(token,existing.file.id)!==expected)
+        throw new Error("Could not verify the extra charge. Refresh to check.");
+      return {group:item.group,item:item.item,month:item.month};
     }
     if (recurring && lastSchedule(existing.content, item.group, item.item)?.active) {
       throw new Error("This item already has a schedule.");
@@ -812,9 +833,11 @@ export async function renewRecurringBills(token, folderId, files) {
     if (!file || !file.name?.toLowerCase().endsWith(".txt") ||
         typeof file.content !== "string") continue;
     // A single TXT belongs to one item. Only recognised active rules qualify.
-    const directives = file.content.split("\n")
-      .filter(line => line.startsWith("@RECUR\t"))
-      .map(line => line.replace(/\r$/, "").split("\t")[2])
+    const directives=file.content.split("\n")
+      .filter(line=>line.startsWith("@RECUR\t")||line.startsWith("@RECUR2\t"))
+      .map(line=>line.startsWith("@RECUR2\t")
+        ? (()=>{try{return JSON.parse(line.slice(8)).item;}catch{return "";}})()
+        : line.replace(/\r$/,"").split("\t")[2])
       .filter(Boolean);
     const uniqueItems = [...new Set(directives.map(v => v.toLocaleLowerCase("en")))];
     if (uniqueItems.length > 1) {
