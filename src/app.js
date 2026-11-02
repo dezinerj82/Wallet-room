@@ -637,6 +637,7 @@ function resetWallet() {
   if (monthLockAlert.open) monthLockAlert.close();
   walletMetadata = new Map();
   walletRemarkHistory = new Map();
+  walletRecurringRules = new Map();
   hideRemarkLog(true);
   walletCatalog = [];
   walletSchedules = [];
@@ -1414,10 +1415,9 @@ function syncItemChoice() {
   if (!newItem) addName.value = "";
   const managed = walletSchedules.some(rule => rule.active &&
     rule.group === activeAddCategory() && rule.item === addItemSelect.value);
-  if (managed && activeAddCategory() === "Bills") {
-    repeatSection.hidden = true;
-    repeatMode.value = "none"; renderRepeatOptions();
-  }
+  repeatSection.hidden = activeAddCategory() !== "Bills" || managed;
+  if (managed) repeatMode.value="none";
+  renderRepeatOptions();
 }
 
 function updateOptionalFields() {
