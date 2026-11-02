@@ -589,7 +589,6 @@ function resetWallet() {
   payPanel.hidden = true;
   payingEntry = null;
   if (walletDialog.open) walletDialog.close("cancel");
-  hideItemTooltip();
   walletBalanceReady = false;
   walletBalanceComplete = false;
   walletBalanceRow.hidden = true;
@@ -692,7 +691,7 @@ function confirmWallet(message = "Are you sure?") {
   });
 }
 
-function tooltipText(entry) {
+function remarkDetails(entry) {
   const meta = entry.meta;
   const lines = [];
   if (meta?.note?.trim() && (entry.group === "Saving" ||
@@ -859,7 +858,7 @@ function renderTable(month, target, groupStates, fromComparison = false) {
       }
       // Keep legacy snapshot remarks and append-only private note history together.
       // No tooltip or hidden interaction is necessary to read the complete remark.
-      const remarkLines = [entry.remark?.trim(), tooltipText(entry)]
+      const remarkLines = [entry.remark?.trim(), remarkDetails(entry)]
         .filter(Boolean);
       const distinctRemarks = [...new Set(remarkLines)];
       addTextCell(row, distinctRemarks.join("\n") || "—", "wallet-detail");
