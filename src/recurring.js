@@ -141,7 +141,7 @@ export function recurringBillLine(rule, month) {
       !cleanText(rule.remark, 300)) throw new Error("Invalid recurring bill.");
   const money = recurringAmount(rule,month).toFixed(2);
   const fields = [rule.group||"Bills", rule.item, month, money, "0.00", money];
-  if ((rule.group||"Bills")==="Others") fields.push("","","");
-  if (rule.remark) fields.push(rule.remark);
+  if ((rule.group||"Bills")==="Others") fields.push("","",rule.remark || "");
+  else if (rule.remark) fields.push(rule.remark);
   return fields.join("\t") + "\n";
 }
