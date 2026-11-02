@@ -2752,3 +2752,34 @@ button[data-processing="true"]::after {
 :root[data-density] .theme-panel-actions {
   column-gap: 10px;
 }
+
+/* Smooth continuous connection orbit. The green check never rotates.
+   The ring spins while Drive is loading and closes fully on success. */
+.login-check-orbit {
+  background: transparent !important;
+  filter: none;
+  isolation: isolate;
+}
+.login-check-orbit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--theme-focus) 0deg 265deg,
+    var(--theme-focus-soft) 265deg 360deg
+  );
+  box-shadow: 0 0 10px var(--theme-focus-glow);
+  animation: wallet-login-orbit 1.25s linear infinite;
+  z-index: -1;
+}
+.login-transition.is-complete .login-check-orbit::before {
+  background: var(--theme-focus);
+  animation: none;
+}
+@keyframes wallet-login-orbit {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-check-orbit::before { animation: none; }
+}
