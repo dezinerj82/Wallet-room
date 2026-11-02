@@ -4,7 +4,7 @@ import { getMyrKrwRate, formatWalletCurrency, rateDateLabel } from "./currency.j
 import { displayGroup, availableGroups, isExpenseGroup, isCustomGroup, NEW_CATEGORY, NEW_ITEM } from "./groups.js";
 import { buildMeta, parseAllMetadata, parseRemarkHistory, serviceReminders, effectiveServiceMonth, metaKey } from "./private-meta.js";
 import { plannedAlerts, validateSetupPayload } from "./setup.js";
-import { csvTemplate, parseWalletCsv } from "./csv.js";
+import { csvTemplate, parseWalletCsv, simpleWorkbook, parseSimpleWorkbook } from "./csv.js";
 import {
   WALLET_GROUPS, parseWalletFiles, entriesForMonth, calculateMonthlyPlan,
   calculatePastUnpaid, suggestedHolds,
@@ -1846,15 +1846,17 @@ savingsForm.addEventListener("submit", async event => {
 });
 
 walletDownloadTemplate.addEventListener("click", () => {
-  const data = new Blob([csvTemplate()], {type:"text/csv;charset=utf-8"});
-  const url = URL.createObjectURL(data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "home-wallet-template.csv";
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  try {
+    const data = new Blob([simpleWorkbook()], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "wallet_template.xlsx";
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch(error) { setWalletMessage(error.message || "Could not download template.",true); }
 });
 
 walletSetupButton.addEventListener("click", () => {
@@ -1872,11 +1874,14 @@ walletSetupFile.addEventListener("change", async () => {
   let started = false;
   try {
     if (!folderId || !token) throw new Error("Sign in again.");
-    if (file.size > 100 * 1024) throw new Error("Setup file is too large.");
-    const raw = await file.text();
-    const source = file.name.toLowerCase().endsWith(".csv")
-      ? validateSetupPayload(parseWalletCsv(raw))
-      : validateSetupPayload(JSON.parse(raw));
+    if (file.size > 1024 * 1024) throw new Error("Setup file is too large.");
+    const extension = file.name.toLowerCase().split(".").pop();
+    if (!["xlsx","csv","json"].includes(extension)) throw new Error("Use an Excel, CSV, or JSON file.");
+    const source = validateSetupPayload(extension === "xlsx"
+      ? parseSimpleWorkbook(await file.arrayBuffer())
+      : extension === "csv"
+        ? parseWalletCsv(await file.text())
+        : JSON.parse(await file.text()));
     if (version !== connectionVersion) return;
     if (!await confirmWallet("Import file?")) return;
     if (version !== connectionVersion || !getDriveToken()) return;
