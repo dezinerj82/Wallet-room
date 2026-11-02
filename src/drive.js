@@ -252,11 +252,11 @@ function validateEntry(entry) {
     throw new Error("The entered amount is too large.");
   }
   const rawOpeningUnpaid = String(entry?.openingUnpaid ?? "0").trim();
-  if (group === "Others" &&
+  if (isExpenseGroup(group) &&
       !/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/.test(rawOpeningUnpaid)) {
     throw new Error("Enter a valid unpaid balance.");
   }
-  const openingUnpaid = group === "Others" ? Number(rawOpeningUnpaid) : 0;
+  const openingUnpaid = isExpenseGroup(group) ? Number(rawOpeningUnpaid) : 0;
   const totalCents = Math.round(amount * 100) + Math.round(openingUnpaid * 100);
   if (!Number.isSafeInteger(totalCents)) {
     throw new Error("The total amount is too large.");
@@ -280,11 +280,11 @@ function validateEntry(entry) {
     }
   }
 
-  const totalAmount = group === "Others" ? totalCents / 100 : amount;
+  const totalAmount = isExpenseGroup(group) ? totalCents / 100 : amount;
   const fields = [group, item, month, totalAmount.toFixed(2)];
   if (group !== "IN") fields.push("0.00", totalAmount.toFixed(2));
-  if (group === "Others") {
-    fields.push(optional.retail, optional.url, optional.remark);
+  if (group === "Others" || (isExpenseGroup(group) && openingUnpaid > 0)) {
+    fields.push(group === "Others" ? optional.retail : "", group === "Others" ? optional.url : "", optional.remark);
     if (openingUnpaid > 0) fields.push(openingUnpaid.toFixed(2));
   } else if (optional.remark) {
     // Keep legacy 4-field IN and 6-field Bills entries unchanged when no
@@ -476,8 +476,8 @@ export async function addWalletItem(token, folderId, entry) {
       const amount=Math.round((oldAmount+extra)*100)/100;
       const fields=[...prev];fields[3]=amount.toFixed(2);
       fields[5]=(Math.round((amount-paid)*100)/100).toFixed(2);
-      const extraLine=fields.join("\\t")+"\\n";
-      const expected=existing.content+(existing.content.endsWith("\\n")?"":"\\n")+extraLine;
+      const extraLine=fields.join("\t")+"\n";
+      const expected=existing.content+(existing.content.endsWith("\n")?"":"\n")+extraLine;
       if (new Blob([expected]).size>WRITE_LIMIT) throw new Error("This item history is full.");
       await replaceWalletText(token,existing.file.id,expected);
       if(await getFileText(token,existing.file.id)!==expected)
@@ -614,7 +614,7 @@ function matchesDisplayedSnapshot(fields, previous) {
       return false;
     }
   }
-  if (previous.group === "Others") {
+  if (previous.group === "Others" || (isExpenseGroup(previous.group) && previous.openingUnpaid > 0)) {
     return (fields[6] || "") === (previous.retail || "") &&
       (fields[7] || "") === (previous.url || "") &&
       (fields[8] || "") === (previous.remark || "") &&
