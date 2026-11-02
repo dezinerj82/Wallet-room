@@ -199,3 +199,77 @@ export function parseWalletCsv(text, today = new Date()) {
   if (!items.length) throw new Error("CSV is empty.");
   return { version:1, month:current, items };
 }
+
+
+/* Friendly Excel bulk-import format; advanced settings remain editable in the wallet. */
+export const SIMPLE_FIELDS = Object.freeze(["Category", "Item", "Amount (RM)", "Start Month", "Repeat"]);
+export function simpleWorkbook() {
+  if (!globalThis.XLSX) throw new Error("Excel template is unavailable. Refresh and retry.");
+  const ws = XLSX.utils.aoa_to_sheet([SIMPLE_FIELDS]);
+  ws["!cols"] = [{wch:24},{wch:33},{wch:18},{wch:19},{wch:19}];
+  ws["!autofilter"] = {ref:"A1:E101"};
+  const explanations = [
+    "Type Income, Saving, Bills, Others, or your own new category name. A new category will be created when imported.",
+    "Name the item. Use one row per unique item in its category.",
+    "Enter the amount in Malaysian ringgit, without RM. Leave blank if you are creating an item without an amount. For Saving, set the monthly target here.",
+    "Type the starting month as YYYY-MM (example: 2026-11). Leave blank to start in the current month.",
+    "Choose One-time, Monthly, or Yearly. Leave blank for One-time. For Saving, leave this blank."
+  ];
+  for (let i=0;i<5;i++) {
+    const cell=ws[XLSX.utils.encode_cell({r:0,c:i})];
+    cell.c=[{a:"Wallet guide",t:explanations[i]}];
+  }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Wallet Items");
+  return XLSX.write(wb,{bookType:"xlsx",type:"array"});
+}
+export function parseSimpleWorkbook(bytes, today=new Date()) {
+  if (!globalThis.XLSX) throw new Error("Excel reader is unavailable. Refresh and retry.");
+  let book;
+  try { book=XLSX.read(bytes,{type:"array",cellDates:false}); }
+  catch { throw new Error("Could not read this Excel file. Use the downloaded Wallet template."); }
+  if (book.SheetNames.length!==1) throw new Error("Use one sheet only. Download the current Wallet template.");
+  const rows=XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:"",raw:false,blankrows:false});
+  if (!rows.length || SIMPLE_FIELDS.some((f,i)=>String(rows[0][i]||"").trim()!==f))
+    throw new Error("The Excel headings have changed. Download the current Wallet template.");
+  const current=String(today.getFullYear())+String(today.getMonth()+1).padStart(2,"0");
+  const result=[]; const used=new Set();
+  for(let i=1;i<rows.length;i++){
+    const fields=rows[i];
+    if(fields.every(v=>!String(v).trim()))continue;
+    if(fields.slice(5).some(v=>String(v).trim()))throw new Error("Row "+(i+1)+": use only the five template columns.");
+    const [category,item,amountText,monthText,repeatText]=Array.from({length:5},(_,k)=>String(fields[k]??"").trim());
+    if(!category||!item)throw new Error("Row "+(i+1)+": enter Category and Item.");
+    const group=category.toLowerCase()==="income"?"IN":category.toLowerCase()==="saving"?"Saving":category.toLowerCase()==="bills"?"Bills":category.toLowerCase()==="others"?"Others":category;
+    const key=JSON.stringify([group.toLowerCase(),item.toLowerCase()]);
+    if(used.has(key))throw new Error("Row "+(i+1)+": this item already appears in the same category.");
+    used.add(key);
+    if(result.length>=100)throw new Error("Only 100 items can be imported at a time.");
+    let month=current;
+    if(monthText){
+      const m=/^((?:19|20|21)\d{2})[-/]?(0[1-9]|1[0-2])$/.exec(monthText);
+      if(!m)throw new Error("Row "+(i+1)+": Start Month must be YYYY-MM.");
+      month=m[1]+m[2];
+    }
+    if(month<current)throw new Error("Row "+(i+1)+": past months are locked.");
+    const amount=amountText===""?null:Number(amountText);
+    if(amount!==null&&(!/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/.test(amountText)||!Number.isSafeInteger(Math.round(amount*100))))
+      throw new Error("Row "+(i+1)+": enter a valid positive amount in RM.");
+    const repeat=repeatText.toLowerCase();
+    if(!["","one-time","one time","monthly","yearly"].includes(repeat))
+      throw new Error("Row "+(i+1)+": Repeat must be One-time, Monthly or Yearly.");
+    if(group==="Saving"&&repeat&&!["one-time","one time"].includes(repeat))
+      throw new Error("Row "+(i+1)+": Saving targets do not use Repeat.");
+    const entry={group,item};
+    if(group==="Saving"){
+      if(amount!==null)entry.meta={monthlySaving:amount,savingFromMonth:month};
+    }else if(repeat==="monthly"||repeat==="yearly"){
+      if(amount===null||amount<=0)throw new Error("Row "+(i+1)+": repeating items need an amount above zero.");
+      entry.schedule={group,item,type:repeat==="yearly"?"annual":"monthly",start:month,amount,active:true};
+      if(repeat==="yearly")entry.schedule.months=[Number(month.slice(4))];
+    }else if(amount!==null&&amount>0)entry.record={month,amount};
+    result.push(entry);
+  }
+  if(!result.length)throw new Error("The Excel sheet has no items.");
+  return {version:1,month:current,items:result};
+}
