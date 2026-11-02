@@ -2758,3 +2758,33 @@ button[data-processing="true"]::after {
 @media (prefers-reduced-motion: reduce) {
   .login-check-orbit::before { animation: none; }
 }
+
+/* Connection success: Spin & Complete (#5). Keep the existing animated orbit
+   while connecting; finish with a single smooth check-circle rotation/pop. */
+.login-transition.is-complete .login-check-orbit .login-transition-check {
+  animation: wallet-login-success-spin .68s cubic-bezier(.2,.78,.25,1) both;
+  transform-origin: center;
+}
+.login-transition.is-complete .login-check-orbit::before {
+  background: var(--theme-focus);
+  animation: wallet-login-ring-complete .68s ease-out both;
+}
+@keyframes wallet-login-success-spin {
+  0% { transform: rotate(-145deg) scale(.76); opacity: .55; }
+  62% { transform: rotate(12deg) scale(1.12); opacity: 1; }
+  82% { transform: rotate(-4deg) scale(.97); opacity: 1; }
+  100% { transform: rotate(0) scale(1); opacity: 1; }
+}
+@keyframes wallet-login-ring-complete {
+  0% { transform: rotate(-25deg) scale(.93); opacity: .75; }
+  65% { transform: rotate(4deg) scale(1.07); opacity: 1; }
+  100% { transform: rotate(0) scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-transition.is-complete .login-check-orbit .login-transition-check,
+  .login-transition.is-complete .login-check-orbit::before {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+}
