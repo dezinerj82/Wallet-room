@@ -2713,3 +2713,15 @@ button[data-processing="true"]::after {
   :root[data-density] .wallet-table,
   :root[data-density] .other-months-table { min-width: 38rem; }
 }
+
+/* Inner category pills are flat; the containing table retains its shadow. */
+:root[data-density] .wallet-table .group-toggle,
+:root[data-density] .other-months-table .group-toggle {
+  box-shadow: none !important;
+}
+/* Consistent text size and height for all fields, including month picker. */
+:root[data-density] .add-grid input:not([type="checkbox"]),
+:root[data-density] .add-grid select {
+  font-size: 1rem;
+  min-height: calc(2.75rem * var(--theme-space-factor));
+}
