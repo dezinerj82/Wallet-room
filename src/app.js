@@ -1343,6 +1343,29 @@ function validateItemDetails(group) {
   }
   return true;
 }
+// Remarks are limited by words, not characters; old saved notes remain intact.
+const REMARK_WORD_LIMIT = 100;
+const REMARK_LIMIT_MESSAGE = "Exceeds 100 words. Please remove some words.";
+function countRemarkWords(value) {
+  const words = String(value || "").trim().match(/\S+/gu);
+  return words ? words.length : 0;
+}
+function validateRemarkWords(control, statusElement, form) {
+  if (countRemarkWords(control.value) <= REMARK_WORD_LIMIT) return true;
+  flagFormField(control, REMARK_LIMIT_MESSAGE, statusElement,
+    form === addForm && addOptions.contains(control));
+  return false;
+}
+addHoverNote.addEventListener("input", () => {
+  if (countRemarkWords(addHoverNote.value) <= REMARK_WORD_LIMIT) return;
+  const message = addHoverNote === addHoverNote ? addStatus : savingsStatus;
+  message.textContent = REMARK_LIMIT_MESSAGE;
+});
+savingsNote.addEventListener("input", () => {
+  if (countRemarkWords(savingsNote.value) <= REMARK_WORD_LIMIT) return;
+  const message = savingsNote === addHoverNote ? addStatus : savingsStatus;
+  message.textContent = REMARK_LIMIT_MESSAGE;
+});
 function enteredPrivateMeta(group, item) {
   if (group === "Withdraw") return null;
   const service = group !== "IN" && group !== "Saving";
@@ -1666,6 +1689,7 @@ savingsForm.addEventListener("submit", async event => {
   const previous = editingSavings;
   if (!previous || !activeFolderId || !getDriveToken()) return;
   if (!validateWalletForm(savingsForm, savingsStatus)) return;
+  if (!validateRemarkWords(savingsNote, savingsStatus, savingsForm)) return;
   const version = connectionVersion;
   savingsSave.disabled = true;
   savingsSave.dataset.processing = "true";
@@ -1866,6 +1890,7 @@ addForm.addEventListener("submit", async event => {
     return;
   }
   if (!validateWalletForm(addForm, addStatus)) return;
+  if (!validateRemarkWords(addHoverNote, addStatus, addForm)) return;
   const validationGroup = editingEntry?.group || activeAddCategory();
   if (!validateItemDetails(validationGroup)) return;
   const version = connectionVersion;
