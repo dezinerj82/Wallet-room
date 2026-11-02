@@ -55,7 +55,7 @@ SAVING
 - Savings balances remain separate from ordinary spendable income.
 
 BILLS
-- Only Bills supports an opt-in Recurring monthly control in Add and Update.
+- Bills supports compact recurrence settings inside More options: None, Monthly, or Weekly, with an optional end month. Monthly uses a fixed estimated amount; Weekly uses selected weekdays and one estimated rate per weekday, with each month calculated from the calendar.
 - An authenticated one-time import may configure private recurrence schedules for Income, Bills and Others independently of the Bills form checkbox.
 - A Bills recurrence rule is stored in the same private per-item TXT file as an append-only metadata directive; non-Bills groups are never generated automatically.
 - Initially fill selected current or future months through December 2027, without editing locked earlier months.
@@ -69,7 +69,7 @@ BILLS
 - Private @SCHEDULE directives support monthly, designated annual months, and fixed service intervals; optional dated amount changes must be explicit.
 - No missed recurrence reminders are replayed: only the present reminder date or lead month may trigger a new popup.
 - When service history contains a newly fully paid service, derive the next reminder from that actual latest paid-service month.
-- Recurring charges may be fixed, calendar-calculated, variable or contract-dependent.
+- Recurring charges may be fixed or calculated from weekday rates. Changing a Bills recurrence in Update affects the selected current/future month and later unpaid open-month estimates; preserve paid and historical records and any separately added amount. Final actual bills are confirmed during Clear bill.
 - Periodic charges appear only in configured due months, with reminders.
 - Others accepts new individual items, optional shop information, URL and remarks.
 - Multiple charges against an existing Others item accumulate under that same item.
@@ -154,7 +154,7 @@ ADD / EDIT / REMOVE FORM
 - Keep private item values, rankings, names, hover notes, and real amounts out of GitHub and public process documents.
 - Custom categories are valid user-named expense groups; do not allow custom names that conflict with reserved categories or commands.
 - The same item name may exist in different categories without mixing histories.
-- More options allows editing private hover notes and optional service dates/reminder settings; these are separate from user Remarks.
+- More options contains relevant recurrence settings for Bills, private hover notes and optional service reminders. User Remarks remain separate.
 - Savings settings permits an explicit access designation and private hover note but does not edit saved financial balances.
 - Date: select the current or a future payment month; allow typed dates converted to YYYYMM.
 - Amount: numeric MYR, without a currency prefix in the entry field.
@@ -175,7 +175,7 @@ ADD / EDIT / REMOVE FORM
 - Forecasts and outstanding totals, when enabled, use only the latest effective non-deleted item/month state; future-month records are not changed by a deletion.
 - Empty groups display a simple No items row instead of looking broken.
 - Add may create IN, Bills and Others entries for the current or future months, only after explicit submission; for existing items it may append a new month while preserving historical lines.
-- A second Add for the same item/month is refused; use Update to amend the existing month instead.
+- A second Add for the same Bills item/month adds its positive entered amount to the existing monthly total as an extra charge; retain the original bill and any paid amount. Other groups continue to reject duplicate item/month Adds and use Update instead.
 - Update is available for open-month IN, Bills and Others item rows and appends a new complete snapshot to the same item TXT log without deleting previous lines.
 - A stale Update must be refused if the item's current saved snapshot differs from the loaded record.
 - Updating a bill or Others item preserves the amount already paid, recalculates the remaining unpaid amount, and refuses a revised charge below the amount paid.
