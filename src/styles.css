@@ -2301,3 +2301,79 @@ body:has(#login-view:not([hidden])) #theme-open {
   min-height: 3.2rem;
   margin: 0;
 }
+
+/* UI alignment refinements. All colors inherit the centralized theme. */
+
+/* Use the entire available page width for the title underline. */
+.site-heading-row {
+  position: relative;
+  padding-bottom: .8rem;
+  border-bottom: 3px solid var(--theme-secondary);
+}
+.site-heading-row h1 {
+  border-bottom: 0 !important;
+  padding-bottom: 0;
+}
+
+/* Category headings align with the beginning of the Item column. */
+.wallet-table .group-heading th,
+.other-months-table .group-heading th {
+  padding-left: .3rem;
+}
+
+/* Update pencil belongs to the Navigation palette, with no visible frame. */
+.update-item-button,
+.update-item-button:not(:disabled) {
+  --btn-bg: transparent;
+  --btn-text: var(--theme-navigation-text);
+  --btn-hover: var(--theme-navigation-hover);
+  --btn-hover-text: var(--theme-navigation-hover-text);
+  background: transparent;
+  color: var(--theme-navigation-text);
+  border: 0;
+  box-shadow: none;
+}
+.update-item-button:hover:not(:disabled) {
+  background: var(--theme-navigation) !important;
+  color: var(--theme-navigation-text) !important;
+  box-shadow: none !important;
+}
+.update-item-button svg { stroke: currentColor; }
+
+/* Theme is a standard-sized Navigation action on both screens. */
+#theme-open {
+  font-size: .9rem;
+  font-weight: 500;
+  padding: .53rem 1.05rem;
+  min-height: 2.35rem;
+  line-height: 1.2;
+  border-radius: 999px;
+}
+body:has(#login-view:not([hidden])) #theme-open {
+  top: calc(100% + 1.75rem);
+  min-height: 2.35rem;
+  transform: translateY(.85rem);
+}
+
+/* Tooltip uses the softened category hover shade rather than the solid pill. */
+.hover-tooltip,
+.hover-tooltip.group-in,
+.hover-tooltip.group-saving,
+.hover-tooltip.group-bills,
+.hover-tooltip.group-others,
+.hover-tooltip.group-custom {
+  background: var(--theme-note-bg, var(--theme-secondary-soft)) !important;
+  color: var(--theme-note-fg, var(--theme-content)) !important;
+}
+
+/* Focus and processing are a single theme role. */
+.progress-motion, .login-progress-fill {
+  background: linear-gradient(90deg,var(--theme-focus-soft),var(--theme-focus)) !important;
+  filter: drop-shadow(0 0 4px var(--theme-focus-glow));
+}
+button[data-processing="true"]::after {
+  background: conic-gradient(from var(--theme-process-angle,0deg),
+    transparent 0deg,transparent 265deg,var(--theme-focus) 335deg,
+    var(--theme-focus) 360deg);
+  filter: drop-shadow(0 0 4px var(--theme-focus-glow));
+}
