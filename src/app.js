@@ -1009,7 +1009,7 @@ function renderTable(month, target, groupStates, fromComparison = false) {
       noteLines.setAttribute("d", "M9 8h6M9 12h6M9 16h4");
       remarkIcon.append(noteOutline, noteLines);
       remarkButton.append(remarkIcon);
-      remarkButton.title = "Remark for " + entry.item;
+      // Accessible label supplies the name without a second native browser tooltip.
       // Remark only reads the saved history; Edit remains the sole editing action.
       remarkButton.disabled = false;
       remarkButton.setAttribute("aria-label", "View remark history for " + entry.item);
