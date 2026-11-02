@@ -1992,3 +1992,270 @@ h1 { border-bottom-color: #9dd5d7; }
 @media (max-width: 400px) {
   .pay-form-grid { grid-template-columns: minmax(0, 1fr) minmax(7rem, 1fr); gap: .65rem; }
 }
+
+/* THEME ENGINE: one semantic palette shared by login, wallet and dialogs.
+   These rules intentionally supersede legacy hardcoded color declarations. */
+:root {
+  --theme-primary: #223A5E;
+  --theme-primary-text: #FFFFFF;
+  --theme-secondary: #79C8D6;
+  --theme-navigation: #F1CCB7;
+  --theme-background: #F7FAFC;
+  --theme-focus: #FEDC8B;
+  --theme-progress: #79C8D6;
+  --theme-success: #62CFA5;
+  --theme-danger: #E97A8D;
+  --theme-content: #172B42;
+  --theme-content-muted: #637181;
+  --theme-surface: #FFFFFF;
+  --theme-subtle: #E3E9F0;
+  --theme-space-factor: 1;
+  --theme-width: 66rem;
+  --theme-primary-glow: rgba(34,58,94,.4);
+  --theme-focus-glow: rgba(254,220,139,.4);
+}
+:root[data-density="compact"] { --theme-width: 66rem; --theme-space-factor: .78; }
+:root[data-density="comfortable"] { --theme-width: 76rem; --theme-space-factor: 1; }
+:root[data-density="wide"] { --theme-width: 100rem; --theme-space-factor: 1.23; }
+html, body { background: var(--theme-background) !important; color: var(--theme-content) !important; }
+main { max-width: min(calc(100% - 1rem), var(--theme-width)); padding-inline: clamp(.5rem,2vw,1.5rem); }
+.site-heading-row { display:flex; gap:1rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.site-heading-row h1 { margin-bottom:0; flex:1; }
+.site-heading-row { margin-bottom:1.25rem; }
+.brand-home, .brand-wallet, #login-view h2, #wallet-heading #month-label { color: var(--theme-primary) !important; }
+.site-heading-row h1 { border-color:var(--theme-secondary); }
+#theme-open {
+  --btn-bg: var(--theme-navigation);
+  --btn-hover: var(--theme-navigation-hover);
+  --btn-text: var(--theme-navigation-text);
+}
+#login-view.front-door, #login-view.front-door::before {
+  background: var(--theme-background);
+}
+#login-view.front-door::before {
+  background:
+    radial-gradient(ellipse at 105% -10%, var(--theme-secondary-soft) 0 37%, transparent 37.3%),
+    linear-gradient(154deg, transparent 59%, var(--theme-navigation-soft) 59.2%, var(--theme-background) 86%);
+}
+#login-view .front-door-input-wrap, .front-door-input-wrap,
+.add-item-panel, .item-options, .other-months-window,
+.wallet-dialog, .month-lock-alert, .login-transition {
+  background: var(--theme-surface) !important;
+  color: var(--theme-content) !important;
+}
+#login-view .front-door-input-wrap input,
+.add-grid input, .add-grid select, .add-grid textarea,
+.setting-note input, .setting-note textarea,
+.pay-form-grid input, .currency-select {
+  background: var(--theme-surface) !important;
+  color: var(--theme-content) !important;
+  border-color: transparent !important;
+  font-family:inherit;
+  box-shadow: 0 3px 12px rgba(25,42,64,.07);
+}
+input::placeholder, textarea::placeholder { color: var(--theme-content-muted) !important; }
+#login-view #login-start-button, #login-view #login-email-next, #login-view #login-button {
+  --btn-bg:var(--theme-primary);
+  --btn-hover:var(--theme-primary-hover);
+  --btn-text:var(--theme-primary-text);
+  background:var(--btn-bg);
+  color:var(--btn-text);
+}
+#login-view #login-email-next:hover:not(:disabled) { background:var(--btn-hover); }
+#login-view #login-email-form.login-approved #login-email-next {
+  background:var(--theme-success) !important;
+  color:var(--theme-success-text) !important;
+}
+#login-view #login-email-form.login-denied #login-email-next {
+  background:var(--theme-danger) !important;
+  color:var(--theme-danger-text) !important;
+}
+.login-transition.is-complete .login-transition-check,
+.front-door-denied-icon { background:var(--theme-success);color:var(--theme-success-text); }
+.front-door-denied-icon { background:var(--theme-danger);color:var(--theme-danger-text); }
+.login-transition-success p { color:var(--theme-content); }
+#wallet-heading, .wallet-heading-row h2, #wallet-balance:not(.balance-negative),
+.wallet-balance-pill:not(.balance-negative):not(.wallet-unpaid-pill) {
+  background:var(--theme-primary) !important;
+  color:var(--theme-primary-text) !important;
+}
+#wallet-heading #month-label { color:var(--theme-primary-text) !important; }
+.wallet-unpaid-pill {
+  background:var(--theme-navigation) !important;
+  color:var(--theme-navigation-text) !important;
+}
+.wallet-balance-pill.balance-negative, #wallet-balance.balance-negative {
+  background:var(--theme-danger) !important;
+  color:var(--theme-danger-text) !important;
+}
+.wallet-table-wrap, .other-months-table-wrap, .wallet-table,
+.wallet-table thead, .other-months-table, .other-months-table thead {
+  background:var(--theme-surface) !important;
+  border-color:var(--theme-subtle) !important;
+}
+.wallet-table th,.wallet-table td,
+.other-months-table th,.other-months-table td,
+.pay-form-grid strong,.clear-bill-name {
+  color:var(--theme-content) !important;
+  border-color:var(--theme-subtle);
+}
+.wallet-table thead th,.other-months-table thead th { border-bottom-color:var(--theme-primary) !important; }
+.wallet-actions #clear-bill-button,
+#submit-item-button, #saving-settings-save, #pay-item-save,
+#clear-bill-submit, #wallet-dialog-ok {
+  --btn-bg:var(--theme-primary);
+  --btn-hover:var(--theme-primary-hover);
+  --btn-text:var(--theme-primary-text);
+}
+.wallet-actions #other-months-button,
+.wallet-actions #refresh-wallet-button,
+#cancel-item-button,#saving-settings-cancel,#pay-item-cancel,
+#clear-bill-cancel,#wallet-dialog-cancel,
+.other-months-nav button,#wallet-download-template,
+.wallet-import-actions #wallet-download-template {
+  --btn-bg:var(--theme-navigation);
+  --btn-hover:var(--theme-navigation-hover);
+  --btn-text:var(--theme-navigation-text);
+}
+.wallet-actions #add-item-button, #wallet-setup-button,
+.wallet-import-actions #wallet-setup-button,.pay-item-button {
+  --btn-bg:var(--theme-secondary);
+  --btn-hover:var(--theme-secondary-hover);
+  --btn-text:var(--theme-secondary-text);
+}
+.wallet-actions #logout-button, #delete-item-button {
+  --btn-bg:var(--theme-danger);
+  --btn-hover:var(--theme-danger-hover);
+  --btn-text:var(--theme-danger-text);
+}
+.wallet-actions button, .wallet-import-actions button, .form-actions-right button,
+.pay-item-button, .group-toggle, #login-start-button {
+  background:var(--btn-bg) !important;
+  color:var(--btn-text) !important;
+  border:0 !important;
+}
+.wallet-actions button:hover:not(:disabled), .wallet-import-actions button:hover:not(:disabled),
+.form-actions-right button:hover:not(:disabled), .pay-item-button:hover:not(:disabled),
+.group-toggle:hover:not(:disabled), #theme-open:hover:not(:disabled) {
+  background:var(--btn-hover) !important;
+}
+button:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--theme-focus) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px var(--theme-focus-glow) !important;
+}
+button:disabled, button[aria-disabled="true"], input:disabled {
+  background:#DCE1E7 !important;
+  color:#65717F !important;
+  box-shadow:none !important;
+  filter:none !important;
+  cursor:not-allowed;
+  animation:none !important;
+}
+.group-toggle {
+  background:var(--btn-bg) !important;
+  color:var(--btn-text) !important;
+}
+.hover-tooltip, .hover-tooltip.group-in, .hover-tooltip.group-saving,
+.hover-tooltip.group-bills, .hover-tooltip.group-others, .hover-tooltip.group-custom {
+  background:var(--theme-note-bg,var(--theme-secondary)) !important;
+  color:var(--theme-note-fg,var(--theme-secondary-text)) !important;
+  border:0 !important;
+}
+.wallet-field-hint, .add-item-panel .form-status:not(:empty) {
+  background:var(--theme-danger-soft);
+  color:var(--theme-content);
+  border:0 !important;
+}
+.wallet-invalid-field { box-shadow:0 0 0 3px var(--theme-danger-glow) !important; }
+.wallet-balance-warning, .saving-plan-adjusted, .wallet-message-error {
+  color:var(--theme-danger) !important;
+}
+.hold-badge { background:var(--theme-danger-soft);color:var(--theme-content);border:0; }
+.progress-motion, .login-progress-fill {
+  background:linear-gradient(90deg,var(--theme-progress-soft),var(--theme-progress));
+  filter:drop-shadow(0 0 4px var(--theme-progress-glow));
+}
+.progress-track,.login-progress-track { background:var(--theme-progress-soft); }
+.login-transition.is-complete .login-progress-fill { background:var(--theme-success); }
+.wallet-dialog,.month-lock-alert {
+  border:0 !important;
+  border-radius:24px;
+  box-shadow:0 14px 38px rgba(25,42,64,.13);
+}
+#login-view .front-door-status,.operation-progress-text,.exchange-info {
+  color:var(--theme-content-muted);
+}
+.add-item-panel h3,.other-months-heading h2,.theme-panel h2 { color:var(--theme-primary); }
+.add-grid,.add-item-panel,.wallet-table th,.wallet-table td {
+  line-height:1.4;
+}
+.add-grid input,.add-grid select,.setting-note input,.pay-form-grid input {
+  min-height:calc(2.75rem * var(--theme-space-factor));
+  padding:calc(.65rem * var(--theme-space-factor)) .9rem;
+}
+.wallet-table th,.wallet-table td {
+  padding:calc(.8rem * var(--theme-space-factor)) calc(1rem * var(--theme-space-factor));
+}
+.wallet-actions button,.form-actions-right button,.wallet-import-actions button {
+  min-height:calc(2.35rem * var(--theme-space-factor));
+  padding:calc(.55rem * var(--theme-space-factor)) calc(1.02rem * var(--theme-space-factor));
+}
+.wallet-heading-row,.wallet-actions,.add-grid,.pay-form-grid { row-gap:calc(.85rem * var(--theme-space-factor)); }
+#login-view.front-door { min-height:calc(55vh * var(--theme-space-factor)); }
+#theme-panel {
+  position:fixed;
+  inset:0;
+  margin:auto;
+  width:min(94vw,39rem);
+  max-height: min(88vh,850px);
+  overflow:auto;
+  background:var(--theme-surface);
+  color:var(--theme-content);
+  border:0;
+  border-radius:24px;
+  padding:clamp(1rem,3vw,1.8rem);
+  box-shadow:0 18px 55px rgba(20,35,56,.18);
+  font-family:inherit;
+}
+#theme-panel::backdrop { background:rgba(20,35,56,.3); }
+.theme-panel-heading { display:flex;align-items:center;justify-content:space-between;gap:1rem; }
+.theme-panel-heading h2 { margin:0; }
+.theme-explainer { font-size:.9rem;color:var(--theme-content-muted); }
+.theme-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem 1rem; }
+.theme-color-field { display:flex;align-items:center;gap:.7rem;min-width:0; }
+.theme-color-field label { flex:1; min-width:0; font-size:.88rem;font-weight:600; }
+.theme-color-field input[type="color"] {
+  width:2.6rem;height:2.6rem;min-width:2.6rem;
+  padding:3px;border:0;border-radius:13px;
+  background:var(--theme-surface);cursor:pointer;
+}
+.theme-color-hex { font-size:.72rem;color:var(--theme-content-muted); }
+.theme-layout {border:0;margin:1rem 0;padding:0;}
+.theme-layout legend {font-weight:600;margin-bottom:.6rem;}
+.theme-layout-options {display:flex;flex-wrap:wrap;gap:.5rem 1.1rem;}
+.theme-layout-options label {display:flex;align-items:center;gap:.4rem;font-size:.88rem;}
+#theme-contrast-status {font-size:.87rem;min-height:1.4rem;color:var(--theme-content-muted);}
+.theme-panel-actions {display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.55rem;}
+#theme-save {--btn-bg:var(--theme-primary);--btn-hover:var(--theme-primary-hover);--btn-text:var(--theme-primary-text);}
+#theme-reset,#theme-cancel,#theme-close {--btn-bg:var(--theme-navigation);--btn-hover:var(--theme-navigation-hover);--btn-text:var(--theme-navigation-text);}
+#theme-panel button {background:var(--btn-bg);color:var(--btn-text);}
+#theme-panel button:hover:not(:disabled) {background:var(--btn-hover);}
+button[data-processing="true"] { position:relative;isolation:isolate; }
+button[data-processing="true"]::after {
+  content:"";pointer-events:none;position:absolute;inset:-4px;border-radius:inherit;
+  padding:2px;
+  background:conic-gradient(from var(--theme-process-angle,0deg),
+    transparent 0deg,transparent 265deg,var(--theme-progress) 335deg,
+    var(--theme-progress) 360deg);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:wallet-theme-orbit 1.1s linear infinite;
+  filter:drop-shadow(0 0 4px var(--theme-progress-glow));
+}
+@property --theme-process-angle {syntax:"<angle>";initial-value:0deg;inherits:false;}
+@keyframes wallet-theme-orbit { to { --theme-process-angle:360deg; } }
+@media(hover:none) {button:hover:not(:disabled) {filter:none;}}
+@media(prefers-reduced-motion:reduce) {button[data-processing="true"]::after {animation:none;}}
+@media(max-width:540px) {.theme-fields {grid-template-columns:1fr;}.site-heading-row h1{font-size:clamp(2.1rem,8vw,3rem);}}
