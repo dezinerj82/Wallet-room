@@ -1439,7 +1439,7 @@ function updateOptionalFields() {
   if (!expense || scheduleManaged) repeatMode.value = "none";
   renderRepeatOptions();
   addUnpaidField.hidden = !others;
-  addInstallmentField.hidden = !others || Boolean(editingEntry);
+  addInstallmentField.hidden = !expense || Boolean(editingEntry);
   if (editingEntry) addInstallment.value = "";
   addOptions.hidden = isWithdrawal;
   if (!editingEntry) {
@@ -2152,7 +2152,7 @@ addForm.addEventListener("submit", async event => {
         url: addUrl.value,
         remark: addRemark.value,
         recurring: isExpenseGroup(group) && repeatMode.value !== "none",
-        repeatRule: group === "Bills" && repeatMode.value !== "none" ? {
+        repeatRule: isExpenseGroup(group) && repeatMode.value !== "none" ? {
           type:repeatMode.value === "annual" ? "annual" : repeatMode.value,
           end:repeatEndMonth.value.replace("-",""),
           days:repeatMode.value==="weekly"
@@ -2161,7 +2161,7 @@ addForm.addEventListener("submit", async event => {
         } : null,
         meta: enteredPrivateMeta(group, item)
       };
-      const months = group === "Others" && !previous && addInstallment.value.trim()
+      const months = isExpenseGroup(group) && !previous && addInstallment.value.trim()
         ? Number(addInstallment.value) : 1;
       if (!Number.isInteger(months) || months < 1 || months > 120) {
         throw new Error("Installment must be between 1 and 120 months.");
