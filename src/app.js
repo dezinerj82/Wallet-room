@@ -870,7 +870,7 @@ function renderTable(month, target, groupStates, fromComparison = false) {
       const editButton = document.createElement("button");
       editButton.type = "button";
       editButton.className = "update-item-button";
-      editButton.setAttribute("aria-label", "Update " + entry.item);
+      editButton.setAttribute("aria-label", "Edit " + entry.item);
       const editable = entry.group === "Saving" ||
         (!fromComparison && !entry.carryOver && entry.month >= currentMonth);
       editButton.disabled = !editable;
@@ -902,11 +902,31 @@ function renderTable(month, target, groupStates, fromComparison = false) {
           }
         });
       }
-      editButton.append(document.createTextNode(" Edit"));
+
       const remarkButton = document.createElement("button");
       remarkButton.type = "button";
       remarkButton.className = "remark-action-button";
-      remarkButton.textContent = "Remark";
+      const remarkIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      remarkIcon.setAttribute("viewBox", "0 0 24 24");
+      remarkIcon.setAttribute("width", "18");
+      remarkIcon.setAttribute("height", "18");
+      remarkIcon.setAttribute("fill", "none");
+      remarkIcon.setAttribute("stroke", "currentColor");
+      remarkIcon.setAttribute("stroke-width", "1.8");
+      remarkIcon.setAttribute("stroke-linecap", "round");
+      remarkIcon.setAttribute("stroke-linejoin", "round");
+      remarkIcon.setAttribute("aria-hidden", "true");
+      const noteOutline = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      noteOutline.setAttribute("x", "5");
+      noteOutline.setAttribute("y", "3");
+      noteOutline.setAttribute("width", "14");
+      noteOutline.setAttribute("height", "18");
+      noteOutline.setAttribute("rx", "2");
+      const noteLines = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      noteLines.setAttribute("d", "M9 8h6M9 12h6M9 16h4");
+      remarkIcon.append(noteOutline, noteLines);
+      remarkButton.append(remarkIcon);
+      remarkButton.title = "Remark for " + entry.item;
       remarkButton.disabled = !editable;
       remarkButton.setAttribute("aria-label", "Add remark to " + entry.item);
       if (editable) remarkButton.addEventListener("click", () => {
