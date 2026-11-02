@@ -1356,16 +1356,13 @@ function validateRemarkWords(control, statusElement, form) {
     form === addForm && addOptions.contains(control));
   return false;
 }
-addHoverNote.addEventListener("input", () => {
-  if (countRemarkWords(addHoverNote.value) <= REMARK_WORD_LIMIT) return;
-  const message = addHoverNote === addHoverNote ? addStatus : savingsStatus;
-  message.textContent = REMARK_LIMIT_MESSAGE;
-});
-savingsNote.addEventListener("input", () => {
-  if (countRemarkWords(savingsNote.value) <= REMARK_WORD_LIMIT) return;
-  const message = savingsNote === addHoverNote ? addStatus : savingsStatus;
-  message.textContent = REMARK_LIMIT_MESSAGE;
-});
+for (const [field, message] of [[addHoverNote, addStatus], [savingsNote, savingsStatus]]) {
+  field.addEventListener("input", () => {
+    const exceeded = countRemarkWords(field.value) > REMARK_WORD_LIMIT;
+    if (exceeded) message.textContent = REMARK_LIMIT_MESSAGE;
+    else if (message.textContent === REMARK_LIMIT_MESSAGE) message.textContent = "";
+  });
+}
 function enteredPrivateMeta(group, item) {
   if (group === "Withdraw") return null;
   const service = group !== "IN" && group !== "Saving";
