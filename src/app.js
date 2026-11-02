@@ -719,7 +719,18 @@ function remarkLogEntries(entry) {
   for (const text of fallback.map(value => value?.trim()).filter(Boolean)) {
     if (!seen.has(text)) records.push({date:"", text});
   }
-  return records;
+  // Newest first. Dated remarks sort by timestamp; legacy undated
+  // remarks retain append order (reversed) after dated remarks.
+  return records.map((record, index) => ({...record, index}))
+    .sort((a, b) => {
+      const aDate = a.date ? Date.parse(a.date) : NaN;
+      const bDate = b.date ? Date.parse(b.date) : NaN;
+      const aValid = Number.isFinite(aDate);
+      const bValid = Number.isFinite(bDate);
+      if (aValid && bValid && aDate !== bDate) return bDate - aDate;
+      if (aValid !== bValid) return aValid ? -1 : 1;
+      return b.index - a.index;
+    });
 }
 function showRemarkLog(button, entry, pin = false) {
   if (remarkPinned && !pin) return;
