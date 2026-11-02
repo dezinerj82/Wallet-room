@@ -187,26 +187,8 @@ select:focus-visible {
 }
 
 /* The selected month and month controls are the shared table text size. */
-.month-nav {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: .65rem 1rem;
-  margin: 2.15rem 0 2.8rem;
-}
-.month-nav button,
 #month-label {
   line-height: 1.3;
-}
-.month-nav button {
-  --btn-bg: var(--alice-blue);
-  --btn-hover: #d8f5ef;
-  --btn-text: #1a535c;
-  min-height: 2.3rem;
-  padding: .5rem .95rem;
-  font-size: .9rem;
-  font-weight: 500;
 }
 #month-label {
   min-width: 10.7rem;
@@ -516,9 +498,7 @@ select:focus-visible {
   .wallet-heading-row { align-items: flex-end; }
   .wallet-actions { gap: .4rem; }
   .wallet-actions button { padding: .55rem .85rem; }
-  .month-nav { gap: .55rem; margin: 1.8rem 0 2.3rem; }
   #month-label { width: 100%; order: -1; }
-  .month-nav button { padding: .5rem .8rem; }
   .wallet-table th,
   .wallet-table td { padding: .7rem .8rem; }
   .group-heading th { padding: .8rem .8rem .35rem; }
@@ -908,34 +888,6 @@ select:focus-visible {
 }
 @media (max-width: 600px) { .add-grid .full-field { grid-column: auto; } }
 
-.wallet-item-note {
-  display: inline-block;
-  max-width: 100%;
-  border-bottom: 1px dotted var(--soft-indigo);
-  cursor: help;
-}
-.wallet-item-note:focus-visible {
-  outline: 2px solid var(--soft-indigo);
-}
-.hover-tooltip {
-  position: fixed;
-  z-index: 60;
-  max-width: min(21rem, 78vw);
-  min-width: 10rem;
-  padding: .8rem 1rem;
-  border-radius: 14px;
-  border: 1px solid #c6e5de;
-  background: var(--paper);
-  color: #17474e;
-  white-space: pre-line;
-  overflow-wrap: anywhere;
-  text-align: left;
-  line-height: 1.45;
-  font-size: .9rem;
-  pointer-events: none;
-  box-shadow: 0 10px 26px rgba(32, 49, 75, .19);
-}
-
 .wallet-dialog {
   width: min(22rem, calc(100vw - 2rem));
   max-width: none;
@@ -1129,8 +1081,6 @@ select:focus-visible {
 .front-door-step-label { font-size: 1.05rem; font-weight: 600; color: #405579; margin: 0 0 1rem; }
 #login-button { display: inline-flex; align-items: center; justify-content: center; gap: 1.1rem; min-height: 3.4rem; padding: .85rem 1.5rem; background: #f7bd4b; color: #513c12; font-size: 1.05rem; }
 #login-button:hover:not(:disabled) { background: #eab03a; }
-.front-door-back { display: block; margin: 1rem auto 0; min-height: 2.1rem; background: transparent; box-shadow: none; color: #405579; font-size: .9rem; }
-.front-door-back:hover:not(:disabled) { background: #e5eef4; }
 .front-door-status { min-height: 1.4rem; margin: 1.1rem 0 0; color: #405579; font-size: .85rem; }
 .front-door-denied-icon { width: 3.9rem; height: 3.9rem; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: #e95061; color: white; font-size: 3rem; line-height: 1; }
 .front-door-denied-title { color: #d83c54; font-weight: 700; font-size: 1.25rem; margin: 0 0 .5rem; }
@@ -1336,20 +1286,8 @@ select:focus-visible {
   margin: 0;
   opacity: 1;
 }
-.login-progress-track {
-  width: min(78vw, 35rem);
-}
-.login-progress-fill {
-  /* Inherit the same indefinite sliding motion and colors as wallet Refresh. */
-}
-.login-transition.is-complete .login-progress-fill {
-  animation: none;
-  left: 0;
-  transform: none;
-  width: 100%;
-}
 @media (prefers-reduced-motion: reduce) {
-  .login-transition-success, .login-progress-fill { transition: none; }
+  .login-transition-success { transition: none; }
 }
 
 /* Point directly to a form field needing correction. */
@@ -1696,12 +1634,6 @@ button:disabled, button[aria-disabled="true"], input:disabled {
   background:var(--btn-bg) !important;
   color:var(--btn-text) !important;
 }
-.hover-tooltip, .hover-tooltip.group-in, .hover-tooltip.group-saving,
-.hover-tooltip.group-bills, .hover-tooltip.group-others, .hover-tooltip.group-custom {
-  background:var(--theme-note-bg,var(--theme-secondary)) !important;
-  color:var(--theme-note-fg,var(--theme-secondary-text)) !important;
-  border:0 !important;
-}
 .wallet-field-hint, .add-item-panel .form-status:not(:empty) {
   background:var(--theme-danger-soft);
   color:var(--theme-content);
@@ -1712,12 +1644,11 @@ button:disabled, button[aria-disabled="true"], input:disabled {
   color:var(--theme-danger) !important;
 }
 .hold-badge { background:var(--theme-danger-soft);color:var(--theme-content);border:0; }
-.progress-motion, .login-progress-fill {
+.progress-motion {
   background:linear-gradient(90deg,var(--theme-progress-soft),var(--theme-progress));
   filter:drop-shadow(0 0 4px var(--theme-progress-glow));
 }
-.progress-track,.login-progress-track { background:var(--theme-progress-soft); }
-.login-transition.is-complete .login-progress-fill { background:var(--theme-success); }
+.progress-track { background:var(--theme-progress-soft); }
 .wallet-dialog,.month-lock-alert {
   border:0 !important;
   border-radius:24px;
@@ -1897,7 +1828,7 @@ body:has(#login-view:not([hidden])) #theme-open {
 }
 
 /* Focus and processing are a single theme role. */
-.progress-motion, .login-progress-fill {
+.progress-motion {
   background: linear-gradient(90deg,var(--theme-focus-soft),var(--theme-focus)) !important;
   filter: drop-shadow(0 0 4px var(--theme-focus-glow));
 }
@@ -1967,14 +1898,12 @@ button[data-processing="true"]::after {
 }
 
 /* 2026-11-02: Remark is a regular table column, not an interactive tooltip. */
-.wallet-item-note { text-decoration: none; cursor: inherit; }
 .wallet-detail {
   white-space: pre-line;
   overflow-wrap: anywhere;
   vertical-align: top;
   max-width: min(34rem, 42vw);
 }
-.hover-tooltip { display: none !important; }
 
 /* Mail-style display density: information density, not browser-width expansion.
    Gmail/Outlook use tighter or roomier rows; content stays responsive. */
