@@ -66,7 +66,7 @@ export function applyTheme() {
   for (const [key, hex] of Object.entries(c)) {
     setVar("--theme-" + key, hex);
     setVar("--theme-" + key + "-text", readableOn(hex));
-    setVar("--theme-" + key + "-hover", mix(hex, readableOn(hex), .12));
+    setVar("--theme-" + key + "-hover", mix(hex, c.background, .4));
     setVar("--theme-" + key + "-soft", mix(hex, c.background, .84));
     const [r,g,b] = parts(hex);
     setVar("--theme-" + key + "-glow", "rgba(" + r + "," + g + "," + b + ",.4)");
