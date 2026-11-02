@@ -460,7 +460,15 @@ export async function addWalletItem(token, folderId, entry) {
         throw new Error("This item is already listed for that month. Use Update to change it.");
       }
       const prev=lastMonthSnapshot(existing.content,item.group,item.item,item.month);
-      if (!prev || prev[3]==="DELETE") throw new Error("This item was deleted for this month. Use Update.");
+      if (!prev) throw new Error("This bill needs a refresh.");
+      if (prev[3]==="DELETE") {
+        const expected=existing.content+(existing.content.endsWith("\n")?"":"\n")+item.line;
+        if(new Blob([expected]).size>WRITE_LIMIT)throw new Error("This item history is full.");
+        await replaceWalletText(token,existing.file.id,expected);
+        if(await getFileText(token,existing.file.id)!==expected)
+          throw new Error("Could not verify the charge. Refresh to check.");
+        return {group:item.group,item:item.item,month:item.month};
+      }
       const oldAmount=Number(prev[3]), paid=Number(prev[4]);
       const extra=Number(entry.amount);
       if (![oldAmount,paid,extra].every(Number.isFinite) || extra<=0)
