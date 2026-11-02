@@ -29,6 +29,9 @@ export function validMeta(meta) {
     typeof meta.item === "string" && meta.item.trim().length > 0 &&
     meta.item.length <= 120 && !/[\t\r\n]/.test(meta.item) &&
     typeof meta.note === "string" && meta.note.length <= 1600 &&
+    (meta.noteLoggedAt === "" ||
+      (typeof meta.noteLoggedAt === "string" &&
+        /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(meta.noteLoggedAt))) &&
     ["", "accessible", "protected"].includes(meta.access) &&
     (meta.group === "Saving" || meta.access === "") &&
     (meta.lastService === "" || MONTH.test(meta.lastService)) &&
@@ -41,6 +44,7 @@ export function validMeta(meta) {
 export function buildMeta(group, item, input = {}) {
   const meta = {
     group, item, note: String(input.note || ""),
+    noteLoggedAt: String(input.noteLoggedAt || ""),
     lastService: String(input.lastService || ""),
     interval: Number(input.interval || 0),
     remindBefore: Number(input.remindBefore || 0),
@@ -72,6 +76,9 @@ export function parseMetaLine(line) {
     // Earlier settings predate monthly savings targets; default them to zero.
     if (value && typeof value === "object" && value.monthlySaving === undefined) {
       value.monthlySaving = 0;
+    }
+    if (value && typeof value === "object" && value.noteLoggedAt === undefined) {
+      value.noteLoggedAt = "";
     }
     if (value && typeof value === "object" && value.hoverUnpaid === undefined) {
       value.hoverUnpaid = false;
@@ -156,4 +163,35 @@ export function serviceReminders(metaMap, entries = [], now = new Date()) {
     }
   }
   return dueItems.sort((a,b) => a.dueMonth.localeCompare(b.dueMonth));
+}
+
+// Read each saved @META snapshot, retaining earlier remarks even if the
+// current metadata note was subsequently cleared after payment.
+export function parseRemarkHistory(files) {
+  const byItem = new Map();
+  const priorNotes = new Map();
+  for (const file of files || []) {
+    if (!file?.name?.toLowerCase().endsWith(".txt") ||
+        typeof file.content !== "string") continue;
+    for (const line of file.content.split("\n")) {
+      if (!line.startsWith(PREFIX)) continue;
+      const meta = parseMetaLine(line);
+      if (!meta) continue;
+      const key = metaKey(meta.group, meta.item);
+      const currentNote = meta.note.trim();
+      const previousNote = priorNotes.get(key) || "";
+      if (currentNote && currentNote !== previousNote) {
+        const addition = currentNote.startsWith(previousNote + "\n")
+          ? currentNote.slice(previousNote.length + 1)
+          : currentNote;
+        const lines = addition.split("\n").map(value => value.trim()).filter(Boolean);
+        if (!byItem.has(key)) byItem.set(key, []);
+        for (const value of lines) {
+          byItem.get(key).push({ date: meta.noteLoggedAt || "", text: value });
+        }
+      }
+      priorNotes.set(key, currentNote);
+    }
+  }
+  return byItem;
 }
