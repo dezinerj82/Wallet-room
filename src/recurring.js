@@ -42,7 +42,7 @@ export function parseRecurringDirective(line) {
 }
 
 export function recurringDirectiveLine(rule, active) {
-  if (rule.type === "weekly" || rule.end || rule.type === "monthly") {
+  if (["weekly","monthly","annual"].includes(rule.type) || rule.end) {
     const value={group:"Bills",item:rule.item,month:rule.month,
       amount:Number(rule.amount),remark:String(rule.remark||""),
       type:rule.type||"monthly",end:rule.end||"",
