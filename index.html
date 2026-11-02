@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&amp;family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=green-dollar-1">
-  <link rel="stylesheet" href="src/styles.css?v=20261102-loginring36">
-  <script src="src/app.js?v=20261102-loginring36" type="module"></script>
+  <link rel="stylesheet" href="src/styles.css?v=20261102-remark37">
+  <script src="src/app.js?v=20261102-remark37" type="module"></script>
 </head>
 <body>
   <main id="app">
@@ -99,9 +99,8 @@
             </label>
             <input id="add-item-retail" type="hidden">
             <input id="add-item-url" type="hidden">
-            <label id="add-remark-field">Remark (optional)
-              <input id="add-item-remark" type="text" maxlength="300" placeholder="Add a note">
-            </label>
+            <!-- Keep legacy snapshot remarks on edited entries without showing a second Remark input. -->
+            <input id="add-item-remark" type="hidden">
           </div>
           <details id="add-item-options" class="item-options" hidden>
             <summary>More options</summary>
@@ -112,7 +111,7 @@
               <label id="add-installment-field" hidden>Installment (months)
                 <input id="add-item-installment" type="number" min="1" max="120" step="1" inputmode="numeric" placeholder="1">
               </label>
-              <label class="full-field">Hover note
+              <label class="full-field">Remark
                 <textarea id="add-item-hover-note" maxlength="1600" rows="3"></textarea>
               </label>
               <label id="add-service-field">Last service
@@ -216,7 +215,7 @@
                   </select>
                 </span>
               </th>
-              <th scope="col">Details</th>
+              <th scope="col">Remark</th>
               <th scope="col">Update</th>
             </tr>
           </thead>
@@ -314,7 +313,7 @@
                   </select>
                 </span>
               </th>
-              <th scope="col">Details</th>
+              <th scope="col">Remark</th>
               <th scope="col">Update</th>
             </tr>
           </thead>
