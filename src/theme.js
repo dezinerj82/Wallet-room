@@ -1,7 +1,7 @@
 // UI-only theme preferences. Never reads, changes, or uploads wallet records.
 export const DEFAULT_THEME = Object.freeze({
   primary: "#223A5E", secondary: "#79C8D6", navigation: "#F1CCB7",
-  background: "#F7FAFC", focus: "#FEDC8B", progress: "#79C8D6",
+  background: "#F7FAFC", focus: "#FEDC8B",
   success: "#62CFA5", danger: "#E97A8D",
   category0: "#50ADE1", category1: "#B16BD6", category2: "#FF9E8B",
   category3: "#DF74A8", category4: "#FB8B89",
@@ -10,7 +10,7 @@ export const DEFAULT_THEME = Object.freeze({
 export const THEME_FIELDS = [
   ["primary", "Primary"], ["secondary", "Secondary"],
   ["navigation", "Navigation"], ["background", "Background"],
-  ["focus", "Active / Focus"], ["progress", "Progress"],
+  ["focus", "Active / Focus / Progress"],
   ["success", "Success"], ["danger", "Warning & Danger"],
   ...Array.from({length: 7}, (_, n) => ["category" + n, "Category " + (n + 1)])
 ];
@@ -76,6 +76,10 @@ export function applyTheme() {
     const [r,g,b] = parts(hex);
     setVar("--theme-" + key + "-glow", "rgba(" + r + "," + g + "," + b + ",.4)");
   }
+  // Progress inherits Active / Focus, including user changes and glow.
+  for (const suffix of ["", "-text", "-hover", "-hover-text", "-soft", "-glow"]) {
+    setVar("--theme-progress" + suffix, "var(--theme-focus" + suffix + ")");
+  }
   const bodyText = readableOn(c.background);
   const darkBackground = bodyText === "#FFFFFF";
   setVar("--theme-content", bodyText);
@@ -110,8 +114,9 @@ export function colorizeCategory(element, group) {
   element.style.setProperty("--btn-text", "var(--theme-category" + i + "-text)");
   element.style.setProperty("--btn-hover", "var(--theme-category" + i + "-hover)");
   element.style.setProperty("--btn-hover-text", "var(--theme-category" + i + "-hover-text)");
-  element.style.setProperty("--theme-note-bg", "var(--theme-category" + i + ")");
-  element.style.setProperty("--theme-note-fg", "var(--theme-category" + i + "-text)");
+  // Notes use the same 40% background overlay as category hover states.
+  element.style.setProperty("--theme-note-bg", "var(--theme-category" + i + "-hover)");
+  element.style.setProperty("--theme-note-fg", "var(--theme-category" + i + "-hover-text)");
 }
 export function themeWarning(colors) {
   const risks = [];
