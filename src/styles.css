@@ -2818,3 +2818,203 @@ button[data-processing="true"]::after {
   margin: 0;
   flex-shrink: 0;
 }
+
+/* Approved wallet table redesign — all colors remain existing semantic theme roles. */
+.heading-controls {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.heading-controls .currency-select {
+  --btn-bg: var(--theme-navigation);
+  --btn-hover: var(--theme-navigation-hover);
+  --btn-text: var(--theme-navigation-text);
+  appearance: auto;
+  width: auto;
+  min-width: 4.2rem;
+  min-height: var(--wallet-control-height,2.65rem);
+  padding: .5rem .75rem;
+  border: 0 !important;
+  border-radius: 999px;
+  background: var(--theme-navigation) !important;
+  color: var(--theme-navigation-text) !important;
+  font: inherit;
+  font-size: .9rem;
+  box-shadow: var(--soft-shadow);
+}
+body:has(#login-view:not([hidden])) .heading-controls .currency-select { display: none; }
+.heading-controls #theme-open { position: static; transform: none; }
+:root[data-density] .site-heading-row .heading-controls {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+:root[data-density] .site-heading-row h1 { flex: 1 1 auto; min-width: 0; }
+
+/* Transparent table body, neutral rounded heading derived from Background2. */
+:root[data-density] .wallet-table-wrap,
+:root[data-density] .other-months-table-wrap {
+  background: transparent !important;
+  border: 0 !important;
+  overflow-x: auto;
+  box-shadow: none !important;
+}
+:root[data-density] .wallet-table,
+:root[data-density] .other-months-table,
+:root[data-density] .wallet-table tbody,
+:root[data-density] .other-months-table tbody,
+:root[data-density] .wallet-table tbody td,
+:root[data-density] .other-months-table tbody td,
+:root[data-density] .wallet-table .group-heading th,
+:root[data-density] .other-months-table .group-heading th {
+  background: transparent !important;
+}
+:root[data-density] .wallet-table thead,
+:root[data-density] .other-months-table thead {
+  background: var(--theme-background2) !important;
+}
+:root[data-density] .wallet-table thead th,
+:root[data-density] .other-months-table thead th {
+  background: var(--theme-background2) !important;
+  border-bottom: none !important;
+  color: var(--theme-content) !important;
+  padding-top: calc(.75rem * var(--theme-space-factor));
+  padding-bottom: calc(.75rem * var(--theme-space-factor));
+}
+:root[data-density] .wallet-table thead th:first-child,
+:root[data-density] .other-months-table thead th:first-child {
+  border-radius: 18px 0 0 18px;
+}
+:root[data-density] .wallet-table thead th:last-child,
+:root[data-density] .other-months-table thead th:last-child {
+  border-radius: 0 18px 18px 0;
+}
+:root[data-density] .wallet-table tbody td,
+:root[data-density] .other-months-table tbody td {
+  border-bottom: 1px solid var(--theme-subtle);
+}
+:root[data-density] .wallet-table tbody tr:last-child td,
+:root[data-density] .other-months-table tbody tr:last-child td { border-bottom: 0; }
+/* Sections retain their own breathing room, proportional to density. */
+:root[data-density="compact"] { --wallet-category-gap: 12px; --wallet-item-gap: 8px; }
+:root[data-density="comfortable"] { --wallet-category-gap: 20px; --wallet-item-gap: 12px; }
+:root[data-density="wide"] { --wallet-category-gap: 28px; --wallet-item-gap: 16px; }
+:root[data-density] .wallet-table .group-heading th,
+:root[data-density] .other-months-table .group-heading th {
+  padding-top: var(--wallet-category-gap);
+  padding-bottom: var(--wallet-item-gap);
+  border: 0 !important;
+}
+:root[data-density] .wallet-table .group-toggle,
+:root[data-density] .other-months-table .group-toggle {
+  min-height: calc(var(--wallet-control-height) * .74);
+  padding: .35rem .75rem;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: clamp(.76rem, 1vw, .9rem);
+  border: 0 !important;
+  box-shadow: none !important;
+}
+:root[data-density] .wallet-table tr.group-collapsed th,
+:root[data-density] .other-months-table tr.group-collapsed th {
+  padding: var(--wallet-category-gap) 0 var(--wallet-item-gap);
+  border: 0 !important;
+}
+:root[data-density] .wallet-table tr.group-collapsed th::before,
+:root[data-density] .other-months-table tr.group-collapsed th::before {
+  content: none;
+}
+:root[data-density] .group-collapsed th {
+  position: relative;
+}
+:root[data-density] .group-collapsed th .group-toggle {
+  width: 100%;
+  min-height: var(--wallet-control-height);
+  justify-content: flex-start;
+  padding: .6rem calc(var(--wallet-col-pad) + 1rem);
+  border-radius: 16px;
+  background: var(--theme-background2) !important;
+  color: var(--theme-content) !important;
+}
+:root[data-density] .group-collapsed th .group-toggle::before {
+  content: "";
+  position: absolute;
+  left: .45rem;
+  top: calc(var(--wallet-category-gap) + .3rem);
+  bottom: calc(var(--wallet-item-gap) + .3rem);
+  width: .4rem;
+  border-radius: 8px;
+  background: var(--btn-bg);
+}
+:root[data-density] .group-collapsed-total {
+  position: absolute;
+  right: var(--wallet-col-pad);
+  top: 50%;
+  transform: translateY(-32%);
+  pointer-events: none;
+  max-width: 35%;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--theme-content-muted);
+  font-size: .9rem;
+}
+:root[data-density] .group-collapsed .group-toggle {
+  padding-right: 38%;
+}
+:root[data-density] .wallet-table .wallet-item,
+:root[data-density] .wallet-table .wallet-amount,
+:root[data-density] .wallet-table .wallet-update-cell {
+  white-space: nowrap;
+}
+:root[data-density] .wallet-table .wallet-detail {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  min-width: 10rem;
+  max-width: none;
+}
+:root[data-density] .wallet-table .wallet-update-cell {
+  width: 1%;
+  min-width: max-content;
+  white-space: nowrap;
+}
+:root[data-density] .wallet-update-cell .remark-action-button,
+:root[data-density] .wallet-update-cell .update-item-button,
+:root[data-density] .wallet-update-cell .pay-item-button {
+  --btn-bg: var(--theme-navigation);
+  --btn-hover: var(--theme-navigation-hover);
+  --btn-text: var(--theme-navigation-text);
+  --btn-hover-text: var(--theme-navigation-hover-text);
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: calc(var(--wallet-control-height) * .75);
+  padding: .35rem .65rem;
+  border-radius: 999px;
+  background: var(--theme-navigation) !important;
+  color: var(--theme-navigation-text) !important;
+  font-size: .82rem;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+  box-shadow: none !important;
+  white-space: normal;
+  vertical-align: middle;
+}
+:root[data-density] .wallet-update-cell .update-item-button svg {
+  stroke: currentColor;
+  vertical-align: -.15rem;
+}
+:root[data-density] .wallet-update-cell button + button { margin-left: 10px; }
+:root[data-density] .wallet-update-cell button:hover:not(:disabled) {
+  background: var(--theme-navigation-hover) !important;
+  color: var(--theme-navigation-hover-text) !important;
+}
+@media (max-width: 700px) {
+  :root[data-density] .wallet-table { min-width: 43rem; }
+  :root[data-density] .site-heading-row .heading-controls { gap: 8px; }
+  :root[data-density] .wallet-update-cell button + button { margin-left: 6px; }
+}
