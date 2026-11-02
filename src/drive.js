@@ -1,5 +1,5 @@
 import {
-  latestRecurringRule, recurringDirectiveLine,
+  latestRecurringRule, parseRecurringDirective, recurringDirectiveLine,
   recurringMonthsDue, recurringBillLine, recurringAmount
 } from "./recurring.js";
 import { isWalletGroup } from "./groups.js";
@@ -870,21 +870,16 @@ export async function renewRecurringBills(token, folderId, files) {
     if (!file || !file.name?.toLowerCase().endsWith(".txt") ||
         typeof file.content !== "string") continue;
     // A single TXT belongs to one item. Only recognised active rules qualify.
-    const directives=file.content.split("\n")
-      .filter(line=>line.startsWith("@RECUR\t")||line.startsWith("@RECUR2\t"))
-      .map(line=>line.startsWith("@RECUR2\t")
-        ? (()=>{try{return JSON.parse(line.slice(8)).item;}catch{return "";}})()
-        : line.replace(/\r$/,"").split("\t")[2])
-      .filter(Boolean);
-    const uniqueItems = [...new Set(directives.map(v => v.toLocaleLowerCase("en")))];
-    if (uniqueItems.length > 1) {
-      throw new Error("Recurring bill file needs review.");
+    const rules = new Map();
+    for(const line of file.content.split("\n")) {
+      if(!line.startsWith("@RECUR\t") && !line.startsWith("@RECUR2\t")) continue;
+      const parsed=parseRecurringDirective(line);
+      if(parsed) rules.set(JSON.stringify([parsed.group,parsed.item.toLowerCase()]),parsed);
     }
-    for (const itemName of uniqueItems) {
-      const rule = latestRecurringRule(file.content, itemName, target?.group||"Bills");
-      if (rule?.active && recurringMonthsDue(file.content, rule, now).length) {
-        dueFiles.push({ name: file.name, item: rule.item });
-      }
+    if(rules.size>1) throw new Error("Recurring item file needs review.");
+    for(const rule of rules.values()) {
+      if(rule.active && recurringMonthsDue(file.content,rule,now).length)
+        dueFiles.push({name:file.name,item:rule.item,group:rule.group});
     }
   }
   if (!dueFiles.length) return false;
