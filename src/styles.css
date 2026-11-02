@@ -2289,3 +2289,15 @@ button[data-processing="true"]:disabled {
   color:var(--btn-text) !important;
   opacity:1;
 }
+
+/* Login view: Theme sits below the title divider, opposite Login to start. */
+.site-heading-row { position: relative; }
+body:has(#login-view:not([hidden])) .site-heading-row h1 { flex-basis: 100%; }
+body:has(#login-view:not([hidden])) #theme-open {
+  position: absolute;
+  top: calc(100% + 1.75rem);
+  right: 0;
+  z-index: 6;
+  min-height: 3.2rem;
+  margin: 0;
+}
