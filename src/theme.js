@@ -34,7 +34,10 @@ export function contrastRatio(a,b) {
 }
 function readableOn(bg) {
   const dark = "#172B42", light = "#FFFFFF";
-  return contrastRatio(bg, dark) >= contrastRatio(bg, light) ? dark : light;
+  if (contrastRatio(bg, dark) >= 4.5) return dark;
+  if (contrastRatio(bg, light) >= 4.5) return light;
+  // Pure black is a safe fallback when a middle shade defeats both choices.
+  return "#000000";
 }
 const sanitize = raw => {
   const colors = {...DEFAULT_THEME};
@@ -66,12 +69,14 @@ export function applyTheme() {
   for (const [key, hex] of Object.entries(c)) {
     setVar("--theme-" + key, hex);
     setVar("--theme-" + key + "-text", readableOn(hex));
-    setVar("--theme-" + key + "-hover", mix(hex, c.background, .4));
+    const hover = mix(hex, c.background, .4);
+    setVar("--theme-" + key + "-hover", hover);
+    setVar("--theme-" + key + "-hover-text", readableOn(hover));
     setVar("--theme-" + key + "-soft", mix(hex, c.background, .84));
     const [r,g,b] = parts(hex);
     setVar("--theme-" + key + "-glow", "rgba(" + r + "," + g + "," + b + ",.4)");
   }
-  setVar("--theme-content", readableOn(c.background) === "#FFFFFF" ? "#FFFFFF" : "#172B42");
+  setVar("--theme-content", readableOn(c.background));
   setVar("--theme-content-muted", mix(readableOn(c.background),c.background,.34));
   setVar("--theme-surface", mix(c.background,"#FFFFFF",.55));
   setVar("--theme-content-panel", mix(c.background,readableOn(c.background),.035));
