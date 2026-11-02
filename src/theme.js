@@ -104,6 +104,7 @@ export function colorizeCategory(element, group) {
   element.style.setProperty("--btn-bg", "var(--theme-category" + i + ")");
   element.style.setProperty("--btn-text", "var(--theme-category" + i + "-text)");
   element.style.setProperty("--btn-hover", "var(--theme-category" + i + "-hover)");
+  element.style.setProperty("--btn-hover-text", "var(--theme-category" + i + "-hover-text)");
   element.style.setProperty("--theme-note-bg", "var(--theme-category" + i + ")");
   element.style.setProperty("--theme-note-fg", "var(--theme-category" + i + "-text)");
 }
