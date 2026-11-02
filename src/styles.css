@@ -2832,3 +2832,8 @@ body:has(#login-view:not([hidden])) .heading-controls .currency-select { display
   gap:.65rem; margin-top:.6rem;}
 .repeat-rate-fields input {width:100%;}
 #repeat-days-field small {display:block; margin-top:.55rem; opacity:.78;}
+
+/* Weekday chips: neutral grey, flat circles; retain selected accent. */
+.repeat-day-button { background:#EDF0F2; border-color:#EDF0F2; box-shadow:none !important; }
+.repeat-day-button:hover, .repeat-day-button:focus, .repeat-day-button:active { box-shadow:none !important; }
+.repeat-day-button.is-selected { background:var(--pearl-aqua); border-color:var(--pearl-aqua); box-shadow:none !important; }
