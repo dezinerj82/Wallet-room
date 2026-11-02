@@ -8,14 +8,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&amp;family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=green-dollar-1">
-  <link rel="stylesheet" href="src/styles.css?v=20261102-divider46">
-  <script src="src/app.js?v=20261102-noconfetti44" type="module"></script>
+  <link rel="stylesheet" href="src/styles.css?v=20261102-table47">
+  <script src="src/app.js?v=20261102-table47" type="module"></script>
 </head>
 <body>
   <main id="app">
     <div class="site-heading-row">
       <h1><span class="brand-home">Home</span> <span class="brand-wallet">wallet</span></h1>
-      <button type="button" id="theme-open" aria-haspopup="dialog" aria-controls="theme-panel">Theme</button>
+      <div class="heading-controls">
+        <button type="button" id="theme-open" aria-haspopup="dialog" aria-controls="theme-panel">Theme</button>
+        <select id="main-currency-select" class="currency-select" aria-label="Display monthly wallet amounts in">
+          <option value="MYR">RM</option>
+          <option value="KRW">₩</option>
+        </select>
+      </div>
     </div>
 
     <section id="login-view" class="front-door" aria-labelledby="login-heading">
@@ -206,15 +212,10 @@
             <tr>
               <th scope="col">Item</th>
               <th scope="col" class="amount-column">
-                <span class="amount-heading">Amount
-                  <select id="main-currency-select" class="currency-select" aria-label="Display monthly wallet amounts in">
-                    <option value="MYR">RM</option>
-                    <option value="KRW">₩</option>
-                  </select>
-                </span>
+                Amount
               </th>
               <th scope="col">Remark</th>
-              <th scope="col">Update</th>
+              <th scope="col">Action</th>
             </tr>
           </thead>
           <tbody id="wallet-table-body"></tbody>
