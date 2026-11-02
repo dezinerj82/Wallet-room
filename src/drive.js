@@ -2,7 +2,7 @@ import {
   latestRecurringRule, parseRecurringDirective, recurringDirectiveLine,
   recurringMonthsDue, recurringBillLine, recurringAmount
 } from "./recurring.js";
-import { isWalletGroup } from "./groups.js";
+import { isWalletGroup, isExpenseGroup } from "./groups.js";
 import { buildMeta, metaLine, lastMeta } from "./private-meta.js";
 import { paymentLine, parsePaymentLine, effectiveUnpaid } from "./settlement.js";
 import {
