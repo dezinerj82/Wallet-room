@@ -699,7 +699,7 @@ export async function updateWalletItem(token, folderId, changes) {
     throw new Error("Only expense categories can repeat.");
   }
   const proposedRule = {
-    group:item.group,item:item.item,month:item.month,amount:Number(revised[3]),
+    group:item.group,item:item.item,month:item.month,amount:Number(changes.amount),
     remark:String(changes.remark||"").trim(),active:wantsRecurring,
     type:changes.repeatRule?.type||"monthly",
     end:changes.repeatRule?.end||"",
