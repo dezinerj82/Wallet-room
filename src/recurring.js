@@ -1,4 +1,4 @@
-// Private Bills-only monthly recurrence. No amounts or rules are stored on GitHub.
+// Private expense-category recurrence. No amounts or rules are stored on GitHub.
 // @RECUR directives live inside each app-owned item's private TXT history.
 const DIRECTIVE = "@RECUR";
 const MONTH_RE = /^(?:19|20|21)\d{2}(?:0[1-9]|1[0-2])$/;
