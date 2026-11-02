@@ -8,12 +8,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&amp;family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=green-dollar-1">
-  <link rel="stylesheet" href="src/styles.css?v=20261031-clearbill31">
-  <script src="src/app.js?v=20261031-clearbill31" type="module"></script>
+  <link rel="stylesheet" href="src/styles.css?v=20261102-theme32">
+  <script src="src/app.js?v=20261102-theme32" type="module"></script>
 </head>
 <body>
   <main id="app">
-    <h1><span class="brand-home">Home</span> <span class="brand-wallet">wallet</span></h1>
+    <div class="site-heading-row">
+      <h1><span class="brand-home">Home</span> <span class="brand-wallet">wallet</span></h1>
+      <button type="button" id="theme-open" aria-haspopup="dialog" aria-controls="theme-panel">Theme</button>
+    </div>
 
     <section id="login-view" class="front-door" aria-labelledby="login-heading">
       <div class="front-door-content">
@@ -244,6 +247,31 @@
       </div>
     </section>
   </main>
+
+  <dialog id="theme-panel" aria-labelledby="theme-heading">
+    <div class="theme-panel-heading">
+      <h2 id="theme-heading">Theme</h2>
+      <button type="button" id="theme-close" aria-label="Close Theme">Close</button>
+    </div>
+    <p class="theme-explainer">One color per group. Matching text, hover shades and focus glows are automatic.</p>
+    <form id="theme-form">
+      <div class="theme-fields" id="theme-fields"></div>
+      <fieldset class="theme-layout">
+        <legend>Page layout</legend>
+        <div class="theme-layout-options">
+          <label><input type="radio" name="theme-density" value="compact"> Compact</label>
+          <label><input type="radio" name="theme-density" value="comfortable"> Comfortable</label>
+          <label><input type="radio" name="theme-density" value="wide"> Wide</label>
+        </div>
+      </fieldset>
+      <p id="theme-contrast-status" role="status" aria-live="polite"></p>
+      <div class="theme-panel-actions">
+        <button type="button" id="theme-reset">Restore defaults</button>
+        <button type="button" id="theme-cancel">Cancel</button>
+        <button type="submit" id="theme-save">Save theme</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="month-lock-alert" class="month-lock-alert" aria-labelledby="month-lock-alert-text">
     <p id="month-lock-alert-text">Please clear your bill to view next month</p>
