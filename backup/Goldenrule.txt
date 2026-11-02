@@ -267,3 +267,5 @@ DOCUMENT MAINTENANCE
 - Remove replaced/retired instructions rather than accumulating old versions.
 - Do not record private identifiers, real or example figures, personal names or platform account configuration.
 - Refer to website source files for design and appearance.
+
+- Unpaid balance is available for Bills, Others, and custom expense categories. It is included in the month\u2019s forecasted total but tracked separately as opening debt. Existing paid amounts and prior monthly history are preserved.
