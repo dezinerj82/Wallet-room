@@ -831,6 +831,7 @@ function renderTable(month, target, groupStates, fromComparison = false) {
       emptyRow.className = "empty-row";
       const emptyCell = document.createElement("td");
       emptyCell.colSpan = 4;
+      emptyCell.className = "empty-item-cell";
       emptyCell.textContent = "No items";
       emptyRow.append(emptyCell);
       rows.append(emptyRow);
