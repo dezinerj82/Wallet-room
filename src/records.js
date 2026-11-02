@@ -133,7 +133,7 @@ export function parseWalletFiles(files) {
         }
         continue;
       }
-      if (line.startsWith("@RECUR\t")) {
+      if (line.startsWith("@RECUR\t") || line.startsWith("@RECUR2\t")) {
         const rule = parseRecurringDirective(line);
         if (!rule) {
           invalidLines++;
