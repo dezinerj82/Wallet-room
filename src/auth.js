@@ -192,9 +192,10 @@ export function signIn({ email, username = false, fast = false } = {}) {
   if (!tokenClient) throw new Error("Google sign-in is not ready.");
   requestedEmail = username ? "" : String(email || "").trim().toLowerCase();
   if (!requestedEmail && !username) throw new Error("Enter your email or username.");
-  const request = { prompt: fast ? "" : "select_account" };
-  // Username mode uses Google's account selection; the existing verified
-  // email allowlist is still checked before opening any wallet data.
+  // Do not force the Google account chooser on every sign-in.
+  // An existing Google session / consent can be reused without the selector.
+  // Google may still show sign-in or consent when no eligible session exists.
+  const request = { prompt: "" };
   if (requestedEmail) request.login_hint = requestedEmail;
   tokenClient.requestAccessToken(request);
 }
