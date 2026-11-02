@@ -10,6 +10,22 @@ function cleanText(text, max) {
 }
 
 export function parseRecurringDirective(line) {
+  if (line?.startsWith("@RECUR2\t")) {
+    try {
+      const r = JSON.parse(line.slice(8));
+      if (r.group !== "Bills" || typeof r.item !== "string" || !r.item.trim() ||
+          r.item.length > 120 || !MONTH_RE.test(r.month) ||
+          (r.end && (!MONTH_RE.test(r.end) || r.end < r.month)) ||
+          !["monthly","weekly"].includes(r.type) || typeof r.active !== "boolean" ||
+          !Number.isFinite(r.amount) || r.amount < 0) return null;
+      if (r.type === "weekly" && (!Array.isArray(r.days) || !r.days.length ||
+          r.days.length > 7 || new Set(r.days.map(d=>d.day)).size !== r.days.length ||
+          !r.days.every(d=>Number.isInteger(d.day) && d.day>=0 && d.day<=6 &&
+            Number.isFinite(d.amount) && d.amount>0 &&
+            Number.isSafeInteger(Math.round(d.amount*100))))) return null;
+      return r;
+    } catch { return null; }
+  }
   if (typeof line !== "string") return null;
   const fields = line.replace(/\r$/, "").split("\t");
   if (fields.length !== 7 || fields[0] !== DIRECTIVE ||
@@ -21,11 +37,20 @@ export function parseRecurringDirective(line) {
   if (!Number.isSafeInteger(Math.round(amount * 100))) return null;
   return {
     item: fields[2], month: fields[3], amount,
-    remark: fields[5], active: fields[6] === "ON"
+    remark: fields[5], active: fields[6] === "ON", type:"monthly", end:""
   };
 }
 
 export function recurringDirectiveLine(rule, active) {
+  if (rule.type === "weekly" || rule.end || rule.type === "monthly") {
+    const value={group:"Bills",item:rule.item,month:rule.month,
+      amount:Number(rule.amount),remark:String(rule.remark||""),
+      type:rule.type||"monthly",end:rule.end||"",
+      days:rule.type==="weekly"?rule.days:undefined,active:Boolean(active)};
+    if (!parseRecurringDirective("@RECUR2\t"+JSON.stringify(value)))
+      throw new Error("Check recurring days, rates and end month.");
+    return "@RECUR2\t"+JSON.stringify(value)+"\n";
+  }
   const month = String(rule?.month || "");
   const item = String(rule?.item || "");
   const remark = String(rule?.remark || "");
@@ -44,7 +69,7 @@ export function latestRecurringRule(content, item) {
   if (typeof content !== "string") return null;
   let rule = null;
   for (const line of content.split("\n")) {
-    if (!line.startsWith(DIRECTIVE + "\t")) continue;
+    if (!line.startsWith(DIRECTIVE + "\t") && !line.startsWith("@RECUR2\t")) continue;
     const parsed = parseRecurringDirective(line);
     if (parsed && parsed.item.toLocaleLowerCase("en") ===
         String(item).toLocaleLowerCase("en")) rule = parsed;
@@ -89,18 +114,30 @@ export function recurringMonthsDue(content, rule, now = new Date()) {
   for (let year = startYear; year <= endYear; year++) {
     for (let m = 1; m <= 12; m++) {
       const key = String(year) + String(m).padStart(2, "0");
-      if (key >= start && key <= cutoff && !seen.has(key)) due.push(key);
+      if (key >= start && key <= cutoff && (!rule.end || key <= rule.end) && !seen.has(key)) due.push(key);
     }
   }
   return due;
 }
 
+export function recurringAmount(rule, month) {
+  if (rule?.type !== "weekly") return Number(rule?.amount||0);
+  const year=Number(month.slice(0,4)), mon=Number(month.slice(4,6))-1;
+  const last=new Date(year,mon+1,0).getDate();
+  let cents=0;
+  for(let d=1;d<=last;d++) {
+    const weekday=new Date(year,mon,d).getDay();
+    const rate=rule.days.find(v=>v.day===weekday);
+    if(rate)cents+=Math.round(rate.amount*100);
+  }
+  return cents/100;
+}
 export function recurringBillLine(rule, month) {
   if (!rule?.active || !MONTH_RE.test(month) || !cleanText(rule.item, 120) ||
       !rule.item.trim() || !Number.isFinite(rule.amount) || rule.amount < 0 ||
       !Number.isSafeInteger(Math.round(rule.amount * 100)) ||
       !cleanText(rule.remark, 300)) throw new Error("Invalid recurring bill.");
-  const money = rule.amount.toFixed(2);
+  const money = recurringAmount(rule,month).toFixed(2);
   const fields = ["Bills", rule.item, month, money, "0.00", money];
   if (rule.remark) fields.push(rule.remark);
   return fields.join("\t") + "\n";
