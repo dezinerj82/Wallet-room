@@ -109,6 +109,8 @@ let withdrawApproved = false;
 let lastAddGroup = "IN";
 let walletMetadata = new Map();
 let walletRemarkHistory = new Map();
+  walletRecurringRules = new Map();
+let walletRecurringRules = new Map();
 let walletCatalog = [];
 let walletSchedules = [];
 const reminderSeen = new Set();
@@ -390,8 +392,45 @@ const addNameField = document.getElementById("add-item-name-field");
 const addName = document.getElementById("add-item-name");
 const addMonth = document.getElementById("add-item-month");
 const addAmount = document.getElementById("add-item-amount");
-const addRecurringField = document.getElementById("add-recurring-field");
-const addRecurring = document.getElementById("add-item-recurring");
+const repeatSection = document.getElementById("repeat-section");
+const repeatMode = document.getElementById("repeat-mode");
+const repeatEndField = document.getElementById("repeat-end-field");
+const repeatEndMonth = document.getElementById("repeat-end-month");
+const repeatDaysField = document.getElementById("repeat-days-field");
+const repeatDaysButtons = document.getElementById("repeat-days-buttons");
+const repeatRateFields = document.getElementById("repeat-rate-fields");
+const repeatDayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+let repeatRates = {};
+function renderRepeatOptions() {
+  const selected = repeatMode.value;
+  repeatEndField.hidden = selected === "none";
+  repeatDaysField.hidden = selected !== "weekly";
+  repeatDaysButtons.replaceChildren();
+  repeatRateFields.replaceChildren();
+  if (selected !== "weekly") return;
+  repeatDayNames.forEach((name, day) => {
+    const selectedDay = Object.prototype.hasOwnProperty.call(repeatRates,day);
+    const btn=document.createElement("button");
+    btn.type="button"; btn.textContent=name;
+    btn.className="repeat-day-button"+(selectedDay?" is-selected":"");
+    btn.setAttribute("aria-pressed",String(selectedDay));
+    btn.addEventListener("click",()=>{
+      if (selectedDay) delete repeatRates[day]; else repeatRates[day]="";
+      renderRepeatOptions();
+    });
+    repeatDaysButtons.append(btn);
+    if (!selectedDay) return;
+    const label=document.createElement("label");
+    label.textContent=name+" · RM";
+    const field=document.createElement("input");
+    field.type="number"; field.min="0.01"; field.step="0.01";
+    field.inputMode="decimal";field.placeholder="Amount";
+    field.value=repeatRates[day];
+    field.addEventListener("input",()=>{repeatRates[day]=field.value;});
+    label.append(field);repeatRateFields.append(label);
+  });
+}
+repeatMode.addEventListener("change",renderRepeatOptions);
 const addOptions = document.getElementById("add-item-options");
 const addHoverNote = document.getElementById("add-item-hover-note");
 const addLastService = document.getElementById("add-last-service");
@@ -606,7 +645,7 @@ function resetWallet() {
   addName.readOnly = false;
   addMonth.disabled = false;
   addForm.reset();
-  addRecurring.checked = false;
+  repeatMode.value = "none"; renderRepeatOptions();
   addButton.disabled = true;
   submitItemButton.disabled = false;
   cancelItemButton.disabled = false;
@@ -1202,6 +1241,7 @@ async function loadWalletRecords(message = "Refreshing your items...") {
     walletSchedules = parsed.schedules;
     walletMetadata = parseAllMetadata(files);
     walletRemarkHistory = parseRemarkHistory(files);
+    walletRecurringRules = new Map((parsed.recurringRules||[]).map(rule=>[rule.item.toLocaleLowerCase("en"),rule]));
     walletBalanceReady = true;
     walletBalanceComplete = parsed.invalidLines === 0 && !recurringError;
     renderMonth();
@@ -1349,8 +1389,8 @@ function syncItemChoice() {
   const managed = walletSchedules.some(rule => rule.active &&
     rule.group === activeAddCategory() && rule.item === addItemSelect.value);
   if (managed && activeAddCategory() === "Bills") {
-    addRecurringField.hidden = true;
-    addRecurring.checked = false;
+    repeatSection.hidden = true;
+    repeatMode.value = "none"; renderRepeatOptions();
   }
 }
 
@@ -1363,8 +1403,9 @@ function updateOptionalFields() {
   addCategoryField.hidden = addGroup.value !== NEW_CATEGORY;
   addCategoryName.required = !addCategoryField.hidden;
   const scheduleManaged = Boolean(editingEntry?.scheduled);
-  addRecurringField.hidden = !bills || isWithdrawal || scheduleManaged;
-  if (!bills || scheduleManaged) addRecurring.checked = false;
+  repeatSection.hidden = !bills || isWithdrawal || scheduleManaged;
+  if (!bills || scheduleManaged) repeatMode.value = "none";
+  renderRepeatOptions();
   addUnpaidField.hidden = !others;
   addInstallmentField.hidden = !others || Boolean(editingEntry);
   if (editingEntry) addInstallment.value = "";
@@ -1539,7 +1580,7 @@ function closeAddPanel() {
   addMonth.disabled = false;
   addStatus.textContent = "";
   addForm.reset();
-  addRecurring.checked = false;
+  repeatMode.value = "none"; renderRepeatOptions();
   addCategoryName.required = false;
   addName.required = false;
   addItemSelect.required = false;
@@ -1577,7 +1618,11 @@ function openUpdateForm(entry) {
   updateOptionalFields();
   syncItemChoice();
   fillPrivateMeta(entry.meta);
-  addRecurring.checked = entry.group === "Bills" && entry.recurring === true;
+  const rule = walletRecurringRules?.get(entry.item.toLocaleLowerCase("en"));
+  repeatMode.value=entry.group==="Bills" && entry.recurring ? (rule?.type||"monthly") : "none";
+  repeatEndMonth.value=rule?.end ? rule.end.slice(0,4)+"-"+rule.end.slice(4) : "";
+  repeatRates=Object.fromEntries((rule?.days||[]).map(d=>[d.day,String(d.amount)]));
+  renderRepeatOptions();
   deleteItemButton.hidden = false;
   const paid = entry.group !== "IN" && entry.paid > 0;
   deleteItemButton.disabled = paid;
@@ -2058,6 +2103,11 @@ addForm.addEventListener("submit", async event => {
       if (closedMonths.has(itemMonth)) {
         throw new Error("This month has already been cleared and cannot be edited.");
       }
+      if (group === "Bills" && repeatMode.value === "weekly" &&
+          (!Object.keys(repeatRates).length ||
+           Object.values(repeatRates).some(v=>!v||Number(v)<=0||!Number.isFinite(Number(v))))) {
+        throw new Error("Choose weekdays and enter a rate for each selected day.");
+      }
       const payload = {
         group, item,
         month: itemMonth,
@@ -2066,7 +2116,14 @@ addForm.addEventListener("submit", async event => {
         retail: addRetail.value,
         url: addUrl.value,
         remark: addRemark.value,
-        recurring: group === "Bills" && addRecurring.checked,
+        recurring: group === "Bills" && repeatMode.value !== "none",
+        repeatRule: group === "Bills" && repeatMode.value !== "none" ? {
+          type:repeatMode.value,
+          end:repeatEndMonth.value.replace("-",""),
+          days:repeatMode.value==="weekly"
+            ? Object.entries(repeatRates).map(([day,amount])=>({day:Number(day),amount:Number(amount)}))
+            : []
+        } : null,
         meta: enteredPrivateMeta(group, item)
       };
       const months = group === "Others" && !previous && addInstallment.value.trim()
