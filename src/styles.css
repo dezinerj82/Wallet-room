@@ -2775,3 +2775,45 @@ body:has(#login-view:not([hidden])) .heading-controls .currency-select { display
     padding-left: clamp(4px, 1vw, 8px) !important;
   }
 }
+
+/* Read-only Remark history: light neutral surface, no title or shadow. */
+.remark-log-popup {
+  position: fixed;
+  z-index: 110;
+  max-width: min(420px, calc(100vw - 24px));
+  min-width: min(250px, calc(100vw - 24px));
+  max-height: min(340px, calc(100dvh - 24px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 13px;
+  border: 0;
+  border-radius: 14px;
+  background: #EDF0F2;
+  color: #223A5E;
+  box-shadow: none !important;
+  font: inherit;
+  font-size: .84rem;
+  line-height: 1.5;
+  pointer-events: none;
+}
+.remark-log-row {
+  display: grid;
+  grid-template-columns: 5.75rem minmax(0,1fr);
+  align-items: start;
+  column-gap: 12px;
+  padding: 5px 0;
+}
+.remark-log-row + .remark-log-row {
+  border-top: 1px solid rgba(34,58,94,.075);
+}
+.remark-log-row time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.remark-log-row span {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 400px) {
+  .remark-log-row { grid-template-columns: 4.7rem minmax(0,1fr); gap: 8px; }
+}
