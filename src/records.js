@@ -138,7 +138,7 @@ export function parseWalletFiles(files) {
         if (!rule) {
           invalidLines++;
         } else {
-          repeatRules.set(rule.item.toLocaleLowerCase("en"), rule.active);
+          repeatRules.set(rule.item.toLocaleLowerCase("en"), rule);
           validLines++;
         }
         continue;
@@ -175,13 +175,14 @@ export function parseWalletFiles(files) {
     entries: active.map(entry => ({
       ...entry,
       ...(entry.group === "Bills"
-        ? { recurring: repeatRules.get(entry.item.toLocaleLowerCase("en")) === true } : {}),
+        ? { recurring: repeatRules.get(entry.item.toLocaleLowerCase("en"))?.active === true } : {}),
       scheduled: schedules.get(metaKey(entry.group, entry.item))?.active === true,
       meta: metadata.get(metaKey(entry.group, entry.item)) || null,
       settlements: payments.get(JSON.stringify([
         entry.group, entry.item.toLocaleLowerCase("en"), entry.month
       ])) || []
     })),
+    recurringRules: [...repeatRules.values()],
     closedMonths: [...closedMonths],
     catalog: [...directory.values()],
     schedules: [...schedules.values()],
