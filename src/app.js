@@ -2,7 +2,7 @@ import { initialiseGoogleLogin, canRestoreLoginSession, restoreLoginSession, sig
 import { findBillsFolder, readWalletTextFiles, addWalletItem, addWalletInstallments, updateWalletItem, deleteWalletItem, renewRecurringBills, renewScheduledItems, importWalletSetup, saveSavingSettings, withdrawSavingItem, recordBillPayment, closeWalletMonth } from "./drive.js";
 import { getMyrKrwRate, formatWalletCurrency, rateDateLabel } from "./currency.js";
 import { displayGroup, availableGroups, isExpenseGroup, isCustomGroup, NEW_CATEGORY, NEW_ITEM } from "./groups.js";
-import { buildMeta, parseAllMetadata, serviceReminders, effectiveServiceMonth, metaKey } from "./private-meta.js";
+import { buildMeta, parseAllMetadata, parseRemarkHistory, serviceReminders, effectiveServiceMonth, metaKey } from "./private-meta.js";
 import { plannedAlerts, validateSetupPayload } from "./setup.js";
 import { csvTemplate, parseWalletCsv } from "./csv.js";
 import {
@@ -108,6 +108,7 @@ let payingEntry = null;
 let withdrawApproved = false;
 let lastAddGroup = "IN";
 let walletMetadata = new Map();
+let walletRemarkHistory = new Map();
 let walletCatalog = [];
 let walletSchedules = [];
 const reminderSeen = new Set();
@@ -572,6 +573,8 @@ function resetWallet() {
   clearBillPanel.hidden = true;
   if (monthLockAlert.open) monthLockAlert.close();
   walletMetadata = new Map();
+  walletRemarkHistory = new Map();
+  hideRemarkLog(true);
   walletCatalog = [];
   walletSchedules = [];
   reminderSeen.clear();
@@ -680,6 +683,85 @@ function confirmWallet(message = "Are you sure?") {
     walletDialogOk.focus();
   });
 }
+
+// Read-only floating history from the private Google Drive records already loaded.
+const remarkLogPopup = document.createElement("div");
+remarkLogPopup.className = "remark-log-popup";
+remarkLogPopup.setAttribute("role", "tooltip");
+remarkLogPopup.hidden = true;
+document.body.append(remarkLogPopup);
+let remarkPinned = false;
+let remarkAnchor = null;
+function hideRemarkLog(force = false) {
+  if (remarkPinned && !force) return;
+  remarkLogPopup.hidden = true;
+  remarkPinned = false;
+  remarkAnchor = null;
+}
+function positionRemarkLog(button) {
+  const rect = button.getBoundingClientRect();
+  const box = remarkLogPopup.getBoundingClientRect();
+  const gap = 12;
+  const left = Math.max(gap, Math.min(rect.right + gap,
+    Math.max(gap, window.innerWidth - box.width - gap)));
+  let top = rect.top;
+  if (top + box.height > window.innerHeight - gap)
+    top = Math.max(gap, window.innerHeight - box.height - gap);
+  remarkLogPopup.style.left = left + "px";
+  remarkLogPopup.style.top = top + "px";
+}
+function remarkLogEntries(entry) {
+  const records = [...(walletRemarkHistory.get(metaKey(entry.group, entry.item)) || [])];
+  const seen = new Set(records.map(record => record.text));
+  const fallback = [entry.remark?.trim()];
+  if (entry.meta?.note?.trim() && !records.length)
+    fallback.push(...entry.meta.note.trim().split("\n"));
+  for (const text of fallback.map(value => value?.trim()).filter(Boolean)) {
+    if (!seen.has(text)) records.push({date:"", text});
+  }
+  return records;
+}
+function showRemarkLog(button, entry, pin = false) {
+  if (remarkPinned && !pin) return;
+  remarkPinned = pin;
+  remarkAnchor = button;
+  remarkLogPopup.replaceChildren();
+  const records = remarkLogEntries(entry);
+  if (!records.length) {
+    const empty = document.createElement("span");
+    empty.textContent = "No remarks";
+    remarkLogPopup.append(empty);
+  }
+  for (const record of records) {
+    const row = document.createElement("div");
+    row.className = "remark-log-row";
+    const date = document.createElement("time");
+    if (record.date) {
+      const parsed = new Date(record.date);
+      if (!Number.isNaN(parsed.getTime())) {
+        date.dateTime = record.date;
+        date.textContent = parsed.toLocaleDateString("en-US",{
+          year:"2-digit",month:"2-digit",day:"2-digit"});
+      } else date.textContent = "—";
+    } else date.textContent = "—";
+    const note = document.createElement("span");
+    note.textContent = record.text;
+    row.append(date,note);
+    remarkLogPopup.append(row);
+  }
+  remarkLogPopup.hidden = false;
+  positionRemarkLog(button);
+}
+document.addEventListener("pointerdown", event => {
+  if (remarkPinned && !remarkLogPopup.contains(event.target) &&
+      event.target !== remarkAnchor && !remarkAnchor?.contains(event.target))
+    hideRemarkLog(true);
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") hideRemarkLog(true);
+});
+window.addEventListener("scroll", () => hideRemarkLog(true), true);
+window.addEventListener("resize", () => hideRemarkLog(true));
 
 function remarkDetails(entry) {
   const meta = entry.meta;
@@ -928,20 +1010,16 @@ function renderTable(month, target, groupStates, fromComparison = false) {
       remarkIcon.append(noteOutline, noteLines);
       remarkButton.append(remarkIcon);
       remarkButton.title = "Remark for " + entry.item;
-      remarkButton.disabled = !editable;
-      remarkButton.setAttribute("aria-label", "Add remark to " + entry.item);
-      if (editable) remarkButton.addEventListener("click", () => {
-        if (entry.group === "Saving") {
-          openSavingSettings(entry);
-          savingsNote.focus({ preventScroll: true });
-          savingsNote.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        } else {
-          openUpdateForm(entry.paymentParts
-            ? entry.paymentParts.find(part => !part.carryOver) || entry : entry);
-          addOptions.open = true;
-          addHoverNote.focus({ preventScroll: true });
-          addHoverNote.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }
+      // Remark only reads the saved history; Edit remains the sole editing action.
+      remarkButton.disabled = false;
+      remarkButton.setAttribute("aria-label", "View remark history for " + entry.item);
+      remarkButton.addEventListener("pointerenter", () => showRemarkLog(remarkButton, entry));
+      remarkButton.addEventListener("pointerleave", () => hideRemarkLog());
+      remarkButton.addEventListener("focus", () => showRemarkLog(remarkButton, entry));
+      remarkButton.addEventListener("blur", () => hideRemarkLog());
+      remarkButton.addEventListener("click", () => {
+        if (remarkPinned && remarkAnchor === remarkButton) hideRemarkLog(true);
+        else showRemarkLog(remarkButton, entry, true);
       });
       actionCell.append(remarkButton, editButton);
       if (month === selectedMonth && month <= monthKey(new Date()) &&
@@ -1112,6 +1190,7 @@ async function loadWalletRecords(message = "Refreshing your items...") {
     walletCatalog = parsed.catalog;
     walletSchedules = parsed.schedules;
     walletMetadata = parseAllMetadata(files);
+    walletRemarkHistory = parseRemarkHistory(files);
     walletBalanceReady = true;
     walletBalanceComplete = parsed.invalidLines === 0 && !recurringError;
     renderMonth();
