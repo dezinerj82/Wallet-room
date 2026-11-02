@@ -470,12 +470,25 @@ export async function addWalletItem(token, folderId, entry) {
         return {group:item.group,item:item.item,month:item.month};
       }
       const oldAmount=Number(prev[3]), paid=Number(prev[4]);
-      const extra=Number(entry.amount);
-      if (![oldAmount,paid,extra].every(Number.isFinite) || extra<=0)
+      const additionalOpening=Number(entry.openingUnpaid||0);
+      const extra=Number(entry.amount)+additionalOpening;
+      if (![oldAmount,paid,extra,additionalOpening].every(Number.isFinite) || extra<=0)
         throw new Error("Enter a positive extra charge.");
       const amount=Math.round((oldAmount+extra)*100)/100;
-      const fields=[...prev];fields[3]=amount.toFixed(2);
+      if(!Number.isSafeInteger(Math.round(amount*100)))throw new Error("Extra charge is too large.");
+      const fields=[...prev];
+      fields[3]=amount.toFixed(2);
       fields[5]=(Math.round((amount-paid)*100)/100).toFixed(2);
+      if(additionalOpening>0) {
+        const previousOpening=fields.length>=10?Number(fields[9]||0):0;
+        const opening=previousOpening+additionalOpening;
+        if(!Number.isSafeInteger(Math.round(opening*100)))throw new Error("Unpaid balance is too large.");
+        if(fields.length<10) {
+          const originalRemark=item.group==="Others"?(fields[8]||""):(fields[6]||"");
+          fields.splice(6,fields.length-6, "", "", originalRemark,"");
+        }
+        fields[9]=opening.toFixed(2);
+      }
       const extraLine=fields.join("\t")+"\n";
       const expected=existing.content+(existing.content.endsWith("\n")?"":"\n")+extraLine;
       if (new Blob([expected]).size>WRITE_LIMIT) throw new Error("This item history is full.");
