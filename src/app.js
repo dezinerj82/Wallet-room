@@ -1438,7 +1438,7 @@ function updateOptionalFields() {
   repeatSection.hidden = !expense || isWithdrawal || scheduleManaged;
   if (!expense || scheduleManaged) repeatMode.value = "none";
   renderRepeatOptions();
-  addUnpaidField.hidden = !others;
+  addUnpaidField.hidden = !expense;
   addInstallmentField.hidden = !expense || Boolean(editingEntry);
   if (editingEntry) addInstallment.value = "";
   addOptions.hidden = isWithdrawal;
@@ -2147,7 +2147,7 @@ addForm.addEventListener("submit", async event => {
         group, item,
         month: itemMonth,
         amount: addAmount.value,
-        openingUnpaid: group === "Others" ? (addUnpaid.value || "0") : "0",
+        openingUnpaid: isExpenseGroup(group) ? (addUnpaid.value || "0") : "0",
         retail: addRetail.value,
         url: addUrl.value,
         remark: addRemark.value,
