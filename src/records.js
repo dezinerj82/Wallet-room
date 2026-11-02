@@ -56,12 +56,12 @@ function parseLine(line) {
     const unpaid = safeAmount(fields[5]);
     if ([amount, paid, unpaid].some(v => v === null)) return null;
     if (Math.round((paid + unpaid) * 100) !== Math.round(amount * 100)) return null;
-    const openingUnpaid = group === "Others" ? safeAmount(fields[9] || "0") : 0;
+    const openingUnpaid = fields.length >= 10 ? safeAmount(fields[9] || "0") : 0;
     if (openingUnpaid === null || openingUnpaid > amount) return null;
-    return group === "Others"
+    return group === "Others" || fields.length >= 10
       ? { group, item, month, amount, paid, unpaid, openingUnpaid,
           retail: fields[6] || "", url: fields[7] || "", remark: fields[8] || "" }
-      : { group, item, month, amount, paid, unpaid, remark: fields[6] || "" };
+      : { group, item, month, amount, paid, unpaid, openingUnpaid:0, remark: fields[6] || "" };
   }
 
   return null;
@@ -363,7 +363,7 @@ export function calculatePastUnpaid(allEntries, month) {
     if (!isExpenseGroup(entry.group) || entry.month > month) continue;
     if (entry.month < month) {
       cents += Math.round(effectiveUnpaid(entry, month) * 100);
-    } else if (entry.group === "Others" && entry.openingUnpaid > 0) {
+    } else if (entry.openingUnpaid > 0) {
       const openingCents = Math.round(entry.openingUnpaid * 100);
       const paidCents = Math.round(entry.paid * 100);
       cents += Math.max(0, openingCents - paidCents);
