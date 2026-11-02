@@ -408,7 +408,6 @@ const addUnpaidField = document.getElementById("add-unpaid-field");
 const addUnpaid = document.getElementById("add-item-unpaid");
 const addInstallmentField = document.getElementById("add-installment-field");
 const addInstallment = document.getElementById("add-item-installment");
-const addRemarkField = document.getElementById("add-remark-field");
 const addRetail = document.getElementById("add-item-retail");
 const addUrl = document.getElementById("add-item-url");
 const addRemark = document.getElementById("add-item-remark");
@@ -448,12 +447,6 @@ const walletDialog = document.getElementById("wallet-dialog");
 const walletDialogText = document.getElementById("wallet-dialog-text");
 const walletDialogCancel = document.getElementById("wallet-dialog-cancel");
 const walletDialogOk = document.getElementById("wallet-dialog-ok");
-const hoverTooltip = document.createElement("div");
-hoverTooltip.className = "hover-tooltip";
-hoverTooltip.hidden = true;
-hoverTooltip.setAttribute("role", "tooltip");
-document.body.append(hoverTooltip);
-
 // Ordinary loading messages are read to assistive technologies, not shown as logs.
 // Only errors and data warnings become visible in the wallet.
 function setWalletMessage(message, problem = false) {
@@ -699,35 +692,6 @@ function confirmWallet(message = "Are you sure?") {
   });
 }
 
-function hideItemTooltip() {
-  hoverTooltip.hidden = true;
-}
-
-function positionItemTooltip(x, y) {
-  const width = hoverTooltip.offsetWidth;
-  const height = hoverTooltip.offsetHeight;
-  const gap = 24;
-  const margin = 10;
-  // Prefer the right of the cursor; flip left when near the viewport edge.
-  const right = x + gap;
-  const left = right + width <= window.innerWidth - margin
-    ? right : Math.max(margin, x - width - gap);
-  hoverTooltip.style.left = Math.min(left, Math.max(margin, window.innerWidth - width - margin)) + "px";
-  hoverTooltip.style.top = Math.max(margin,
-    Math.min(y + 12, window.innerHeight - height - margin)) + "px";
-}
-function showItemTooltip(target, text, group, pointer = null) {
-  if (!text) return;
-  hoverTooltip.textContent = text;
-  hoverTooltip.className = "hover-tooltip group-" +
-    (isCustomGroup(group) ? "custom" : group.toLowerCase());
-  colorizeCategory(hoverTooltip, group);
-  hoverTooltip.hidden = false;
-  const rect = target.getBoundingClientRect();
-  positionItemTooltip(pointer?.clientX ?? rect.right,
-    pointer?.clientY ?? rect.top);
-}
-
 function tooltipText(entry) {
   const meta = entry.meta;
   const lines = [];
@@ -761,20 +725,6 @@ function addItemNameCell(row, entry, isHold = false) {
   }
   const label = document.createElement("span");
   label.textContent = entry.item;
-  const note = tooltipText(entry);
-  if (note) {
-    label.className = "wallet-item-note";
-    label.tabIndex = 0;
-    label.setAttribute("aria-label", entry.item + ". " + note.replace(/\n/g, " "));
-    label.addEventListener("pointerenter", event =>
-      showItemTooltip(label, note, entry.group, event));
-    label.addEventListener("pointermove", event => {
-      if (!hoverTooltip.hidden) positionItemTooltip(event.clientX, event.clientY);
-    });
-    label.addEventListener("pointerleave", hideItemTooltip);
-    label.addEventListener("focus", () => showItemTooltip(label, note, entry.group));
-    label.addEventListener("blur", hideItemTooltip);
-  }
   cell.append(label);
   row.append(cell);
 }
@@ -907,7 +857,12 @@ function renderTable(month, target, groupStates, fromComparison = false) {
           formatWalletCurrency(planned.requested, viewCurrency, referenceRate);
         amountCell.append(amountNote);
       }
-      addTextCell(row, entry.remark || "—", "wallet-detail");
+      // Keep legacy snapshot remarks and append-only private note history together.
+      // No tooltip or hidden interaction is necessary to read the complete remark.
+      const remarkLines = [entry.remark?.trim(), tooltipText(entry)]
+        .filter(Boolean);
+      const distinctRemarks = [...new Set(remarkLines)];
+      addTextCell(row, distinctRemarks.join("\n") || "—", "wallet-detail");
 
       const actionCell = document.createElement("td");
       actionCell.className = "wallet-update-cell";
@@ -1281,7 +1236,6 @@ function updateOptionalFields() {
   addUnpaidField.hidden = !others;
   addInstallmentField.hidden = !others || Boolean(editingEntry);
   if (editingEntry) addInstallment.value = "";
-  addRemarkField.hidden = false;
   addOptions.hidden = isWithdrawal;
   if (!editingEntry) {
     addHeading.textContent = isWithdrawal ? "Withdraw" : "Add item";
@@ -1405,10 +1359,10 @@ function enteredPrivateMeta(group, item) {
 }
 
 function fillPrivateMeta(meta) {
-  // Existing notes remain visible in the item tooltip.
+  // Existing private notes appear directly in the Remark table column.
   // The edit box accepts only an additional line, never a replacement.
   addHoverNote.value = "";
-  addHoverNote.placeholder = meta?.note ? "Add another note" : "Add a note";
+  addHoverNote.placeholder = meta?.note ? "Append another remark" : "Add a remark";
   addLastService.value = meta?.lastService
     ? meta.lastService.slice(0, 4) + "-" + meta.lastService.slice(4) : "";
   addServiceInterval.value = String(meta?.interval || 0);
