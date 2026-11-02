@@ -76,10 +76,15 @@ export function applyTheme() {
     const [r,g,b] = parts(hex);
     setVar("--theme-" + key + "-glow", "rgba(" + r + "," + g + "," + b + ",.4)");
   }
-  setVar("--theme-content", readableOn(c.background));
-  setVar("--theme-content-muted", mix(readableOn(c.background),c.background,.34));
-  setVar("--theme-surface", mix(c.background,"#FFFFFF",.55));
-  setVar("--theme-content-panel", mix(c.background,readableOn(c.background),.035));
+  const bodyText = readableOn(c.background);
+  const darkBackground = bodyText === "#FFFFFF";
+  setVar("--theme-content", bodyText);
+  setVar("--theme-content-muted", mix(bodyText,c.background,.34));
+  // Surface tone follows the page tone so foreground text stays readable.
+  setVar("--theme-surface", mix(c.background, darkBackground ? "#000000" : "#FFFFFF",
+    darkBackground ? .18 : .55));
+  setVar("--theme-content-panel", mix(c.background,
+    darkBackground ? "#000000" : "#FFFFFF", .08));
   setVar("--theme-subtle", mix(c.background,c.primary,.12));
   setVar("--theme-chart-0", c.category0);
   setVar("--theme-chart-1", c.category1);
