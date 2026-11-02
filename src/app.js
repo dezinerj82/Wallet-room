@@ -791,7 +791,7 @@ function renderTable(month, target, groupStates, fromComparison = false) {
     );
     const expanded = groupStates.get(group) !== false;
     const headingRow = document.createElement("tr");
-    headingRow.className = "group-heading";
+    headingRow.className = "group-heading" + (expanded ? " group-expanded" : "");
     const headingCell = document.createElement("th");
     headingCell.colSpan = 4;
     headingCell.scope = "rowgroup";
@@ -810,6 +810,18 @@ function renderTable(month, target, groupStates, fromComparison = false) {
     });
 
     headingCell.append(button);
+    if (!expanded) {
+      headingRow.classList.add("group-collapsed");
+      colorizeCategory(headingRow, group);
+      const total = entries.reduce((sum, entry) =>
+        sum + (entry.group === "Saving" ? Number(entry.balance || 0) :
+          Number(entry.amount || 0)), 0);
+      const totalLabel = document.createElement("span");
+      totalLabel.className = "group-collapsed-total";
+      totalLabel.textContent = formatWalletCurrency(total,
+        fromComparison ? displayCurrencies.other : displayCurrencies.main, referenceRate);
+      headingCell.append(totalLabel);
+    }
     headingRow.append(headingCell);
     rows.append(headingRow);
     if (!expanded) continue;
@@ -890,7 +902,27 @@ function renderTable(month, target, groupStates, fromComparison = false) {
           }
         });
       }
-      actionCell.append(editButton);
+      editButton.append(document.createTextNode(" Edit"));
+      const remarkButton = document.createElement("button");
+      remarkButton.type = "button";
+      remarkButton.className = "remark-action-button";
+      remarkButton.textContent = "Remark";
+      remarkButton.disabled = !editable;
+      remarkButton.setAttribute("aria-label", "Add remark to " + entry.item);
+      if (editable) remarkButton.addEventListener("click", () => {
+        if (entry.group === "Saving") {
+          openSavingSettings(entry);
+          savingsNote.focus({ preventScroll: true });
+          savingsNote.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } else {
+          openUpdateForm(entry.paymentParts
+            ? entry.paymentParts.find(part => !part.carryOver) || entry : entry);
+          addOptions.open = true;
+          addHoverNote.focus({ preventScroll: true });
+          addHoverNote.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      });
+      actionCell.append(remarkButton, editButton);
       if (month === selectedMonth && month <= monthKey(new Date()) &&
           !closedMonths.has(month) && !fromComparison && entry.group !== "IN" &&
           entry.group !== "Saving" && entry.unpaid > 0) {
