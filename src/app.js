@@ -11,6 +11,82 @@ import {
   monthKey, shiftedMonthKey, formatMonth, formatAmount
 } from "./records.js";
 import { effectiveUnpaid } from "./settlement.js";
+import { DEFAULT_THEME, THEME_FIELDS, getTheme, setTheme, colorizeCategory, themeWarning } from "./theme.js";
+
+
+const themePanel = document.getElementById("theme-panel");
+const themeForm = document.getElementById("theme-form");
+const themeFields = document.getElementById("theme-fields");
+const themeWarningText = document.getElementById("theme-contrast-status");
+let themeBeforeOpen = null;
+function readThemeForm() {
+  const colors = {};
+  for (const [key] of THEME_FIELDS) {
+    colors[key] = themeForm.elements.namedItem("theme-" + key).value;
+  }
+  return {colors, layout:themeForm.elements.namedItem("theme-density").value};
+}
+function populateThemeForm(theme) {
+  for (const [key] of THEME_FIELDS) {
+    themeForm.elements.namedItem("theme-" + key).value = theme.colors[key];
+    themeForm.querySelector('[data-theme-hex="' + key + '"]').textContent = theme.colors[key];
+  }
+  themeForm.elements.namedItem("theme-density").value = theme.layout;
+  themeWarningText.textContent = themeWarning(theme.colors);
+}
+for (const [key, label] of THEME_FIELDS) {
+  const field = document.createElement("div");
+  field.className = "theme-color-field";
+  const heading = document.createElement("label");
+  heading.htmlFor = "theme-color-" + key;
+  heading.textContent = label;
+  const hexText = document.createElement("small");
+  hexText.className = "theme-color-hex";
+  hexText.dataset.themeHex = key;
+  const control = document.createElement("input");
+  control.type = "color";
+  control.id = heading.htmlFor;
+  control.name = "theme-" + key;
+  control.setAttribute("aria-label", label + " theme color");
+  field.append(heading, control, hexText);
+  themeFields.append(field);
+}
+function previewTheme() {
+  const next = readThemeForm();
+  setTheme(next);
+  for (const [key] of THEME_FIELDS) {
+    themeForm.querySelector('[data-theme-hex="' + key + '"]').textContent = next.colors[key];
+  }
+  themeWarningText.textContent = themeWarning(next.colors);
+}
+document.getElementById("theme-open").addEventListener("click", () => {
+  themeBeforeOpen = getTheme();
+  populateThemeForm(themeBeforeOpen);
+  themePanel.showModal();
+});
+function revertTheme() {
+  if (themeBeforeOpen) setTheme(themeBeforeOpen);
+  themeBeforeOpen = null;
+  themePanel.close();
+}
+document.getElementById("theme-close").addEventListener("click", revertTheme);
+document.getElementById("theme-cancel").addEventListener("click", revertTheme);
+themePanel.addEventListener("cancel", event => {
+  event.preventDefault();
+  revertTheme();
+});
+themeForm.addEventListener("input", previewTheme);
+document.getElementById("theme-reset").addEventListener("click", () => {
+  const restored = {colors:{...DEFAULT_THEME},layout:"comfortable"};
+  setTheme(restored);
+  populateThemeForm(restored);
+});
+themeForm.addEventListener("submit", event => {
+  event.preventDefault();
+  setTheme(readThemeForm());
+  themeBeforeOpen = null;
+  themePanel.close();
+});
 
 const TRUST_KEY = "home-wallet-remember-browser-v1";
 let currentMonth = monthKey(new Date());
@@ -379,17 +455,21 @@ function beginWalletProgress(message) {
   walletProgressText.textContent = message;
   walletProgress.querySelector('[role="progressbar"]').setAttribute("aria-valuetext", message);
   walletProgress.hidden = false;
+  refreshButton.dataset.processing = "true";
   return ticket;
 }
 
 function finishWalletProgress(ticket) {
   if (ticket !== walletProgressTicket) return;
   walletProgress.hidden = true;
+  delete refreshButton.dataset.processing;
   walletProgressText.textContent = "";
 }
 
 function setItemProgress(message = "") {
   itemProgress.hidden = !message;
+  if (message) submitItemButton.dataset.processing = "true";
+  else delete submitItemButton.dataset.processing;
   itemProgressText.textContent = message;
   if (message) {
     itemProgress.querySelector('[role="progressbar"]').setAttribute("aria-valuetext", message);
@@ -629,6 +709,7 @@ function showItemTooltip(target, text, group, pointer = null) {
   hoverTooltip.textContent = text;
   hoverTooltip.className = "hover-tooltip group-" +
     (isCustomGroup(group) ? "custom" : group.toLowerCase());
+  colorizeCategory(hoverTooltip, group);
   hoverTooltip.hidden = false;
   const rect = target.getBoundingClientRect();
   positionItemTooltip(pointer?.clientX ?? rect.right,
@@ -768,6 +849,7 @@ function renderTable(month, target, groupStates, fromComparison = false) {
     button.type = "button";
     button.className = "group-toggle group-" +
       (isCustomGroup(group) ? "custom" : group.toLowerCase());
+    colorizeCategory(button, group);
     button.setAttribute("aria-expanded", String(expanded));
     button.setAttribute("aria-label", (expanded ? "Collapse " : "Expand ") + displayGroup(group));
     button.textContent = displayGroup(group);
