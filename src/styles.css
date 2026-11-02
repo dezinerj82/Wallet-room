@@ -2716,3 +2716,46 @@ body:has(#login-view:not([hidden])) .heading-controls .currency-select { display
   flex:0 0 auto;
 }
 .site-heading-row #theme-open { position:static; top:auto; right:auto; transform:none; margin:0; }
+
+/* Table typography alignment only: preserve current columns and category geometry.
+   Item/Amount headings and values start at their column's left edge;
+   sentence-style Remarks remain left aligned and actions stay centered. */
+:root[data-density] .wallet-table thead th:nth-child(1),
+:root[data-density] .wallet-table thead th:nth-child(2),
+:root[data-density] .wallet-table thead th:nth-child(3),
+:root[data-density] .wallet-table tbody tr:not(.group-heading) td.wallet-item,
+:root[data-density] .wallet-table tbody tr:not(.group-heading) td.wallet-amount,
+:root[data-density] .wallet-table tbody tr:not(.group-heading) td.wallet-detail {
+  text-align: left !important;
+  vertical-align: middle;
+}
+:root[data-density] .wallet-table thead th:last-child,
+:root[data-density] .wallet-table tbody td.wallet-update-cell {
+  text-align: center !important;
+  vertical-align: middle;
+}
+:root[data-density] .wallet-update-cell .remark-action-button,
+:root[data-density] .wallet-update-cell .update-item-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .35rem;
+  width: calc(var(--wallet-control-height) * .75);
+  min-width: calc(var(--wallet-control-height) * .75);
+  height: calc(var(--wallet-control-height) * .75);
+  min-height: calc(var(--wallet-control-height) * .75);
+  line-height: 1;
+  flex: none;
+}
+:root[data-density] .wallet-update-cell :is(.remark-action-button,.update-item-button) svg {
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+/* Symmetrical breathing room above and below the table. Other row
+   positions, category spacing and controls are not changed. */
+:root[data-density] #wallet-view > #wallet-balance-row {
+  margin-top: var(--page-actions-content-gap);
+}
