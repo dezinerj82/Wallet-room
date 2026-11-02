@@ -400,7 +400,10 @@ export async function addWalletItem(token, folderId, entry) {
   }
   const item = validateEntry(entry);
   const recurring = entry?.recurring === true;
-  const metadataLine = entry?.meta ? metaLine(buildMeta(item.group, item.item, entry.meta)) : "";
+  const metadataLine = entry?.meta ? metaLine(buildMeta(item.group, item.item, {
+    ...entry.meta,
+    noteLoggedAt: entry.meta.note?.trim() ? new Date().toISOString() : ""
+  })) : "";
   if (recurring && item.group !== "Bills") {
     throw new Error("Only Bills can repeat.");
   }
@@ -529,7 +532,10 @@ export async function addWalletInstallments(token, folderId, entry, months) {
       monthIsPresent(existing.content, row.group, row.item, row.month))) {
     throw new Error("Installment month already exists. No changes saved.");
   }
-  const meta = entry?.meta ? metaLine(buildMeta(base.group, base.item, entry.meta)) : "";
+  const meta = entry?.meta ? metaLine(buildMeta(base.group, base.item, {
+    ...entry.meta,
+    noteLoggedAt: entry.meta.note?.trim() ? new Date().toISOString() : ""
+  })) : "";
   const previous = existing?.content || "";
   const expected = previous + (previous && !previous.endsWith("\n") ? "\n" : "") +
     rows.map(row => row.line).join("") + meta;
@@ -668,11 +674,12 @@ export async function updateWalletItem(token, folderId, changes) {
   const oldNote = String(priorMeta?.note || "").trim();
   const combinedNote = [oldNote, newNote].filter(Boolean).join("\n");
   if (combinedNote.length > 1600) {
-    throw new Error("Hover note is full. No changes were saved.");
+    throw new Error("Remark history is full. No changes were saved.");
   }
   const newMeta = changes?.meta
     ? buildMeta(item.group, item.item, {
-        ...(priorMeta || {}), ...changes.meta, note: combinedNote
+        ...(priorMeta || {}), ...changes.meta, note: combinedNote,
+        noteLoggedAt: newNote ? new Date().toISOString() : (priorMeta?.noteLoggedAt || "")
       })
     : priorMeta ? buildMeta(item.group, item.item, priorMeta) : null;
   const metaChanged = JSON.stringify(priorMeta) !== JSON.stringify(newMeta);
@@ -933,14 +940,17 @@ export async function saveSavingSettings(token, folderId, previous, input) {
       latest.month !== previous.month) {
     throw new Error("Savings changed. Press Refresh.");
   }
+  const old = lastMeta(existing.text, "Saving", previous.item);
+  const noteChanged = String(input?.note || "") !== String(old?.note || "");
   const meta = buildMeta("Saving", previous.item, {
     ...input,
+    noteLoggedAt: noteChanged && String(input?.note || "").trim()
+      ? new Date().toISOString() : (old?.noteLoggedAt || ""),
     openingBalance: previous.meta?.openingBalance ?? null,
     savingFromMonth: previous.meta?.savingFromMonth || "202611",
     access: input?.access === "accessible" ? "accessible" : "protected",
     interval: 0, remindBefore: 0, lastService: ""
   });
-  const old = lastMeta(existing.text, "Saving", previous.item);
   if (JSON.stringify(old) !== JSON.stringify(previous.meta || null)) {
     throw new Error("Savings settings changed. Press Refresh.");
   }
