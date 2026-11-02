@@ -2725,3 +2725,30 @@ button[data-processing="true"]::after {
   font-size: 1rem;
   min-height: calc(2.75rem * var(--theme-space-factor));
 }
+
+/* Exact 10px between neighbouring table columns and adjacent action buttons. */
+:root[data-density] .wallet-table tbody td,
+:root[data-density] .wallet-table thead th,
+:root[data-density] .other-months-table tbody td,
+:root[data-density] .other-months-table thead th {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+:root[data-density] .wallet-table tbody td:first-child,
+:root[data-density] .wallet-table thead th:first-child,
+:root[data-density] .other-months-table tbody td:first-child,
+:root[data-density] .other-months-table thead th:first-child {
+  padding-left: var(--wallet-col-pad);
+}
+:root[data-density] .wallet-table tbody td:last-child,
+:root[data-density] .wallet-table thead th:last-child,
+:root[data-density] .other-months-table tbody td:last-child,
+:root[data-density] .other-months-table thead th:last-child {
+  padding-right: var(--wallet-col-pad);
+}
+:root[data-density] .wallet-actions,
+:root[data-density] .wallet-import-actions,
+:root[data-density] .form-actions-right,
+:root[data-density] .theme-panel-actions {
+  column-gap: 10px;
+}
