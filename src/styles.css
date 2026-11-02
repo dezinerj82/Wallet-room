@@ -2464,3 +2464,91 @@ button[data-processing="true"]::after {
   color: var(--theme-danger) !important;
   opacity: 1;
 }
+
+/* 2026-11-02: Remark is a regular table column, not an interactive tooltip. */
+.wallet-item-note { text-decoration: none; cursor: inherit; }
+.wallet-detail {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  max-width: min(34rem, 42vw);
+}
+.hover-tooltip { display: none !important; }
+
+/* Mail-style display density: information density, not browser-width expansion.
+   Gmail/Outlook use tighter or roomier rows; content stays responsive. */
+:root[data-density="compact"] {
+  --theme-width: 76rem;
+  --theme-space-factor: .78;
+  --wallet-row-pad: .39rem;
+  --wallet-col-pad: .72rem;
+  --wallet-control-height: 2.35rem;
+  --wallet-section-gap: 1.1rem;
+  --wallet-density-gap: .55rem;
+}
+:root[data-density="comfortable"] {
+  --theme-width: 76rem;
+  --theme-space-factor: 1;
+  --wallet-row-pad: .8rem;
+  --wallet-col-pad: 1rem;
+  --wallet-control-height: 2.65rem;
+  --wallet-section-gap: 1.6rem;
+  --wallet-density-gap: .9rem;
+}
+:root[data-density="wide"] {
+  --theme-width: 76rem;
+  --theme-space-factor: 1.2;
+  --wallet-row-pad: 1.15rem;
+  --wallet-col-pad: 1.25rem;
+  --wallet-control-height: 3rem;
+  --wallet-section-gap: 2rem;
+  --wallet-density-gap: 1.2rem;
+}
+:root[data-density] .wallet-table th,
+:root[data-density] .wallet-table td,
+:root[data-density] .other-months-table th,
+:root[data-density] .other-months-table td {
+  padding: var(--wallet-row-pad) var(--wallet-col-pad);
+  line-height: 1.45;
+}
+:root[data-density] .wallet-table .group-heading th,
+:root[data-density] .other-months-table .group-heading th {
+  padding-top: calc(var(--wallet-row-pad) + .12rem);
+  padding-bottom: calc(var(--wallet-row-pad) * .6);
+  padding-left: .3rem;
+}
+:root[data-density] .wallet-actions,
+:root[data-density] .wallet-import-actions,
+:root[data-density] .form-actions-right {
+  gap: var(--wallet-density-gap);
+}
+:root[data-density] .wallet-actions button,
+:root[data-density] .wallet-import-actions button,
+:root[data-density] .form-actions-right button,
+:root[data-density] #theme-open {
+  min-height: var(--wallet-control-height);
+}
+:root[data-density] #wallet-view > .wallet-table-wrap,
+:root[data-density] #wallet-view > .wallet-balance-row {
+  margin-top: var(--wallet-section-gap);
+}
+:root[data-density] .add-grid,
+:root[data-density] .pay-form-grid {
+  gap: var(--wallet-density-gap);
+}
+:root[data-density] .add-item-panel {
+  padding: calc(1.15rem * var(--theme-space-factor));
+}
+:root[data-density] .wallet-table .wallet-detail,
+:root[data-density] .other-months-table .wallet-detail {
+  white-space: pre-line;
+}
+@media (max-width: 600px) {
+  :root[data-density] .wallet-actions button,
+  :root[data-density] .wallet-import-actions button,
+  :root[data-density] .form-actions-right button,
+  :root[data-density] #theme-open {
+    min-height: max(2.75rem, var(--wallet-control-height));
+  }
+  .wallet-detail { max-width: none; }
+}
