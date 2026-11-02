@@ -2,6 +2,7 @@
 // @RECUR directives live inside each app-owned item's private TXT history.
 const DIRECTIVE = "@RECUR";
 const MONTH_RE = /^(?:19|20|21)\d{2}(?:0[1-9]|1[0-2])$/;
+import { isExpenseGroup } from "./groups.js";
 const AMOUNT_RE = /^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/;
 
 function cleanText(text, max) {
@@ -13,7 +14,7 @@ export function parseRecurringDirective(line) {
   if (line?.startsWith("@RECUR2\t")) {
     try {
       const r = JSON.parse(line.slice(8));
-      if (r.group !== "Bills" || typeof r.item !== "string" || !r.item.trim() ||
+      if (!isExpenseGroup(r.group) || typeof r.item !== "string" || !r.item.trim() ||
           r.item.length > 120 || !MONTH_RE.test(r.month) ||
           (r.end && (!MONTH_RE.test(r.end) || r.end < r.month)) ||
           !["monthly","weekly","annual"].includes(r.type) || typeof r.active !== "boolean" ||
@@ -36,14 +37,14 @@ export function parseRecurringDirective(line) {
   const amount = Number(fields[4]);
   if (!Number.isSafeInteger(Math.round(amount * 100))) return null;
   return {
-    item: fields[2], month: fields[3], amount,
+    group:"Bills", item: fields[2], month: fields[3], amount,
     remark: fields[5], active: fields[6] === "ON", type:"monthly", end:""
   };
 }
 
 export function recurringDirectiveLine(rule, active) {
   if (["weekly","monthly","annual"].includes(rule.type) || rule.end) {
-    const value={group:"Bills",item:rule.item,month:rule.month,
+    const value={group:rule.group||"Bills",item:rule.item,month:rule.month,
       amount:Number(rule.amount),remark:String(rule.remark||""),
       type:rule.type||"monthly",end:rule.end||"",
       days:rule.type==="weekly"?rule.days:undefined,active:Boolean(active)};
@@ -65,13 +66,13 @@ export function recurringDirectiveLine(rule, active) {
     Number(rawAmount).toFixed(2), remark, active ? "ON" : "OFF"].join("\t") + "\n";
 }
 
-export function latestRecurringRule(content, item) {
+export function latestRecurringRule(content, item, group="Bills") {
   if (typeof content !== "string") return null;
   let rule = null;
   for (const line of content.split("\n")) {
     if (!line.startsWith(DIRECTIVE + "\t") && !line.startsWith("@RECUR2\t")) continue;
     const parsed = parseRecurringDirective(line);
-    if (parsed && parsed.item.toLocaleLowerCase("en") ===
+    if (parsed && parsed.group === group && parsed.item.toLocaleLowerCase("en") ===
         String(item).toLocaleLowerCase("en")) rule = parsed;
   }
   return rule;
@@ -102,7 +103,7 @@ export function recurringMonthsDue(content, rule, now = new Date()) {
   const seen = new Set();
   for (const line of content.split("\n")) {
     const fields = line.replace(/\r$/, "").split("\t");
-    if (fields[0] === "Bills" &&
+    if (fields[0] === (rule.group||"Bills") &&
         String(fields[1] || "").toLocaleLowerCase("en") ===
           rule.item.toLocaleLowerCase("en") && MONTH_RE.test(fields[2])) {
       seen.add(fields[2]);
@@ -139,7 +140,8 @@ export function recurringBillLine(rule, month) {
       !Number.isSafeInteger(Math.round(rule.amount * 100)) ||
       !cleanText(rule.remark, 300)) throw new Error("Invalid recurring bill.");
   const money = recurringAmount(rule,month).toFixed(2);
-  const fields = ["Bills", rule.item, month, money, "0.00", money];
+  const fields = [rule.group||"Bills", rule.item, month, money, "0.00", money];
+  if ((rule.group||"Bills")==="Others") fields.push("","","");
   if (rule.remark) fields.push(rule.remark);
   return fields.join("\t") + "\n";
 }
