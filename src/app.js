@@ -1452,8 +1452,8 @@ function updateOptionalFields() {
     addRetail.value = "";
     addUrl.value = "";
     addUnpaid.value = "";
-    addInstallment.value = "";
   }
+  if (!expense) addInstallment.value = "";
   if (isWithdrawal) {
     addMonth.value = currentMonth.slice(0,4) + "-" + currentMonth.slice(4);
     addMonth.disabled = true;
@@ -2166,6 +2166,7 @@ addForm.addEventListener("submit", async event => {
       if (!Number.isInteger(months) || months < 1 || months > 120) {
         throw new Error("Installment must be between 1 and 120 months.");
       }
+      if (months > 1 && payload.recurring) throw new Error("Choose either Recurring or Installment.");
       result = previous
         ? await updateWalletItem(getDriveToken(), activeFolderId, { ...payload, previous })
         : months > 1
