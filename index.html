@@ -8,7 +8,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&amp;family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=green-dollar-1">
-  <link rel="stylesheet" href="src/styles.css?v=20261102-responsive49">
+  <script>
+    // Establish saved display density before the first stylesheet paint.
+    // The module later applies the complete theme; no wallet data is accessed.
+    (() => {
+      let density = "comfortable";
+      try {
+        const saved = JSON.parse(localStorage.getItem("home-wallet-ui-theme-v1") || "null");
+        if (["compact", "comfortable", "wide"].includes(saved?.layout)) density = saved.layout;
+      } catch {}
+      document.documentElement.dataset.density = density;
+    })();
+  </script>
+  <link rel="stylesheet" href="src/styles.css?v=20261102-csspaint50">
   <script src="src/app.js?v=20261102-table47" type="module"></script>
 </head>
 <body>
