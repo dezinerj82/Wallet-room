@@ -2552,3 +2552,19 @@ button[data-processing="true"]::after {
   }
   .wallet-detail { max-width: none; }
 }
+
+/* Theme dialog actions use exactly the same dimensions as Navigation buttons. */
+:root[data-density] #theme-panel button {
+  min-height: var(--wallet-control-height);
+  padding: calc(.55rem * var(--theme-space-factor)) calc(1.02rem * var(--theme-space-factor));
+  font-size: .9rem;
+  font-weight: 500;
+  line-height: 1.2;
+  border-radius: 999px;
+  width: auto;
+}
+@media (max-width: 600px) {
+  :root[data-density] #theme-panel button {
+    min-height: max(2.75rem, var(--wallet-control-height));
+  }
+}
