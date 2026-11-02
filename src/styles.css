@@ -2705,3 +2705,21 @@ body:has(#login-view:not([hidden])) .heading-controls .currency-select { display
   max-width: calc(100vw - 16px);
   max-height: calc(100dvh - 16px);
 }
+
+/* Floating month preview keeps breathing room around all four sides, and
+   respects its existing drag/resize functionality. */
+.other-months-window {
+  width: min(35rem, 88vw);
+  max-width: min(35rem, 88vw) !important;
+  height: min(64dvh, 34rem);
+  max-height: min(82dvh, 38rem);
+  min-width: min(18rem, 88vw);
+}
+@media (max-width: 600px) {
+  .other-months-window {
+    width: 88vw;
+    max-width: 88vw !important;
+    height: min(58dvh, 32rem);
+    max-height: 78dvh;
+  }
+}
