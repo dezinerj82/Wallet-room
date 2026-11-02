@@ -416,7 +416,7 @@ function updateRepeatEstimate() {
   addAmount.readOnly=weekly;
   if(!weekly)return;
   const base=estimatedRepeatAmount(repeatRates,addMonth.value);
-  const old=editingEntry && walletRecurringRules.get(editingEntry.item.toLocaleLowerCase("en"));
+  const old=editingEntry && walletRecurringRules.get(metaKey(editingEntry.group,editingEntry.item));
   const oldBase=old?.type==="weekly"
     ? estimatedRepeatAmount(Object.fromEntries((old.days||[]).map(d=>[d.day,d.amount])),addMonth.value)
     : old?.active ? old.amount : 0;
@@ -1274,7 +1274,7 @@ async function loadWalletRecords(message = "Refreshing your items...") {
     walletSchedules = parsed.schedules;
     walletMetadata = parseAllMetadata(files);
     walletRemarkHistory = parseRemarkHistory(files);
-    walletRecurringRules = new Map((parsed.recurringRules||[]).map(rule=>[rule.item.toLocaleLowerCase("en"),rule]));
+    walletRecurringRules = new Map((parsed.recurringRules||[]).map(rule=>[metaKey(rule.group,rule.item),rule]));
     walletBalanceReady = true;
     walletBalanceComplete = parsed.invalidLines === 0 && !recurringError;
     renderMonth();
@@ -1421,7 +1421,7 @@ function syncItemChoice() {
   if (!newItem) addName.value = "";
   const managed = walletSchedules.some(rule => rule.active &&
     rule.group === activeAddCategory() && rule.item === addItemSelect.value);
-  repeatSection.hidden = activeAddCategory() !== "Bills" || managed;
+  repeatSection.hidden = !isExpenseGroup(activeAddCategory()) || managed;
   if (managed) repeatMode.value="none";
   renderRepeatOptions();
 }
@@ -1430,13 +1430,13 @@ function updateOptionalFields() {
   const group = activeAddCategory();
   const isWithdrawal = group === "Withdraw";
   const others = group === "Others";
-  const bills = group === "Bills";
+  const expense = isExpenseGroup(group);
   const service = group !== "IN" && group !== "Saving" && !isWithdrawal;
   addCategoryField.hidden = addGroup.value !== NEW_CATEGORY;
   addCategoryName.required = !addCategoryField.hidden;
   const scheduleManaged = Boolean(editingEntry?.scheduled);
-  repeatSection.hidden = !bills || isWithdrawal || scheduleManaged;
-  if (!bills || scheduleManaged) repeatMode.value = "none";
+  repeatSection.hidden = !expense || isWithdrawal || scheduleManaged;
+  if (!expense || scheduleManaged) repeatMode.value = "none";
   renderRepeatOptions();
   addUnpaidField.hidden = !others;
   addInstallmentField.hidden = !others || Boolean(editingEntry);
@@ -1649,8 +1649,8 @@ function openUpdateForm(entry) {
   updateOptionalFields();
   syncItemChoice();
   fillPrivateMeta(entry.meta);
-  const rule = walletRecurringRules?.get(entry.item.toLocaleLowerCase("en"));
-  repeatMode.value=entry.group==="Bills" && entry.recurring ? (rule?.type||"monthly") : "none";
+  const rule = walletRecurringRules?.get(metaKey(entry.group,entry.item));
+  repeatMode.value=isExpenseGroup(entry.group) && entry.recurring ? (rule?.type||"monthly") : "none";
   repeatEndMonth.value=rule?.end ? rule.end.slice(0,4)+"-"+rule.end.slice(4) : "";
   repeatRates=Object.fromEntries((rule?.days||[]).map(d=>[d.day,String(d.amount)]));
   renderRepeatOptions();
@@ -2135,7 +2135,7 @@ addForm.addEventListener("submit", async event => {
       if (closedMonths.has(itemMonth)) {
         throw new Error("This month has already been cleared and cannot be edited.");
       }
-      if (group === "Bills" && repeatMode.value === "weekly" &&
+      if (isExpenseGroup(group) && repeatMode.value === "weekly" &&
           (!Object.keys(repeatRates).length ||
            Object.values(repeatRates).some(v=>!v||Number(v)<=0||!Number.isFinite(Number(v))))) {
         throw new Error("Choose weekdays and enter a rate for each selected day.");
@@ -2151,7 +2151,7 @@ addForm.addEventListener("submit", async event => {
         retail: addRetail.value,
         url: addUrl.value,
         remark: addRemark.value,
-        recurring: group === "Bills" && repeatMode.value !== "none",
+        recurring: isExpenseGroup(group) && repeatMode.value !== "none",
         repeatRule: group === "Bills" && repeatMode.value !== "none" ? {
           type:repeatMode.value === "annual" ? "annual" : repeatMode.value,
           end:repeatEndMonth.value.replace("-",""),
