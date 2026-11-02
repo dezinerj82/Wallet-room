@@ -424,10 +424,16 @@ function updateRepeatEstimate() {
   addAmount.value=((Math.round(base*100)+extra)/100).toFixed(2);
 }
 addMonth.addEventListener("change",updateRepeatEstimate);
+function syncServiceFields() {
+  const annual = !repeatSection.hidden && repeatMode.value === "annual";
+  document.getElementById("add-service-field").hidden = !annual;
+  document.getElementById("add-service-interval-field").hidden = !annual;
+}
 function renderRepeatOptions() {
   const selected = repeatMode.value;
   repeatEndField.hidden = selected === "none";
   repeatDaysField.hidden = selected !== "weekly";
+  syncServiceFields();
   repeatDaysButtons.replaceChildren();
   repeatRateFields.replaceChildren();
   if (selected !== "weekly") {updateRepeatEstimate();return;}
@@ -1440,8 +1446,7 @@ function updateOptionalFields() {
     addHeading.textContent = isWithdrawal ? "Withdraw" : "Add item";
     submitItemButton.textContent = isWithdrawal ? "Withdraw" : "Submit";
   }
-  document.getElementById("add-service-field").hidden = !service;
-  document.getElementById("add-service-interval-field").hidden = !service;
+  syncServiceFields();
   document.getElementById("add-remind-field").hidden = !service;
   if (!others) {
     addRetail.value = "";
@@ -1529,15 +1534,15 @@ function validateItemDetails(group) {
   const serviceMonth = addLastService.value;
   const interval = Number(addServiceInterval.value);
   const reminder = Number(addRemindBefore.value);
-  if (serviceMonth && !interval) {
+  if (repeatMode.value === "annual" && serviceMonth && !interval) {
     flagItemField(addServiceInterval, "Choose Service every, or clear Last service.");
     return false;
   }
-  if (interval && !serviceMonth) {
+  if (repeatMode.value === "annual" && interval && !serviceMonth) {
     flagItemField(addLastService, "Select Last service to use Service every.");
     return false;
   }
-  if (reminder && !interval) {
+  if (reminder && repeatMode.value === "annual" && !interval) {
     flagItemField(addServiceInterval, "Choose Service every to set a reminder.");
     return false;
   }
@@ -2148,7 +2153,7 @@ addForm.addEventListener("submit", async event => {
         remark: addRemark.value,
         recurring: group === "Bills" && repeatMode.value !== "none",
         repeatRule: group === "Bills" && repeatMode.value !== "none" ? {
-          type:repeatMode.value,
+          type:repeatMode.value === "annual" ? "annual" : repeatMode.value,
           end:repeatEndMonth.value.replace("-",""),
           days:repeatMode.value==="weekly"
             ? Object.entries(repeatRates).map(([day,amount])=>({day:Number(day),amount:Number(amount)}))
