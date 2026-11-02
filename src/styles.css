@@ -2338,7 +2338,9 @@ body:has(#login-view:not([hidden])) #theme-open {
   color: var(--theme-navigation-text) !important;
   box-shadow: none !important;
 }
-.update-item-button svg { stroke: currentColor; }
+.update-item-button svg { stroke: var(--theme-navigation); }
+.update-item-button:hover:not(:disabled) svg,
+.update-item-button:focus-visible svg { stroke: var(--theme-navigation-text); }
 
 /* Theme is a standard-sized Navigation action on both screens. */
 #theme-open {
