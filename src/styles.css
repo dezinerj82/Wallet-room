@@ -2479,3 +2479,229 @@ body:has(#login-view:not([hidden])) .heading-controls .currency-select { display
   :root[data-density] .site-heading-row .heading-controls { gap: 8px; }
   :root[data-density] .wallet-update-cell button + button { margin-left: 6px; }
 }
+
+/* Responsive table correction: shared measured columns and accessible actions.
+   Avoid intrinsic nowrap widths that previously forced horizontal scrolling. */
+:root[data-density] .wallet-table,
+:root[data-density] .other-months-table {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+  table-layout: fixed !important;
+  border-spacing: 0;
+}
+:root[data-density] .wallet-table thead th,
+:root[data-density] .wallet-table tbody td {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  max-width: none;
+  vertical-align: middle;
+  text-align: center;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+:root[data-density] .wallet-table thead th:nth-child(1),
+:root[data-density] .wallet-table tbody td:nth-child(1) { width: 23% !important; }
+:root[data-density] .wallet-table thead th:nth-child(2),
+:root[data-density] .wallet-table tbody td:nth-child(2) { width: 18% !important; }
+:root[data-density] .wallet-table thead th:nth-child(3),
+:root[data-density] .wallet-table tbody td:nth-child(3) { width: 35% !important; }
+:root[data-density] .wallet-table thead th:nth-child(4),
+:root[data-density] .wallet-table tbody td:nth-child(4) { width: 24% !important; }
+:root[data-density] .wallet-table thead th:nth-child(3),
+:root[data-density] .wallet-table tbody td.wallet-detail {
+  text-align: left !important;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+:root[data-density] .wallet-table tbody td.wallet-amount {
+  white-space: normal;
+  font-variant-numeric: tabular-nums;
+}
+:root[data-density] .wallet-table tbody td.wallet-item {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+:root[data-density] .wallet-table .group-heading th {
+  width: 100% !important;
+  text-align: left;
+}
+:root[data-density] .wallet-table .group-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  text-align: center;
+  min-width: 0;
+}
+:root[data-density] .wallet-table .wallet-update-cell {
+  white-space: normal;
+  min-width: 0;
+}
+:root[data-density] .wallet-update-cell .remark-action-button,
+:root[data-density] .wallet-update-cell .update-item-button,
+:root[data-density] .wallet-update-cell .pay-item-button {
+  max-width: 100%;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+:root[data-density] .wallet-update-cell button + button {
+  margin-left: 0;
+}
+:root[data-density] .wallet-update-cell {
+  line-height: 1.75;
+}
+:root[data-density] .wallet-update-cell button {
+  margin: 3px !important;
+}
+:root[data-density] .wallet-table-wrap,
+:root[data-density] .other-months-table-wrap {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+/* The category marker belongs to the collapsed button, never the row.
+   A fixed circular dot remains visible at all density and popup sizes. */
+:root[data-density] .wallet-table tr.group-collapsed th,
+:root[data-density] .other-months-table tr.group-collapsed th {
+  position: relative;
+  width: 100% !important;
+  text-align: left;
+}
+:root[data-density] .wallet-table tr.group-collapsed .group-toggle,
+:root[data-density] .other-months-table tr.group-collapsed .group-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+  padding-left: calc(var(--wallet-col-pad) + 1.6rem);
+  padding-right: 38%;
+  white-space: normal;
+  background: var(--theme-background2) !important;
+}
+:root[data-density] .wallet-table tr.group-collapsed .group-toggle::before,
+:root[data-density] .other-months-table tr.group-collapsed .group-toggle::before {
+  content: "";
+  display: block;
+  position: absolute;
+  left: max(9px,var(--wallet-col-pad));
+  top: 50%;
+  bottom: auto;
+  width: clamp(7px, calc(8px * var(--theme-space-factor)), 11px);
+  height: clamp(7px, calc(8px * var(--theme-space-factor)), 11px);
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--btn-bg) !important;
+  opacity: 1;
+  flex: none;
+}
+:root[data-density] .group-collapsed-total {
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  text-align: right;
+  max-width: 36%;
+}
+:root[data-density] .wallet-table .group-heading th,
+:root[data-density] .other-months-table .group-heading th {
+  text-align: left;
+}
+/* Popup navigation adapts inside the actual popup, not browser width. */
+.other-months-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(5px, 1.2cqi, 12px);
+  min-width: 0;
+}
+.other-months-month-controls {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.other-months-month-controls #other-months-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.other-months-month-controls .currency-select,
+.heading-controls .currency-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: none !important;
+  padding: .5rem 1.45rem .5rem .75rem;
+  text-align: center;
+  text-align-last: center;
+  min-width: 4rem;
+  width: auto;
+  max-width: 100%;
+  line-height: 1.3;
+  border: 0 !important;
+  color: var(--theme-navigation-text) !important;
+  background-color: var(--theme-navigation) !important;
+  box-shadow: none;
+}
+.other-months-month-controls { position: relative; }
+.other-months-month-controls .currency-select { padding-inline: .7rem; }
+.heading-controls .currency-select {
+  /* Restore a native arrow with consistent spacing in Chrome and mobile. */
+  appearance: auto;
+  -webkit-appearance: menulist;
+  padding: .45rem .55rem;
+}
+.other-months-month-controls .currency-select {
+  appearance: auto;
+  -webkit-appearance: menulist;
+}
+/* Preview widths must be calculated from its window, preventing vertical
+   letter-by-letter headings and oversized embedded table scrolling. */
+:root[data-density] .other-months-table {
+  min-width: 0 !important;
+  table-layout: fixed !important;
+}
+:root[data-density] .other-months-table th,
+:root[data-density] .other-months-table td {
+  min-width: 0 !important;
+  font-size: clamp(.72rem, 2.8cqi, .95rem);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+:root[data-density] .other-months-table thead th:nth-child(1) { width: 24% !important; }
+:root[data-density] .other-months-table thead th:nth-child(2) { width: 22% !important; }
+:root[data-density] .other-months-table thead th:nth-child(3) { width: 32% !important; text-align: left; }
+:root[data-density] .other-months-table thead th:nth-child(4) { width: 22% !important; }
+:root[data-density] .other-months-table tbody td.wallet-detail { text-align: left !important; }
+:root[data-density] .other-months-table .group-heading th { width: 100% !important; text-align: left; }
+:root[data-density] .other-months-table .wallet-update-cell button { font-size: .75rem; }
+/* Buttons and the collapsed total stay readable at narrow widths. */
+@media (max-width: 680px) {
+  :root[data-density] .wallet-table,
+  :root[data-density] .other-months-table { min-width: 0 !important; }
+  :root[data-density] .wallet-table thead th:nth-child(1),
+  :root[data-density] .wallet-table tbody td:nth-child(1) { width: 22% !important; }
+  :root[data-density] .wallet-table thead th:nth-child(2),
+  :root[data-density] .wallet-table tbody td:nth-child(2) { width: 21% !important; }
+  :root[data-density] .wallet-table thead th:nth-child(3),
+  :root[data-density] .wallet-table tbody td:nth-child(3) { width: 31% !important; }
+  :root[data-density] .wallet-table thead th:nth-child(4),
+  :root[data-density] .wallet-table tbody td:nth-child(4) { width: 26% !important; }
+  :root[data-density] .wallet-table th,
+  :root[data-density] .wallet-table td {
+    padding-left: clamp(4px,1vw,8px) !important;
+    padding-right: clamp(4px,1vw,8px) !important;
+    font-size: clamp(.76rem,2.4vw,.95rem);
+  }
+}
+/* Keep popup within the screen and let its content scroll internally. */
+.other-months-window {
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+}
