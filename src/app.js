@@ -1883,7 +1883,7 @@ walletSetupFile.addEventListener("change", async () => {
         ? parseWalletCsv(await file.text())
         : JSON.parse(await file.text()));
     if (version !== connectionVersion) return;
-    if (!await confirmWallet("Import file?")) return;
+    if (!await confirmWallet("Import " + source.items.length + " items? Existing records will be preserved.")) return;
     if (version !== connectionVersion || !getDriveToken()) return;
 
     started = true;
