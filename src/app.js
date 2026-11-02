@@ -400,13 +400,37 @@ const repeatDaysButtons = document.getElementById("repeat-days-buttons");
 const repeatRateFields = document.getElementById("repeat-rate-fields");
 const repeatDayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 let repeatRates = {};
+function estimatedRepeatAmount(rule,month) {
+  if (!/^\d{4}-\d{2}$/.test(month)) return 0;
+  const [year,mon]=month.split("-").map(Number);
+  let cents=0;
+  for(let day=1;day<=new Date(year,mon,0).getDate();day++){
+    const weekday=new Date(year,mon-1,day).getDay();
+    const rate=rule[weekday];
+    if(rate) cents+=Math.round(Number(rate)*100)||0;
+  }
+  return cents/100;
+}
+function updateRepeatEstimate() {
+  const weekly=repeatMode.value==="weekly" && !repeatSection.hidden;
+  addAmount.readOnly=weekly;
+  if(!weekly)return;
+  const base=estimatedRepeatAmount(repeatRates,addMonth.value);
+  const old=editingEntry && walletRecurringRules.get(editingEntry.item.toLocaleLowerCase("en"));
+  const oldBase=old?.type==="weekly"
+    ? estimatedRepeatAmount(Object.fromEntries((old.days||[]).map(d=>[d.day,d.amount])),addMonth.value)
+    : old?.active ? old.amount : 0;
+  const extra=editingEntry?Math.max(0,Math.round(editingEntry.amount*100)-Math.round(oldBase*100)):0;
+  addAmount.value=((Math.round(base*100)+extra)/100).toFixed(2);
+}
+addMonth.addEventListener("change",updateRepeatEstimate);
 function renderRepeatOptions() {
   const selected = repeatMode.value;
   repeatEndField.hidden = selected === "none";
   repeatDaysField.hidden = selected !== "weekly";
   repeatDaysButtons.replaceChildren();
   repeatRateFields.replaceChildren();
-  if (selected !== "weekly") return;
+  if (selected !== "weekly") {updateRepeatEstimate();return;}
   repeatDayNames.forEach((name, day) => {
     const selectedDay = Object.prototype.hasOwnProperty.call(repeatRates,day);
     const btn=document.createElement("button");
@@ -425,9 +449,10 @@ function renderRepeatOptions() {
     field.type="number"; field.min="0.01"; field.step="0.01";
     field.inputMode="decimal";field.placeholder="Amount";
     field.value=repeatRates[day];
-    field.addEventListener("input",()=>{repeatRates[day]=field.value;});
+    field.addEventListener("input",()=>{repeatRates[day]=field.value;updateRepeatEstimate();});
     label.append(field);repeatRateFields.append(label);
   });
+  updateRepeatEstimate();
 }
 repeatMode.addEventListener("change",renderRepeatOptions);
 const addOptions = document.getElementById("add-item-options");
@@ -644,6 +669,8 @@ function resetWallet() {
   addName.readOnly = false;
   addMonth.disabled = false;
   addForm.reset();
+  repeatRates={};
+  repeatEndMonth.value="";
   repeatMode.value = "none"; renderRepeatOptions();
   addButton.disabled = true;
   submitItemButton.disabled = false;
@@ -2068,6 +2095,7 @@ addForm.addEventListener("submit", async event => {
     addStatus.textContent = "Your session has expired. Please sign in again.";
     return;
   }
+  updateRepeatEstimate();
   if (!validateWalletForm(addForm, addStatus)) return;
   if (!validateRemarkWords(addHoverNote, addStatus, addForm)) return;
   const validationGroup = editingEntry?.group || activeAddCategory();
@@ -2107,6 +2135,9 @@ addForm.addEventListener("submit", async event => {
            Object.values(repeatRates).some(v=>!v||Number(v)<=0||!Number.isFinite(Number(v))))) {
         throw new Error("Choose weekdays and enter a rate for each selected day.");
       }
+      if (repeatMode.value !== "none" && repeatEndMonth.value &&
+          repeatEndMonth.value < addMonth.value)
+        throw new Error("End month must not be earlier than Start Month.");
       const payload = {
         group, item,
         month: itemMonth,
