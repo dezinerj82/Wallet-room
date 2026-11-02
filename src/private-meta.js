@@ -31,7 +31,7 @@ export function validMeta(meta) {
     typeof meta.note === "string" && meta.note.length <= 1600 &&
     (meta.noteLoggedAt === "" ||
       (typeof meta.noteLoggedAt === "string" &&
-        /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(meta.noteLoggedAt))) &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(meta.noteLoggedAt))) &&
     ["", "accessible", "protected"].includes(meta.access) &&
     (meta.group === "Saving" || meta.access === "") &&
     (meta.lastService === "" || MONTH.test(meta.lastService)) &&
