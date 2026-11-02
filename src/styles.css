@@ -2817,3 +2817,18 @@ body:has(#login-view:not([hidden])) .heading-controls .currency-select { display
 @media (max-width: 400px) {
   .remark-log-row { grid-template-columns: 4.7rem minmax(0,1fr); gap: 8px; }
 }
+
+/* Compact recurrence controls inside the existing More options panel. */
+#repeat-section { display:grid; gap:.75rem; }
+#repeat-section[hidden], #repeat-end-field[hidden], #repeat-days-field[hidden] { display:none !important; }
+#repeat-section label { display:grid; gap:.35rem; }
+.repeat-days-title {font-weight:650; margin-bottom:.5rem;}
+.repeat-days-buttons {display:flex; flex-wrap:wrap; gap:.35rem;}
+.repeat-day-button {border:1px solid var(--subtle-line); border-radius:999px;
+  padding:.4rem .6rem; background:var(--paper); color:var(--ink); min-width:2.8rem;
+  font:inherit; cursor:pointer;}
+.repeat-day-button.is-selected {background:var(--pearl-aqua); color:var(--ink);}
+.repeat-rate-fields {display:grid; grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
+  gap:.65rem; margin-top:.6rem;}
+.repeat-rate-fields input {width:100%;}
+#repeat-days-field small {display:block; margin-top:.55rem; opacity:.78;}
