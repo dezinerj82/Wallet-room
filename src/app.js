@@ -129,7 +129,6 @@ const loginTransition = document.getElementById("login-transition");
 const loginProgressTrack = document.getElementById("login-progress-track");
 const loginTransitionLabel = document.getElementById("login-transition-label");
 let transitionTimer = null;
-let loginConfettiTimer = null;
 let loginRequestPending = false;
 let loginOpenAnimation = null;
 let loginViewTimer = null;
@@ -147,7 +146,7 @@ function enterLoginLoading() {
   loginTransition.hidden = false;
   loginTransition.classList.add("is-visible");
   loginTransitionLabel.textContent = "Connecting...";
-  loginTransition.classList.remove("confetti-ready", "is-complete");
+  loginTransition.classList.remove("is-complete");
   if (loginLoadingCompleted) finishLoginLoading();
 }
 function finishLoginLoading() {
@@ -157,27 +156,20 @@ function finishLoginLoading() {
   loginTransition.classList.add("is-complete");
   loginTransitionLabel.textContent = "Connected";
   clearTimeout(transitionTimer);
-  clearTimeout(loginConfettiTimer);
-  // Confetti is reserved for the final instant before showing the wallet.
-  loginConfettiTimer = setTimeout(() => {
-    if (!loginTransition.hidden && loginLoadingCompleted)
-      loginTransition.classList.add("confetti-ready");
-  }, 700);
   transitionTimer = setTimeout(() => {
     loginTransition.classList.remove("is-visible");
     loginTransition.hidden = true;
-    loginTransition.classList.remove("is-complete", "confetti-ready");
+    loginTransition.classList.remove("is-complete");
     showMonthLockAlertIfNeeded();
   }, 950);
 }
 function cancelLoginLoading() {
   clearTimeout(loginViewTimer);
   clearTimeout(transitionTimer);
-  clearTimeout(loginConfettiTimer);
   loginLoadingEntered = false;
   loginLoadingCompleted = false;
   loginTransition.hidden = true;
-  loginTransition.classList.remove("is-visible", "is-complete", "confetti-ready");
+  loginTransition.classList.remove("is-visible", "is-complete");
   loginTransitionLabel.textContent = "Connecting...";
   setLoginProgress(0);
 }
@@ -217,9 +209,9 @@ function resetFrontDoor() {
   loginEmail.readOnly = false;
   loginEmail.value = "";
   loginEmail.placeholder = "Type your username or email to login";
-  loginEmailForm.classList.remove("login-denied", "login-approved", "login-confetti-play");
+  loginEmailForm.classList.remove("login-denied", "login-approved");
   loginTransition.hidden = true;
-  loginTransition.classList.remove("is-visible", "is-complete", "confetti-ready");
+  loginTransition.classList.remove("is-visible", "is-complete");
   loginEmailNext.disabled = false;
   loginEmailNext.querySelector("span").textContent = "➜";
 }
@@ -634,8 +626,7 @@ function showSignedIn() {
   loginLoadingEntered = false;
   setLoginProgress(12);
   loginEmailForm.classList.add("login-approved");
-  loginEmailForm.classList.remove("login-confetti-play");
-  loginEmailNext.querySelector("span").textContent = "✓";
+    loginEmailNext.querySelector("span").textContent = "✓";
   loginEmail.readOnly = true;
   loginEmailNext.disabled = true;
   // Allow the approved button to appear before starting the compact connection screen.
@@ -654,8 +645,7 @@ function showUnauthorized() {
   loginEmail.value = "";
   loginEmail.placeholder = "You have no access";
   loginEmailForm.classList.add("login-denied");
-  loginEmailForm.classList.remove("login-confetti-play");
-  loginEmailNext.disabled = false;
+    loginEmailNext.disabled = false;
   loginEmailNext.querySelector("span").textContent = "×";
   cancelLoginLoading();
   status.textContent = "";
@@ -2128,7 +2118,7 @@ function logout(event) {
   // Sign out closes the wallet view only; the still-valid Google token
   // remains available for a subsequent explicit login.
   loginTransition.hidden = true;
-  loginTransition.classList.remove("is-visible", "is-complete", "confetti-ready");
+  loginTransition.classList.remove("is-visible", "is-complete");
   walletView.hidden = true;
   loginView.hidden = false;
   loginRequestPending = false;
