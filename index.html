@@ -110,10 +110,6 @@
             <label>Amount (RM)
               <input id="add-item-amount" type="number" min="0" step="0.01" inputmode="decimal" required placeholder="Enter amount">
             </label>
-            <label id="add-recurring-field" class="recurring-label" hidden>
-              <input id="add-item-recurring" type="checkbox">
-              Recurring monthly
-            </label>
             <input id="add-item-retail" type="hidden">
             <input id="add-item-url" type="hidden">
             <!-- Keep legacy snapshot remarks on edited entries without showing a second Remark input. -->
@@ -122,6 +118,24 @@
           <details id="add-item-options" class="item-options" hidden>
             <summary>More options</summary>
             <div class="add-grid">
+              <div id="repeat-section" class="full-field" hidden>
+                <label>Recurring
+                  <select id="repeat-mode">
+                    <option value="none">None</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                </label>
+                <label id="repeat-end-field" hidden>End month (optional)
+                  <input id="repeat-end-month" type="month">
+                </label>
+                <div id="repeat-days-field" hidden>
+                  <div class="repeat-days-title">Weekdays and estimated rate (RM)</div>
+                  <div class="repeat-days-buttons" id="repeat-days-buttons"></div>
+                  <div id="repeat-rate-fields" class="repeat-rate-fields"></div>
+                  <small>Calculated from the calendar. Actual bill is confirmed during Clear bill.</small>
+                </div>
+              </div>
               <label id="add-unpaid-field" hidden>Unpaid (RM)
                 <input id="add-item-unpaid" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Previous unpaid balance">
               </label>
