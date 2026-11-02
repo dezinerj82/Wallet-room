@@ -16,7 +16,7 @@ export function parseRecurringDirective(line) {
       if (r.group !== "Bills" || typeof r.item !== "string" || !r.item.trim() ||
           r.item.length > 120 || !MONTH_RE.test(r.month) ||
           (r.end && (!MONTH_RE.test(r.end) || r.end < r.month)) ||
-          !["monthly","weekly"].includes(r.type) || typeof r.active !== "boolean" ||
+          !["monthly","weekly","annual"].includes(r.type) || typeof r.active !== "boolean" ||
           !Number.isFinite(r.amount) || r.amount < 0) return null;
       if (r.type === "weekly" && (!Array.isArray(r.days) || !r.days.length ||
           r.days.length > 7 || new Set(r.days.map(d=>d.day)).size !== r.days.length ||
@@ -114,7 +114,8 @@ export function recurringMonthsDue(content, rule, now = new Date()) {
   for (let year = startYear; year <= endYear; year++) {
     for (let m = 1; m <= 12; m++) {
       const key = String(year) + String(m).padStart(2, "0");
-      if (key >= start && key <= cutoff && (!rule.end || key <= rule.end) && !seen.has(key)) due.push(key);
+      if (key >= start && key <= cutoff && (!rule.end || key <= rule.end) &&
+          (rule.type !== "annual" || key.slice(4) === rule.month.slice(4)) && !seen.has(key)) due.push(key);
     }
   }
   return due;
