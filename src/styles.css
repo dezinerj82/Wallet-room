@@ -2759,3 +2759,19 @@ body:has(#login-view:not([hidden])) .heading-controls .currency-select { display
 :root[data-density] #wallet-view > #wallet-balance-row {
   margin-top: var(--page-actions-content-gap);
 }
+
+/* Empty groups follow the same Item-column text alignment in both tables. */
+:root[data-density] .wallet-table tbody tr.empty-row td.empty-item-cell,
+:root[data-density] .other-months-table tbody tr.empty-row td.empty-item-cell {
+  width: auto !important;
+  text-align: left !important;
+  vertical-align: middle;
+  padding-left: var(--wallet-col-pad) !important;
+  padding-right: var(--wallet-col-pad) !important;
+}
+@media (max-width: 680px) {
+  :root[data-density] .wallet-table tbody tr.empty-row td.empty-item-cell,
+  :root[data-density] .other-months-table tbody tr.empty-row td.empty-item-cell {
+    padding-left: clamp(4px, 1vw, 8px) !important;
+  }
+}
