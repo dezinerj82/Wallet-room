@@ -89,6 +89,10 @@ export function applyTheme() {
     darkBackground ? .18 : .55));
   setVar("--theme-content-panel", mix(c.background,
     darkBackground ? "#000000" : "#FFFFFF", .08));
+  // Background2 is an automatically derived, slightly darker surface.
+  // It follows Background whenever the user changes their palette.
+  setVar("--theme-background2", mix(c.background,
+    darkBackground ? "#FFFFFF" : "#000000", .025));
   setVar("--theme-subtle", mix(c.background,c.primary,.12));
   setVar("--theme-chart-0", c.category0);
   setVar("--theme-chart-1", c.category1);
