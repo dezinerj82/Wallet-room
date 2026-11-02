@@ -2788,3 +2788,33 @@ button[data-processing="true"]::after {
     opacity: 1;
   }
 }
+
+/* Header alignment: visually raise only the aqua divider by 24px.
+   Retain the old row height and bottom spacing, so everything below stays put. */
+:root[data-density] .site-heading-row {
+  border-bottom-color: transparent;
+}
+:root[data-density] .site-heading-row::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  height: 3px;
+  background: var(--theme-secondary);
+  pointer-events: none;
+}
+/* Theme belongs to the first row beside the title, on Login and Wallet. */
+:root[data-density] body:has(#login-view:not([hidden])) .site-heading-row h1 {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+:root[data-density] body:has(#login-view:not([hidden])) #theme-open {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
+  transform: none;
+  margin: 0;
+  flex-shrink: 0;
+}
