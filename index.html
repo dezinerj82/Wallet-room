@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&amp;family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=green-dollar-1">
-  <link rel="stylesheet" href="src/styles.css?v=20261102-align35">
-  <script src="src/app.js?v=20261102-align34" type="module"></script>
+  <link rel="stylesheet" href="src/styles.css?v=20261102-loginring36">
+  <script src="src/app.js?v=20261102-loginring36" type="module"></script>
 </head>
 <body>
   <main id="app">
@@ -37,12 +37,13 @@
       </div>
     </section>
     <div id="login-transition" class="login-transition" hidden aria-live="polite">
-      <div class="login-transition-success" aria-hidden="true">
-        <div class="login-transition-check">✓</div>
-        <p>Connected</p>
-      </div>
-      <div id="login-progress-track" class="login-progress-track progress-track" role="progressbar" aria-label="Connecting to wallet" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <span id="login-progress-fill" class="login-progress-fill progress-motion"></span>
+      <div class="login-transition-success">
+        <div id="login-progress-track" class="login-check-orbit" role="progressbar"
+          aria-label="Connecting to wallet" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="login-transition-check" aria-hidden="true">✓</div>
+          <span class="login-final-confetti" aria-hidden="true"></span>
+        </div>
+        <p id="login-transition-label">Connecting...</p>
       </div>
     </div>
 
