@@ -1563,6 +1563,7 @@ clearBillForm.addEventListener("submit", async event => {
   if (!confirmed) return;
   const version = connectionVersion;
   clearBillSubmit.disabled = true;
+  clearBillSubmit.dataset.processing = "true";
   clearBillCancel.disabled = true;
   clearBillButton.disabled = true;
   clearBillStatus.textContent = "";
@@ -1606,6 +1607,7 @@ clearBillForm.addEventListener("submit", async event => {
     }
   } finally {
     clearBillSubmit.disabled = false;
+    delete clearBillSubmit.dataset.processing;
     clearBillCancel.disabled = false;
     if (version === connectionVersion) {
       clearBillButton.disabled = !walletBalanceComplete ||
@@ -1646,6 +1648,7 @@ payForm.addEventListener("submit", async event => {
   const previous = payingEntry;
   const version = connectionVersion;
   paySave.disabled = true;
+  paySave.dataset.processing = "true";
   payCancel.disabled = true;
   payStatus.textContent = "";
   try {
@@ -1659,6 +1662,7 @@ payForm.addEventListener("submit", async event => {
     }
   } finally {
     paySave.disabled = false;
+    delete paySave.dataset.processing;
     payCancel.disabled = false;
   }
 });
@@ -1699,6 +1703,7 @@ savingsForm.addEventListener("submit", async event => {
   if (!validateWalletForm(savingsForm, savingsStatus)) return;
   const version = connectionVersion;
   savingsSave.disabled = true;
+  savingsSave.dataset.processing = "true";
   savingsCancel.disabled = true;
   savingsStatus.textContent = "";
   try {
@@ -1716,6 +1721,7 @@ savingsForm.addEventListener("submit", async event => {
       error.message || "Couldn't save. Try again.";
   } finally {
     savingsSave.disabled = false;
+    delete savingsSave.dataset.processing;
     savingsCancel.disabled = false;
   }
 });
