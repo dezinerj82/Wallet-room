@@ -124,6 +124,7 @@
                     <option value="none">None</option>
                     <option value="monthly">Monthly</option>
                     <option value="weekly">Weekly</option>
+                    <option value="annual">Annually</option>
                   </select>
                 </label>
                 <label id="repeat-end-field" hidden>End month (optional)
@@ -145,10 +146,10 @@
               <label class="full-field">Remark
                 <textarea id="add-item-hover-note" maxlength="1600" rows="3"></textarea>
               </label>
-              <label id="add-service-field">Last service
+              <label id="add-service-field" hidden>Last service
                 <input type="month" id="add-last-service">
               </label>
-              <label id="add-service-interval-field">Service every
+              <label id="add-service-interval-field" hidden>Service every
                 <select id="add-service-interval">
                   <option value="0">None</option>
                   <option value="3">3 months</option>
