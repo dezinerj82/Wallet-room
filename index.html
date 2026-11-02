@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&amp;family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=green-dollar-1">
-  <link rel="stylesheet" href="src/styles.css?v=20261102-csscleanup48">
+  <link rel="stylesheet" href="src/styles.css?v=20261102-responsive49">
   <script src="src/app.js?v=20261102-table47" type="module"></script>
 </head>
 <body>
@@ -296,7 +296,13 @@
     <div class="other-months-scroll">
       <nav class="other-months-nav" aria-label="Browse other months">
         <button type="button" id="other-months-prev" aria-label="Previous month">Previous</button>
-        <strong id="other-months-label" aria-live="polite"></strong>
+        <div class="other-months-month-controls">
+          <strong id="other-months-label" aria-live="polite"></strong>
+          <select id="other-currency-select" class="currency-select" aria-label="Display other months amounts in">
+            <option value="MYR">RM</option>
+            <option value="KRW">₩</option>
+          </select>
+        </div>
         <button type="button" id="other-months-next" aria-label="Next month">Next</button>
       </nav>
       <div class="wallet-table-wrap other-months-table-wrap">
@@ -304,14 +310,7 @@
           <thead>
             <tr>
               <th scope="col">Item</th>
-              <th scope="col" class="amount-column">
-                <span class="amount-heading">Amount
-                  <select id="other-currency-select" class="currency-select" aria-label="Display other months amounts in">
-                    <option value="MYR">RM</option>
-                    <option value="KRW">₩</option>
-                  </select>
-                </span>
-              </th>
+              <th scope="col" class="amount-column">Amount</th>
               <th scope="col">Remark</th>
               <th scope="col">Update</th>
             </tr>
