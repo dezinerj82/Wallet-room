@@ -2568,3 +2568,148 @@ button[data-processing="true"]::after {
     min-height: max(2.75rem, var(--wallet-control-height));
   }
 }
+
+/* Spacing system: explicit section gaps from the approved annotated layout. */
+:root[data-density="compact"] {
+  --page-title-divider-gap: 50px;
+  --page-divider-actions-gap: 25px;
+  --page-actions-content-gap: 50px;
+  --page-content-gap: 25px;
+}
+:root[data-density="comfortable"] {
+  --page-title-divider-gap: 56px;
+  --page-divider-actions-gap: 30px;
+  --page-actions-content-gap: 56px;
+  --page-content-gap: 30px;
+}
+:root[data-density="wide"] {
+  --page-title-divider-gap: 64px;
+  --page-divider-actions-gap: 36px;
+  --page-actions-content-gap: 64px;
+  --page-content-gap: 36px;
+}
+/* Row 1: title; Row 2: divider; Row 3: navigation/selected month. */
+:root[data-density] .site-heading-row {
+  padding-bottom: var(--page-title-divider-gap);
+  margin-bottom: var(--page-divider-actions-gap);
+}
+:root[data-density] #wallet-view {
+  margin-top: 0;
+}
+:root[data-density] #wallet-view > .wallet-heading-row {
+  margin-bottom: var(--page-actions-content-gap);
+}
+/* Row 4: forms and table; Row 5: import and balances. */
+:root[data-density] #wallet-view > .add-item-panel:not([hidden]),
+:root[data-density] #wallet-view > #wallet-progress:not([hidden]),
+:root[data-density] #wallet-view > #main-exchange-info:not([hidden]) {
+  margin-bottom: var(--page-content-gap);
+}
+:root[data-density] #wallet-view > .wallet-table-wrap {
+  margin-top: 0;
+}
+:root[data-density] #wallet-view > .wallet-balance-row {
+  margin-top: var(--page-content-gap);
+}
+:root[data-density] #login-view.front-door {
+  margin-top: 0;
+}
+:root[data-density] body:has(#login-view:not([hidden])) #theme-open {
+  top: calc(100% + var(--page-divider-actions-gap));
+  transform: translateY(0);
+}
+:root[data-density] .add-grid,
+:root[data-density] .pay-form-grid {
+  column-gap: 10px;
+}
+:root[data-density] .wallet-actions,
+:root[data-density] .wallet-import-actions,
+:root[data-density] .form-actions-right,
+:root[data-density] .theme-panel-actions {
+  column-gap: max(10px,var(--wallet-density-gap));
+}
+/* Background2 is for content surfaces; frames retain their outer shadow. */
+:root[data-density] .wallet-table tbody td,
+:root[data-density] .other-months-table tbody td,
+:root[data-density] .wallet-table .group-heading th {
+  background: var(--theme-background2) !important;
+}
+:root[data-density] .add-grid input:not([type="checkbox"]),
+:root[data-density] .add-grid select,
+:root[data-density] .add-grid textarea,
+:root[data-density] .setting-note input,
+:root[data-density] .setting-note textarea,
+:root[data-density] .pay-form-grid input,
+:root[data-density] #add-item-form input[type="month"],
+:root[data-density] #add-item-options input[type="month"] {
+  background: var(--theme-background2) !important;
+  border: 0 !important;
+  border-radius: 15px;
+  box-shadow: none !important;
+  color: var(--theme-content) !important;
+}
+/* Month should match the height, text size and padding of adjacent inputs. */
+:root[data-density] #add-item-form input[type="month"],
+:root[data-density] #add-item-options input[type="month"] {
+  width: 100%;
+  min-height: calc(2.75rem * var(--theme-space-factor));
+  height: calc(2.75rem * var(--theme-space-factor));
+  padding: calc(.65rem * var(--theme-space-factor)) .9rem;
+  font-size: 1rem;
+  font-weight: 400;
+}
+:root[data-density] #add-item-form input[type="month"]::-webkit-calendar-picker-indicator,
+:root[data-density] #add-item-options input[type="month"]::-webkit-calendar-picker-indicator {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+/* Only primary table columns fit content; Remark expands and wraps. */
+:root[data-density] .wallet-table,
+:root[data-density] .other-months-table {
+  table-layout: auto;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+:root[data-density] .wallet-table thead th:first-child,
+:root[data-density] .wallet-table tbody td.wallet-item,
+:root[data-density] .wallet-table thead th:nth-child(2),
+:root[data-density] .wallet-table tbody td.wallet-amount,
+:root[data-density] .wallet-table thead th:last-child,
+:root[data-density] .wallet-table tbody td.wallet-update-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+:root[data-density] .wallet-table thead th:nth-child(3),
+:root[data-density] .wallet-table tbody td.wallet-detail {
+  width: 100%;
+  min-width: 10rem;
+  max-width: none;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+:root[data-density] .wallet-table tbody td,
+:root[data-density] .wallet-table thead th {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+:root[data-density] .wallet-table tbody td:first-child,
+:root[data-density] .wallet-table thead th:first-child {
+  padding-left: var(--wallet-col-pad);
+}
+:root[data-density] .wallet-table tbody td:last-child,
+:root[data-density] .wallet-table thead th:last-child {
+  padding-right: var(--wallet-col-pad);
+}
+/* Preserve readable focus feedback, without adding permanent frames. */
+:root[data-density] .add-grid :is(input,select,textarea):focus-visible,
+:root[data-density] .pay-form-grid input:focus-visible {
+  outline: 2px solid var(--theme-focus) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--theme-focus-glow) !important;
+}
+@media (max-width: 600px) {
+  :root[data-density] .wallet-table,
+  :root[data-density] .other-months-table { min-width: 38rem; }
+}
