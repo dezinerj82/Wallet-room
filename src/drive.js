@@ -515,7 +515,7 @@ export async function addWalletItem(token, folderId, entry) {
 
 
 export async function addWalletInstallments(token, folderId, entry, months) {
-  if (!token || !folderId || entry?.group !== "Others" ||
+  if (!token || !folderId || !isExpenseGroup(entry?.group) ||
       !Number.isInteger(months) || months < 2 || months > 120) {
     throw new Error("Invalid installment request.");
   }
@@ -696,7 +696,7 @@ export async function updateWalletItem(token, folderId, changes) {
     throw new Error("This item already has a schedule.");
   }
   if (changes.recurring === true && !isExpenseGroup(item.group)) {
-    throw new Error("Only Bills can repeat.");
+    throw new Error("Only expense categories can repeat.");
   }
   const proposedRule = {
     group:item.group,item:item.item,month:item.month,amount:Number(revised[3]),
