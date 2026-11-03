@@ -79,10 +79,54 @@ export async function ensureWalletFolder(token) {
     });
   }
   if (!folder?.id) throw new Error("Google Drive could not create the Wallet Room folder.");
-  // The drive.file permission may not expose the My Drive root metadata.
-  // Never fail sign-in or move an existing wallet folder solely to check its parent.
+  // Check root membership with Drive's supported 'root' alias; a direct
+  // files.get(root) can return 404 under drive.file access.
+  const rootQuery = new URL(API);
+  rootQuery.searchParams.set("q", "'root' in parents and mimeType = '" +
+    FOLDER_MIME + "' and trashed = false");
+  rootQuery.searchParams.set("fields", "nextPageToken,files(id,appProperties)");
+  rootQuery.searchParams.set("pageSize", "100");
+  const rootIds = new Set();
+  let rootPage = "";
+  do {
+    if (rootPage) rootQuery.searchParams.set("pageToken", rootPage);
+    const page = await driveFetch(rootQuery, token);
+    for (const entry of page.files || []) {
+      if (entry.appProperties?.purpose === APP_MARKER) rootIds.add(entry.id);
+    }
+    rootPage = page.nextPageToken || "";
+  } while (rootPage);
+  if (rootIds.size > 1 || (rootIds.size === 1 && !rootIds.has(folder.id)))
+    throw new Error("Multiple Wallet Room folders found. Check Drive before saving.");
+
+  if (!rootIds.has(folder.id)) {
+    if (!folder.parents?.length)
+      throw new Error("Wallet Room location cannot be verified. No files were moved.");
+    // Removing the previous parent moves the SAME folder to My Drive root.
+    // The folder ID and all its JSON records remain unchanged.
+    const url = new URL(API + "/" + encodeURIComponent(folder.id));
+    url.searchParams.set("removeParents", folder.parents.join(","));
+    url.searchParams.set("fields", "id,name,mimeType,appProperties,parents");
+    folder = await driveFetch(url, token, { method: "PATCH" });
+  }
   const confirmed = await driveFetch(API + "/" + encodeURIComponent(folder.id) +
     "?fields=id,name,mimeType,appProperties,parents", token);
+  const rootConfirm = new URL(API);
+  rootConfirm.searchParams.set("q", "'root' in parents and mimeType = '" +
+    FOLDER_MIME + "' and trashed = false");
+  rootConfirm.searchParams.set("fields", "nextPageToken,files(id,appProperties)");
+  rootConfirm.searchParams.set("pageSize", "100");
+  let rootVerified = false;
+  let confirmPage = "";
+  do {
+    if (confirmPage) rootConfirm.searchParams.set("pageToken", confirmPage);
+    const page = await driveFetch(rootConfirm, token);
+    rootVerified ||= (page.files || []).some(entry => entry.id === confirmed.id &&
+      entry.appProperties?.purpose === APP_MARKER);
+    confirmPage = page.nextPageToken || "";
+  } while (confirmPage);
+  if (!rootVerified)
+    throw new Error("Wallet Room was not verified in My Drive. Refresh before saving.");
   if (confirmed.name !== FOLDER_NAME || confirmed.mimeType !== FOLDER_MIME ||
       confirmed.appProperties?.purpose !== APP_MARKER)
     throw new Error("Google Drive could not verify the Wallet Room folder.");
