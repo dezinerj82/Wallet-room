@@ -150,7 +150,7 @@ async function updateTestFile(token, fileId, text) {
     }
   );
   if (!response.ok) {
-    throw new Error("Google Drive could not update the TXT test file (" + response.status + ").");
+    throw new Error("Google Drive could not update the JSON test file (" + response.status + ").");
   }
   const result = await response.json();
   if (result.id !== fileId) throw new Error("Google Drive did not confirm the updated file.");
@@ -226,6 +226,16 @@ export async function readWalletTextFiles(token, folderId) {
 // No savings balance is written here; savings need the End Payment workflow.
 const ITEM_MARKER = "home-wallet-item";
 const WRITE_LIMIT = 5 * 1024 * 1024;
+
+// Enforce the limit on the actual serialized JSON bytes, not the shorter
+// in-memory event lines, so writes do not exceed the Drive read limit.
+function walletJsonBody(text) {
+  const body = encodeWalletJson(text);
+  if (new Blob([body]).size > WRITE_LIMIT) {
+    throw new Error("This wallet JSON history is full. No changes were saved.");
+  }
+  return body;
+}
 
 function validateEntry(entry) {
   const group = String(entry?.group || "");
@@ -357,7 +367,7 @@ async function createWalletTextFile(token, folderId, filename, line) {
     JSON.stringify(metadata),
     "\r\n--" + boundary + "\r\n",
     "Content-Type: application/json; charset=UTF-8\r\n\r\n",
-    encodeWalletJson(line),
+    walletJsonBody(line),
     "\r\n--" + boundary + "--\r\n"
   ], { type: "multipart/related; boundary=" + boundary });
   const response = await fetch(
@@ -383,7 +393,7 @@ async function replaceWalletText(token, fileId, text) {
       method: "PATCH",
       headers: { Authorization: "Bearer " + token,
                  "Content-Type": "application/json; charset=UTF-8" },
-      body: encodeWalletJson(text)
+      body: walletJsonBody(text)
     }
   );
   if (!response.ok) {
@@ -1444,7 +1454,7 @@ export async function closeWalletMonth(token, folderId, month) {
       "--" + boundary + "\r\n", "Content-Type: application/json; charset=UTF-8\r\n\r\n",
       JSON.stringify(metadata), "\r\n--" + boundary + "\r\n",
       "Content-Type: application/json; charset=UTF-8\r\n\r\n",
-      encodeWalletJson(line), "\r\n--" + boundary + "--\r\n"
+      walletJsonBody(line), "\r\n--" + boundary + "--\r\n"
     ], { type: "multipart/related; boundary=" + boundary });
     const response = await fetch(
       "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,parents,appProperties",
