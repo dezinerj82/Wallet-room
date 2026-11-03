@@ -1,6 +1,6 @@
 import { isWalletGroup } from "./groups.js";
 
-// Saved as @META JSON lines inside private item TXT files only.
+// Saved as @META JSON lines inside private item JSON event files only.
 const PREFIX = "@META\t";
 const MONTH = /^(?:19|20|21)\d{2}(?:0[1-9]|1[0-2])$/;
 
@@ -118,7 +118,7 @@ export function lastMeta(content, group, item) {
 export function parseAllMetadata(files) {
   const byItem = new Map();
   for (const file of files) {
-    if (!file?.content || !file.name?.toLowerCase().endsWith(".txt")) continue;
+    if (!file?.content || !file.name?.toLowerCase().endsWith(".json")) continue;
     for (const line of file.content.split("\n")) {
       if (!line.startsWith(PREFIX)) continue;
       const meta = parseMetaLine(line);
@@ -171,7 +171,7 @@ export function parseRemarkHistory(files) {
   const byItem = new Map();
   const priorNotes = new Map();
   for (const file of files || []) {
-    if (!file?.name?.toLowerCase().endsWith(".txt") ||
+    if (!file?.name?.toLowerCase().endsWith(".json") ||
         typeof file.content !== "string") continue;
     for (const line of file.content.split("\n")) {
       if (!line.startsWith(PREFIX)) continue;
