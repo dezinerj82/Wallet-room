@@ -72,5 +72,17 @@
       "heading": "DOCUMENT MAINTENANCE",
       "rules": "- Keep only active process decisions and unresolved process requirements here.\n- Remove replaced/retired instructions rather than accumulating old versions.\n- Do not record private identifiers, real or example figures, personal names or platform account configuration.\n- Refer to website source files for design and appearance.\n\n- Unpaid balance is available for Bills, Others, and custom expense categories. It is included in the month\\u2019s forecasted total but tracked separately as opening debt. Existing paid amounts and prior monthly history are preserved."
     }
-  ]
+  ],
+  "rule_update_process": {
+    "on_every_relevant_change": "Update this JSON backup in the same change as the affected process or reference path; remove superseded requirements, do not append conflicting versions.",
+    "priority": "Current verified source code and latest explicit user decisions take precedence over historical narrative within imported sections.",
+    "related_rule": "dezinerj82/Goldenrule/Wallet room/Private rule.json",
+    "reference_library": null,
+    "rename_note": "Private repository must be renamed from Project-goldenrule to Goldenrule in GitHub Settings; paths become authoritative after rename."
+  },
+  "current_decisions": {
+    "rules": "Keep website process in Github rule.json and ChatGPT/private process in Private rule.json.",
+    "privacy": "No real financial records, credentials, or personal data in GitHub rule files.",
+    "storage": "Preserve existing private Google Drive storage and OAuth configuration unless explicitly changed."
+  }
 }
