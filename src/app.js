@@ -1,5 +1,5 @@
 import { initialiseGoogleLogin, canRestoreLoginSession, restoreLoginSession, signIn, signOut, getDriveToken } from "./auth.js?v=20261102-oauth43";
-import { findBillsFolder, readWalletTextFiles, addWalletItem, addWalletInstallments, updateWalletItem, deleteWalletItem, renewRecurringBills, renewScheduledItems, importWalletSetup, saveSavingSettings, withdrawSavingItem, recordBillPayment, closeWalletMonth } from "./drive.js?v=20261103-json61";
+import { ensureWalletFolder, readWalletTextFiles, addWalletItem, addWalletInstallments, updateWalletItem, deleteWalletItem, renewRecurringBills, renewScheduledItems, importWalletSetup, saveSavingSettings, withdrawSavingItem, recordBillPayment, closeWalletMonth } from "./drive.js?v=20261103-json61";
 import { getMyrKrwRate, formatWalletCurrency, rateDateLabel } from "./currency.js";
 import { displayGroup, availableGroups, isExpenseGroup, isCustomGroup, NEW_CATEGORY, NEW_ITEM } from "./groups.js";
 import { buildMeta, parseAllMetadata, parseRemarkHistory, serviceReminders, effectiveServiceMonth, metaKey } from "./private-meta.js?v=20261103-json62";
@@ -1318,12 +1318,12 @@ async function onDriveReady() {
     const token = getDriveToken();
     if (!token) throw new Error("Drive session unavailable. Please sign out and sign in again.");
 
-    const folder = await findBillsFolder(token);
+    const folder = await ensureWalletFolder(token);
     if (version !== connectionVersion || !getDriveToken()) return;
     setLoginProgress(55);
     if (!folder) {
       setWalletMessage(
-        "Wallet room folder not found. Check its Drive access. No folder was created.", true
+        "Wallet Room folder not found. Check its Drive access. No folder was created.", true
       );
       cancelLoginLoading();
       loginView.hidden = true;
@@ -1335,7 +1335,7 @@ async function onDriveReady() {
     otherMonthsButton.disabled = false;
     walletSetupButton.disabled = false;
     if (folder.name !== "Wallet room") {
-      setWalletMessage("Rename the connected Drive folder to Wallet room.", true);
+      setWalletMessage("Rename the connected Drive folder to Wallet Room.", true);
     }
     setLoginProgress(75);
     await loadWalletRecords("Loading your items...");
