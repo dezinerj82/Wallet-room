@@ -68,7 +68,7 @@ function parseLine(line) {
 }
 
 export function parseWalletFiles(files) {
-  if (!Array.isArray(files)) throw new TypeError("Expected wallet TXT files.");
+  if (!Array.isArray(files)) throw new TypeError("Expected wallet JSON files.");
   const byMonth = new Map();
   const repeatRules = new Map();
   const metadata = new Map();
@@ -79,15 +79,15 @@ export function parseWalletFiles(files) {
   let validLines = 0;
   let invalidLines = 0;
 
-  // TXT files are sorted by file name. Each later valid row updates the item/month.
+  // JSON files are sorted by file name. Each later valid row updates the item/month.
   for (const file of files) {
     if (!file || typeof file.content !== "string" ||
-        !file.name?.toLowerCase().endsWith(".txt") ||
-        file.name.toLowerCase() === "storage-check.txt") continue;
+        !file.name?.toLowerCase().endsWith(".json") ||
+        file.name.toLowerCase() === "storage-check.json") continue;
 
     for (const line of file.content.split("\n")) {
       if (!line.trim()) continue;
-      if (file.name === "wallet-month-close.txt") {
+      if (file.name === "wallet-month-close.json") {
         const fields = line.replace(/\r$/, "").split("\t");
         if (fields.length === 2 && fields[0] === "@CLOSE" &&
             /^(?:19|20|21)\d{2}(?:0[1-9]|1[0-2])$/.test(fields[1])) {
