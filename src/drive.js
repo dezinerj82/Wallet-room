@@ -124,7 +124,7 @@ async function createTestFile(token, folderId) {
     }
   );
   if (!response.ok) {
-    throw new Error("Google Drive could not create a TXT test file (" + response.status + ").");
+    throw new Error("Google Drive could not create a JSON test file (" + response.status + ").");
   }
   const created = await response.json();
   if (!created.id || created.name !== TEST_FILE_NAME ||
@@ -178,7 +178,7 @@ export async function testTextStorage(token, folderId) {
 }
 
 
-// Read-only wallet JSON loading. The separate storage-check.txt file is ignored.
+// Read-only wallet JSON loading. The separate storage-check.json file is ignored.
 // Storage writes for real wallet items are not enabled in this stage.
 export async function readWalletTextFiles(token, folderId) {
   if (!token || !folderId) throw new Error("Sign in and connect Wallet room first.");
@@ -1407,7 +1407,7 @@ export async function recordBillPayment(token, folderId, previous, rawAmount) {
   return { group,item,month:current };
 }
 
-const MONTH_CLOSE_FILE = "wallet-month-close.txt";
+const MONTH_CLOSE_FILE = "wallet-month-close.json";
 const MONTH_CLOSE_MARKER = "home-wallet-month-close";
 
 // A separate, append-only receipt prevents outstanding balances from
