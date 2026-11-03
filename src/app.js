@@ -1,5 +1,5 @@
 import { initialiseGoogleLogin, canRestoreLoginSession, restoreLoginSession, signIn, signOut, getDriveToken } from "./auth.js?v=20261102-oauth43";
-import { findBillsFolder, readWalletTextFiles, addWalletItem, addWalletInstallments, updateWalletItem, deleteWalletItem, renewRecurringBills, renewScheduledItems, importWalletSetup, saveSavingSettings, withdrawSavingItem, recordBillPayment, closeWalletMonth } from "./drive.js";
+import { findBillsFolder, readWalletTextFiles, addWalletItem, addWalletInstallments, updateWalletItem, deleteWalletItem, renewRecurringBills, renewScheduledItems, importWalletSetup, saveSavingSettings, withdrawSavingItem, recordBillPayment, closeWalletMonth } from "./drive.js?v=20261103-json61";
 import { getMyrKrwRate, formatWalletCurrency, rateDateLabel } from "./currency.js";
 import { displayGroup, availableGroups, isExpenseGroup, isCustomGroup, NEW_CATEGORY, NEW_ITEM } from "./groups.js";
 import { buildMeta, parseAllMetadata, parseRemarkHistory, serviceReminders, effectiveServiceMonth, metaKey } from "./private-meta.js";
@@ -9,7 +9,7 @@ import {
   WALLET_GROUPS, parseWalletFiles, entriesForMonth, calculateMonthlyPlan,
   calculatePastUnpaid, suggestedHolds,
   monthKey, shiftedMonthKey, formatMonth, formatAmount
-} from "./records.js";
+} from "./records.js?v=20261103-json61";
 import { effectiveUnpaid } from "./settlement.js";
 import { DEFAULT_THEME, THEME_FIELDS, getTheme, setTheme, colorizeCategory, themeWarning } from "./theme.js";
 
