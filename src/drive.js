@@ -61,6 +61,36 @@ export async function findBillsFolder(token) {
 }
 
 
+export async function ensureWalletFolder(token) {
+  let folder = await findBillsFolder(token);
+  if (!folder) {
+    folder = await driveFetch(API + "?fields=id,name,mimeType,appProperties,parents", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: FOLDER_NAME, mimeType: FOLDER_MIME,
+        parents: ["root"], appProperties: { purpose: APP_MARKER } })
+    });
+  } else if (folder.name !== FOLDER_NAME) {
+    folder = await driveFetch(API + "/" + encodeURIComponent(folder.id) +
+      "?fields=id,name,mimeType,appProperties,parents", token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: FOLDER_NAME })
+    });
+  }
+  if (!folder?.id) throw new Error("Google Drive could not create the Wallet Room folder.");
+  const confirmed = await driveFetch(API + "/" + encodeURIComponent(folder.id) +
+    "?fields=id,name,mimeType,appProperties,parents", token);
+  if (confirmed.name !== FOLDER_NAME || confirmed.mimeType !== FOLDER_MIME ||
+      confirmed.appProperties?.purpose !== APP_MARKER)
+    throw new Error("Google Drive could not verify the Wallet Room folder.");
+  const unique = await findBillsFolder(token);
+  if (!unique || unique.id !== confirmed.id)
+    throw new Error("Multiple Wallet Room folders detected. Check Drive before saving.");
+  return unique;
+}
+
+
 // TEST ONLY. Keeps all test text inside the private Wallet room folder.
 // Appends lines by re-uploading the entire text file with its earlier contents intact.
 const TEST_FILE_NAME = "storage-check.json";
