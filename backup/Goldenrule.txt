@@ -1,4 +1,9 @@
-HOME WALLET — ACTIVE PROCESS REFERENCE
+WALLET ROOM — ACTIVE PROCESS REFERENCE
+
+CURRENT WEBSITE REPOSITORY
+GitHub repository: dezinerj82/Wallet-room (main branch).
+GitHub Pages project path: /Wallet-room/. Do not rely on the former /JJ-wallet/ Pages URL; the old project URL is not automatically redirected.
+Keep the existing Google OAuth client configuration and Drive app-owned folder identifiers unchanged solely because of the repository rename.
 
 SCOPE
 This file documents wallet process logic and functional requirements only.
