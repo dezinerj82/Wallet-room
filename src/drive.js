@@ -15,7 +15,7 @@ import {
 // Recognize the original app-created Wallet room folder by its marker after moves within Drive.
 // Do not create another folder if it is temporarily invisible after a move.
 const API = "https://www.googleapis.com/drive/v3/files";
-const FOLDER_NAME = "Wallet room";
+const FOLDER_NAME = "Wallet Room";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 const APP_MARKER = "home-wallet-records";
 
