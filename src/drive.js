@@ -1,3 +1,4 @@
+import { encodeWalletJson, decodeWalletJson } from "./wallet-json.js";
 import {
   latestRecurringRule, parseRecurringDirective, recurringDirectiveLine,
   recurringMonthsDue, recurringBillLine, recurringAmount
@@ -62,7 +63,7 @@ export async function findBillsFolder(token) {
 
 // TEST ONLY. Keeps all test text inside the private Wallet room folder.
 // Appends lines by re-uploading the entire text file with its earlier contents intact.
-const TEST_FILE_NAME = "storage-check.txt";
+const TEST_FILE_NAME = "storage-check.json";
 const TEST_MARKER = "wallet-storage-test";
 
 async function getFileText(token, fileId) {
@@ -72,9 +73,9 @@ async function getFileText(token, fileId) {
     cache: "no-store"
   });
   if (!response.ok) {
-    throw new Error("Google Drive could not read the test TXT file (" + response.status + ").");
+    throw new Error("Google Drive could not read the test JSON file (" + response.status + ").");
   }
-  return response.text();
+  return decodeWalletJson(await response.text());
 }
 
 async function findTestFile(token, folderId) {
@@ -100,18 +101,18 @@ async function createTestFile(token, folderId) {
   const boundary = "wallet-test-" + Date.now().toString(36);
   const metadata = {
     name: TEST_FILE_NAME,
-    mimeType: "text/plain",
+    mimeType: "application/json",
     parents: [folderId],
     appProperties: { purpose: TEST_MARKER }
   };
-  const text = "TXT storage check\n";
+  const text = "JSON storage check\n";
   const payload = new Blob([
     "--" + boundary + "\r\n",
     "Content-Type: application/json; charset=UTF-8\r\n\r\n",
     JSON.stringify(metadata),
     "\r\n--" + boundary + "\r\n",
-    "Content-Type: text/plain; charset=UTF-8\r\n\r\n",
-    text,
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n",
+    encodeWalletJson(text),
     "\r\n--" + boundary + "--\r\n"
   ], { type: "multipart/related; boundary=" + boundary });
   const response = await fetch(
@@ -143,9 +144,9 @@ async function updateTestFile(token, fileId, text) {
       method: "PATCH",
       headers: {
         Authorization: "Bearer " + token,
-        "Content-Type": "text/plain; charset=UTF-8"
+        "Content-Type": "application/json; charset=UTF-8"
       },
-      body: text
+      body: encodeWalletJson(text)
     }
   );
   if (!response.ok) {
@@ -164,7 +165,7 @@ export async function testTextStorage(token, folderId) {
   }
   const previous = await getFileText(token, file.id);
   if (new Blob([previous]).size > 1024 * 1024) {
-    throw new Error("Test TXT file unexpectedly large. Review it before modifying.");
+    throw new Error("Test JSON file unexpectedly large. Review it before modifying.");
   }
   const newText = previous + (previous && !previous.endsWith("\n") ? "\n" : "") +
     "Append/read check passed\n";
@@ -177,7 +178,7 @@ export async function testTextStorage(token, folderId) {
 }
 
 
-// Read-only wallet TXT loading. The separate storage-check.txt file is ignored.
+// Read-only wallet JSON loading. The separate storage-check.txt file is ignored.
 // Storage writes for real wallet items are not enabled in this stage.
 export async function readWalletTextFiles(token, folderId) {
   if (!token || !folderId) throw new Error("Sign in and connect Wallet room first.");
@@ -200,7 +201,7 @@ export async function readWalletTextFiles(token, folderId) {
   } while (pageToken);
 
   const walletFiles = files.filter(file =>
-    file.name?.toLowerCase().endsWith(".txt") &&
+    file.name?.toLowerCase().endsWith(".json") &&
     file.name.toLowerCase() !== TEST_FILE_NAME
   ).sort((a, b) => a.name.localeCompare(b.name, "en"));
 
@@ -208,11 +209,11 @@ export async function readWalletTextFiles(token, folderId) {
   for (const file of walletFiles) {
     // The segmenting limit is not implemented yet; never silently truncate.
     if (Number(file.size || 0) > 5 * 1024 * 1024) {
-      throw new Error("A wallet TXT file exceeds the read limit: " + file.name);
+      throw new Error("A wallet JSON file exceeds the read limit: " + file.name);
     }
     const content = await getFileText(token, file.id);
     if (new Blob([content]).size > 5 * 1024 * 1024) {
-      throw new Error("A wallet TXT file exceeds the read limit: " + file.name);
+      throw new Error("A wallet JSON file exceeds the read limit: " + file.name);
     }
     contents.push({ name: file.name, content });
   }
@@ -221,7 +222,7 @@ export async function readWalletTextFiles(token, folderId) {
 }
 
 
-// Wallet Add: one app-owned TXT file per group/item, with append-only month rows.
+// Wallet Add: one app-owned JSON file per group/item, with append-only month rows.
 // No savings balance is written here; savings need the End Payment workflow.
 const ITEM_MARKER = "home-wallet-item";
 const WRITE_LIMIT = 5 * 1024 * 1024;
@@ -311,7 +312,7 @@ async function listWalletFileMetadata(token, folderId) {
     pageToken = page.nextPageToken || "";
   } while (pageToken);
   return results.filter(file =>
-    file.name?.toLowerCase().endsWith(".txt") &&
+    file.name?.toLowerCase().endsWith(".json") &&
     file.name.toLowerCase() !== TEST_FILE_NAME
   );
 }
@@ -324,7 +325,7 @@ async function itemFileName(group, item) {
     .map(b => b.toString(16).padStart(2, "0")).join("");
   const shortName = item.normalize("NFKD").replace(/[^a-zA-Z0-9_-]+/g, "-")
     .replace(/^-|-$/g, "").slice(0, 35) || "item";
-  return group + "-" + shortName + "-" + suffix + ".txt";
+  return group + "-" + shortName + "-" + suffix + ".json";
 }
 
 function fileHasItem(content, group, item) {
@@ -347,7 +348,7 @@ function monthIsPresent(content, group, item, month) {
 async function createWalletTextFile(token, folderId, filename, line) {
   const boundary = "home-wallet-" + crypto.randomUUID().replace(/-/g, "");
   const metadata = {
-    name: filename, mimeType: "text/plain", parents: [folderId],
+    name: filename, mimeType: "application/json", parents: [folderId],
     appProperties: { purpose: ITEM_MARKER }
   };
   const payload = new Blob([
@@ -355,8 +356,8 @@ async function createWalletTextFile(token, folderId, filename, line) {
     "Content-Type: application/json; charset=UTF-8\r\n\r\n",
     JSON.stringify(metadata),
     "\r\n--" + boundary + "\r\n",
-    "Content-Type: text/plain; charset=UTF-8\r\n\r\n",
-    line,
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n",
+    encodeWalletJson(line),
     "\r\n--" + boundary + "--\r\n"
   ], { type: "multipart/related; boundary=" + boundary });
   const response = await fetch(
@@ -381,8 +382,8 @@ async function replaceWalletText(token, fileId, text) {
     {
       method: "PATCH",
       headers: { Authorization: "Bearer " + token,
-                 "Content-Type": "text/plain; charset=UTF-8" },
-      body: text
+                 "Content-Type": "application/json; charset=UTF-8" },
+      body: encodeWalletJson(text)
     }
   );
   if (!response.ok) {
@@ -413,11 +414,11 @@ export async function addWalletItem(token, folderId, entry) {
   const matching = [];
   for (const file of files) {
     if (Number(file.size || 0) > WRITE_LIMIT) {
-      throw new Error("A TXT file exceeds the safe storage limit. Review it first.");
+      throw new Error("A JSON file exceeds the safe storage limit. Review it first.");
     }
     const content = await getFileText(token, file.id);
     if (new Blob([content]).size > WRITE_LIMIT) {
-      throw new Error("A TXT file exceeds the safe storage limit. Review it first.");
+      throw new Error("A JSON file exceeds the safe storage limit. Review it first.");
     }
     if (file.name === filename || fileHasItem(content, item.group, item.item)) {
       matching.push({ file, content });
@@ -453,7 +454,7 @@ export async function addWalletItem(token, folderId, entry) {
     const existing = matching[0];
     if (existing.file.appProperties?.purpose !== ITEM_MARKER ||
         !fileHasItem(existing.content, item.group, item.item)) {
-      throw new Error("An existing TXT file conflicts with this item. No changes were saved.");
+      throw new Error("An existing JSON file conflicts with this item. No changes were saved.");
     }
     if (monthIsPresent(existing.content, item.group, item.item, item.month)) {
       if (!isExpenseGroup(item.group) || recurring) {
@@ -873,16 +874,16 @@ export async function deleteWalletItem(token, folderId, previous) {
 
 
 // Catch up due recurring Bills on wallet load or Refresh.
-// Each TXT file is re-read and fully verified. Existing snapshots and DELETE
+// Each JSON file is re-read and fully verified. Existing snapshots and DELETE
 // tombstones always win; no user-edited month is automatically overwritten.
 export async function renewRecurringBills(token, folderId, files) {
   if (!token || !folderId) throw new Error("Wallet session expired.");
   const now = new Date();
   const dueFiles = [];
   for (const file of files) {
-    if (!file || !file.name?.toLowerCase().endsWith(".txt") ||
+    if (!file || !file.name?.toLowerCase().endsWith(".json") ||
         typeof file.content !== "string") continue;
-    // A single TXT belongs to one item. Only recognised active rules qualify.
+    // A single JSON belongs to one item. Only recognised active rules qualify.
     const rules = new Map();
     for(const line of file.content.split("\n")) {
       if(!line.startsWith("@RECUR\t") && !line.startsWith("@RECUR2\t")) continue;
@@ -1088,7 +1089,7 @@ export async function withdrawSavingItem(token, folderId, selection) {
 
 
 // One-time private setup import. Source JSON is selected locally by the signed
-// in user. The browser writes only to their private Drive item TXT files.
+// in user. The browser writes only to their private Drive item JSON files.
 export async function importWalletSetup(token, folderId, source, onProgress = () => {}) {
   if (!token || !folderId) throw new Error("Sign in again.");
   const input = validateSetupPayload(source);
@@ -1247,13 +1248,13 @@ export async function importWalletSetup(token, folderId, source, onProgress = ()
 }
 
 // Authenticated schedule catch-up. No rule changes and no financial history
-// are stored anywhere outside the existing private item TXT files.
+// are stored anywhere outside the existing private item JSON files.
 export async function renewScheduledItems(token, folderId, contents) {
   if (!token || !folderId) throw new Error("Sign in again.");
   const now = new Date();
   const targets = [];
   for (const raw of contents) {
-    if (!raw?.name?.toLowerCase().endsWith(".txt") ||
+    if (!raw?.name?.toLowerCase().endsWith(".json") ||
         typeof raw.content !== "string") continue;
     const all = raw.content.split("\n").filter(line => line.startsWith("@SCHEDULE\t"));
     const names = new Map();
@@ -1437,13 +1438,13 @@ export async function closeWalletMonth(token, folderId, month) {
       throw new Error("Month closure could not be verified. Refresh before retrying.");
   } else {
     const boundary = "wallet-close-" + crypto.randomUUID().replace(/-/g, "");
-    const metadata = { name: MONTH_CLOSE_FILE, mimeType: "text/plain",
+    const metadata = { name: MONTH_CLOSE_FILE, mimeType: "application/json",
       parents: [folderId], appProperties: { purpose: MONTH_CLOSE_MARKER } };
     const payload = new Blob([
       "--" + boundary + "\r\n", "Content-Type: application/json; charset=UTF-8\r\n\r\n",
       JSON.stringify(metadata), "\r\n--" + boundary + "\r\n",
-      "Content-Type: text/plain; charset=UTF-8\r\n\r\n",
-      line, "\r\n--" + boundary + "--\r\n"
+      "Content-Type: application/json; charset=UTF-8\r\n\r\n",
+      encodeWalletJson(line), "\r\n--" + boundary + "--\r\n"
     ], { type: "multipart/related; boundary=" + boundary });
     const response = await fetch(
       "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,parents,appProperties",
