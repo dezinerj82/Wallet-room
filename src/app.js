@@ -1,5 +1,5 @@
 import { initialiseGoogleLogin, canRestoreLoginSession, restoreLoginSession, signIn, signOut, getDriveToken } from "./auth.js?v=20261102-oauth43";
-import { ensureWalletFolder, readWalletTextFiles, addWalletItem, addWalletInstallments, updateWalletItem, deleteWalletItem, renewRecurringBills, renewScheduledItems, importWalletSetup, saveSavingSettings, withdrawSavingItem, recordBillPayment, closeWalletMonth } from "./drive.js?v=20261103-json61";
+import { ensureWalletFolder, readWalletTextFiles, addWalletItem, addWalletInstallments, updateWalletItem, deleteWalletItem, renewRecurringBills, renewScheduledItems, importWalletSetup, saveSavingSettings, withdrawSavingItem, recordBillPayment, closeWalletMonth } from "./drive.js?v=20261103-folder63";
 import { getMyrKrwRate, formatWalletCurrency, rateDateLabel } from "./currency.js";
 import { displayGroup, availableGroups, isExpenseGroup, isCustomGroup, NEW_CATEGORY, NEW_ITEM } from "./groups.js";
 import { buildMeta, parseAllMetadata, parseRemarkHistory, serviceReminders, effectiveServiceMonth, metaKey } from "./private-meta.js?v=20261103-json62";
@@ -1334,8 +1334,8 @@ async function onDriveReady() {
     addButton.disabled = false;
     otherMonthsButton.disabled = false;
     walletSetupButton.disabled = false;
-    if (folder.name !== "Wallet room") {
-      setWalletMessage("Rename the connected Drive folder to Wallet Room.", true);
+    if (folder.name !== "Wallet Room") {
+      setWalletMessage("Wallet Room folder name needs review.", true);
     }
     setLoginProgress(75);
     await loadWalletRecords("Loading your items...");
