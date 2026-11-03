@@ -68,7 +68,7 @@ export async function ensureWalletFolder(token) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: FOLDER_NAME, mimeType: FOLDER_MIME,
-        parents: ["root"], appProperties: { purpose: APP_MARKER } })
+        appProperties: { purpose: APP_MARKER } })
     });
   } else if (folder.name !== FOLDER_NAME) {
     folder = await driveFetch(API + "/" + encodeURIComponent(folder.id) +
@@ -79,26 +79,11 @@ export async function ensureWalletFolder(token) {
     });
   }
   if (!folder?.id) throw new Error("Google Drive could not create the Wallet Room folder.");
-  // Keep the existing folder ID and its files when moving to My Drive root.
-  const root = await driveFetch(API + "/root?fields=id", token);
-  if (!root.id) throw new Error("Google Drive root could not be verified.");
-  const parents = folder.parents || [];
-  if (!parents.includes(root.id)) {
-    if (!parents.length) throw new Error("Wallet Room folder location needs review.");
-    const move = new URL(API + "/" + encodeURIComponent(folder.id));
-    move.searchParams.set("addParents", root.id);
-    move.searchParams.set("removeParents", parents.join(","));
-    move.searchParams.set("fields", "id,name,mimeType,appProperties,parents");
-    folder = await driveFetch(move, token, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: "{}"
-    });
-  }
+  // The drive.file permission may not expose the My Drive root metadata.
+  // Never fail sign-in or move an existing wallet folder solely to check its parent.
   const confirmed = await driveFetch(API + "/" + encodeURIComponent(folder.id) +
     "?fields=id,name,mimeType,appProperties,parents", token);
   if (confirmed.name !== FOLDER_NAME || confirmed.mimeType !== FOLDER_MIME ||
-      !confirmed.parents?.includes(root.id) ||
       confirmed.appProperties?.purpose !== APP_MARKER)
     throw new Error("Google Drive could not verify the Wallet Room folder.");
   const unique = await findBillsFolder(token);
