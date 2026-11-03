@@ -1323,7 +1323,7 @@ async function onDriveReady() {
     setLoginProgress(55);
     if (!folder) {
       setWalletMessage(
-        "Wallet bills folder not found. Check its Drive access. No folder was created.", true
+        "Wallet room folder not found. Check its Drive access. No folder was created.", true
       );
       cancelLoginLoading();
       loginView.hidden = true;
@@ -1334,8 +1334,8 @@ async function onDriveReady() {
     addButton.disabled = false;
     otherMonthsButton.disabled = false;
     walletSetupButton.disabled = false;
-    if (folder.name !== "Wallet bills") {
-      setWalletMessage("Rename the connected Drive folder to Wallet bills.", true);
+    if (folder.name !== "Wallet room") {
+      setWalletMessage("Rename the connected Drive folder to Wallet room.", true);
     }
     setLoginProgress(75);
     await loadWalletRecords("Loading your items...");
