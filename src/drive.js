@@ -11,10 +11,10 @@ import {
 } from "./setup.js";
 
 // Private Drive storage. Uses only the user's temporary drive.file OAuth token.
-// Recognize the original app-created Wallet bills folder by its marker after moves within Drive.
+// Recognize the original app-created Wallet room folder by its marker after moves within Drive.
 // Do not create another folder if it is temporarily invisible after a move.
 const API = "https://www.googleapis.com/drive/v3/files";
-const FOLDER_NAME = "Wallet bills";
+const FOLDER_NAME = "Wallet room";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 const APP_MARKER = "home-wallet-records";
 
@@ -60,7 +60,7 @@ export async function findBillsFolder(token) {
 }
 
 
-// TEST ONLY. Keeps all test text inside the private Wallet bills folder.
+// TEST ONLY. Keeps all test text inside the private Wallet room folder.
 // Appends lines by re-uploading the entire text file with its earlier contents intact.
 const TEST_FILE_NAME = "storage-check.txt";
 const TEST_MARKER = "wallet-storage-test";
@@ -156,7 +156,7 @@ async function updateTestFile(token, fileId, text) {
 }
 
 export async function testTextStorage(token, folderId) {
-  if (!token || !folderId) throw new Error("Connect to the private Wallet bills folder first.");
+  if (!token || !folderId) throw new Error("Connect to the private Wallet room folder first.");
   // Preserve any existing test text; never touch financial records.
   let file = await findTestFile(token, folderId);
   if (!file) {
@@ -180,7 +180,7 @@ export async function testTextStorage(token, folderId) {
 // Read-only wallet TXT loading. The separate storage-check.txt file is ignored.
 // Storage writes for real wallet items are not enabled in this stage.
 export async function readWalletTextFiles(token, folderId) {
-  if (!token || !folderId) throw new Error("Sign in and connect Wallet bills first.");
+  if (!token || !folderId) throw new Error("Sign in and connect Wallet room first.");
 
   const q = "'" + folderId + "' in parents and trashed = false";
   const files = [];
@@ -194,7 +194,7 @@ export async function readWalletTextFiles(token, folderId) {
     const page = await driveFetch(url, token);
     files.push(...(page.files || []));
     if (files.length > 500) {
-      throw new Error("Too many files in Wallet bills. Review the folder before loading.");
+      throw new Error("Too many files in Wallet room. Review the folder before loading.");
     }
     pageToken = page.nextPageToken || "";
   } while (pageToken);
@@ -306,7 +306,7 @@ async function listWalletFileMetadata(token, folderId) {
     const page = await driveFetch(url, token);
     results.push(...(page.files || []));
     if (results.length > 500) {
-      throw new Error("Too many files in Wallet bills. Review the folder first.");
+      throw new Error("Too many files in Wallet room. Review the folder first.");
     }
     pageToken = page.nextPageToken || "";
   } while (pageToken);
