@@ -2,7 +2,7 @@ import { initialiseGoogleLogin, canRestoreLoginSession, restoreLoginSession, sig
 import { findBillsFolder, readWalletTextFiles, addWalletItem, addWalletInstallments, updateWalletItem, deleteWalletItem, renewRecurringBills, renewScheduledItems, importWalletSetup, saveSavingSettings, withdrawSavingItem, recordBillPayment, closeWalletMonth } from "./drive.js?v=20261103-json61";
 import { getMyrKrwRate, formatWalletCurrency, rateDateLabel } from "./currency.js";
 import { displayGroup, availableGroups, isExpenseGroup, isCustomGroup, NEW_CATEGORY, NEW_ITEM } from "./groups.js";
-import { buildMeta, parseAllMetadata, parseRemarkHistory, serviceReminders, effectiveServiceMonth, metaKey } from "./private-meta.js";
+import { buildMeta, parseAllMetadata, parseRemarkHistory, serviceReminders, effectiveServiceMonth, metaKey } from "./private-meta.js?v=20261103-json62";
 import { plannedAlerts, validateSetupPayload } from "./setup.js";
 import { csvTemplate, parseWalletCsv, simpleWorkbook, parseSimpleWorkbook } from "./csv.js";
 import {
