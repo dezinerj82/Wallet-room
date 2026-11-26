@@ -30,10 +30,10 @@ h2 { font-size:var(--subtitle); font-weight:500; }
 button { font:inherit; color:inherit; border:0; border-radius:9999px; padding:var(--pill); background:var(--orange); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:var(--pill); }
 button:disabled { cursor:default; opacity:.65; }
 button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194b5938; }
-#loginCard { background:var(--white); border-radius:var(--radius); padding:var(--card); width:calc(557 * var(--unit)); min-height:calc(270 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--gap); text-align:center; }
-#login { font-size:calc(16 * var(--unit)); width:100%; }
+#loginCard { --unit:min(100vw / 1024, 100dvh / 768, 1px); background:var(--white); border-radius:calc(32 * var(--unit)); padding:var(--card); width:calc(530 * var(--unit)); min-height:calc(390 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--gap); text-align:center; }
+#login { font-size:calc(18 * var(--unit)); min-height:calc(56 * var(--unit)); padding:calc(14 * var(--unit)) calc(28 * var(--unit)); gap:calc(12 * var(--unit)); width:100%; }
 #loginActions { display:grid; grid-template-columns:max-content; justify-content:center; gap:calc(8 * var(--unit)); max-width:100%; }
-#login svg { width:1.12em; height:1.12em; flex-shrink:0; }
+#login .google-mark { font-size:calc(24 * var(--unit)); font-weight:400; line-height:1; flex-shrink:0; }
 #progress { width:100%; height:calc(7 * var(--unit)); background:var(--cream); border-radius:9999px; overflow:hidden; }
 #progressFill { height:100%; width:0; border-radius:inherit; background:var(--teal); transition:width .2s ease; }
 #status { color:var(--teal); font-size:calc(12 * var(--unit)); overflow-wrap:anywhere; max-width:100%; width:0; min-width:100%; min-height:calc(16 * var(--unit)); }
@@ -62,7 +62,7 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-view { min-height:0; }
 .wallet-card h3 { font-size:var(--subtitle); font-weight:500; }
 @media (max-width:768px) {
- #loginCard { width:100%; min-height:0; }
+ #loginCard { --unit:min(100vw / 412, 100dvh / 891, 1px); width:min(100%,calc(530 * var(--unit))); min-height:calc(390 * var(--unit)); }
  #mainPage { min-height:0; align-self:start; }
  .wallet-header h1 { font-size:var(--subtitle); }
  .wallet-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -80,7 +80,7 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 <main id="loginCard">
 <h1>Wallet Room</h1>
 <div id="loginActions">
-<button id="login" disabled><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.1v5h6.6c3.9-3.6 6.1-8.8 6.1-14.8z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.7l-6.6-5c-1.8 1.2-4.1 1.9-6.9 1.9-5.3 0-9.8-3.6-11.4-8.4H5.8V33A20 20 0 0 0 24 44z"/><path fill="#FBBC05" d="M12.6 27.8a12 12 0 0 1 0-7.6V15H5.8a20 20 0 0 0 0 18z"/><path fill="#EA4335" d="M24 11.8c3 0 5.7 1 7.8 3l5.9-5.9A19.8 19.8 0 0 0 24 4 20 20 0 0 0 5.8 15l6.8 5.2c1.6-4.8 6.1-8.4 11.4-8.4z"/></svg>Continue with Google</button>
+<button id="login" disabled><span class="google-mark" aria-hidden="true">G</span>Continue with Google</button>
 <div id="progress" role="progressbar" aria-label="Loading Wallet Room" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><div id="progressFill"></div></div>
 <p id="status" role="status" aria-live="polite"></p>
 </div>
