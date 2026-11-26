@@ -40,37 +40,69 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 #status.error { color:#a64b50; }
 #progress[hidden] { display:block !important; visibility:hidden; }
 #status:empty { visibility:hidden; }
-#mainPage { width:100%; max-width:calc(1920 * var(--unit) - 2 * var(--page)); min-height:calc(1080 * var(--unit) - 2 * var(--page)); display:flex; flex-direction:column; gap:var(--gap); align-self:center; }
-.wallet-card { background:var(--white); border-radius:var(--radius); padding:var(--card); min-width:0; }
+#mainPage { width:100%; max-width:calc(1920 * var(--unit) - 2 * var(--page)); height:calc(1080 * var(--unit) - 2 * var(--page)); display:flex; flex-direction:column; gap:var(--gap); align-self:center; min-height:0; }
+.wallet-card { --accent:#8ebacb; --marker:#bad9e5; background:var(--white); border:1px solid var(--accent); border-radius:var(--radius); padding:var(--card); min-width:0; min-height:0; }
+.wallet-card.green { --accent:#9bb887; --marker:#d0e1b9; }
+.wallet-card.orange { --accent:#d5a268; --marker:#f3d29d; }
+.wallet-card.pink { --accent:#c88c9d; --marker:#edc5d0; }
+.wallet-card.purple { --accent:#ab96c6; --marker:#dbcaeb; }
+.wallet-card.yellow { --accent:#c6ae59; --marker:#f2e2a3; }
+.marker { display:inline-block; position:relative; isolation:isolate; padding:0 .18em; width:fit-content; }
+.marker::before,.marker::after { content:""; position:absolute; inset:0 -.14em; z-index:-1; background:var(--marker,#bad9e5); opacity:.78; clip-path:polygon(2% 13%,8% 7%,19% 12%,29% 4%,40% 9%,54% 3%,66% 10%,78% 5%,94% 10%,98% 19%,96% 30%,100% 42%,97% 54%,99% 67%,95% 77%,98% 89%,87% 93%,74% 88%,61% 96%,49% 89%,38% 96%,25% 89%,12% 95%,2% 86%,5% 70%,0 58%,4% 45%,0 30%); transform:rotate(-1.5deg); }
+.marker::after { inset:3px -.2em 2px; transform:rotate(1deg); opacity:.46; }
 .wallet-row { display:flex; align-items:center; justify-content:space-between; gap:var(--gap); }
-.wallet-header { background:var(--teal); color:var(--white); }
+.wallet-header { background:transparent; color:var(--teal); border:0; padding:0; }
 .wallet-header button { color:var(--teal); }
 .wallet-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); }
 .wallet-stat { display:flex; flex-direction:column; gap:calc(var(--gap) / 2); }
 .wallet-stat strong { font-size:var(--subtitle); font-weight:500; }
-.wallet-stat:nth-child(1) { background:var(--orange); }
-.wallet-stat:nth-child(2) { background:var(--cream); }
-.wallet-stat:nth-child(3) { background:var(--sage); }
-.wallet-stat:nth-child(4) { background:var(--rose); }
+.wallet-stat:nth-child(1) { --accent:#d5a268; --marker:#f3d29d; }
+.wallet-stat:nth-child(2) { --accent:#8ebacb; --marker:#bad9e5; }
+.wallet-stat:nth-child(3) { --accent:#9bb887; --marker:#d0e1b9; }
+.wallet-stat:nth-child(4) { --accent:#c88c9d; --marker:#edc5d0; }
 .wallet-nav { display:flex; align-items:center; gap:var(--gap); }
 .wallet-nav button { background:transparent; white-space:nowrap; }
-.wallet-nav button[aria-selected="true"] { background:var(--orange); }
-.wallet-workspace { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:var(--gap); flex:1; align-items:stretch; }
-.wallet-workspace[data-view="Calendar"] { grid-template-columns:minmax(0,1fr); }
-.wallet-months { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); }
-.wallet-side { display:grid; grid-template-rows:1fr 1fr; gap:var(--gap); }
-.wallet-view { min-height:0; }
+.wallet-nav button[aria-selected="true"],button.selected { background:#dfe8e1; }
+.wallet-workspace { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:var(--gap); flex:1; min-height:0; align-items:stretch; overflow:hidden; }
+.wallet-workspace:not([data-view="2 Months"]) { grid-template-columns:minmax(0,1fr); }
+.wallet-months { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); min-height:0; }
+.wallet-side { display:grid; grid-template-rows:1fr 1fr; gap:var(--gap); min-height:0; }
+.wallet-view { min-height:0; overflow:hidden; }
 .wallet-card h3 { font-size:var(--subtitle); font-weight:500; }
+.wallet-panel { display:flex; flex-direction:column; gap:calc(var(--gap)/2); overflow:hidden; }
+.wallet-scroll { flex:1; min-height:0; overflow:auto; scrollbar-width:none; }
+.wallet-scroll::-webkit-scrollbar { display:none; }
+.scroll-buttons { display:flex; justify-content:center; gap:var(--gap); flex:none; }
+.scroll-buttons button { background:transparent; padding:2px; }
+.scroll-buttons svg { width:1.4em; height:1em; fill:var(--accent); stroke:var(--accent); stroke-width:4; stroke-linejoin:round; }
+.entry-row { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--gap)/2); padding:.55em 0; width:100%; text-align:left; background:none; border-radius:0; }
+.entry-row span:first-child { text-decoration:underline; text-decoration-color:var(--accent,#8ebacb); text-underline-offset:.3em; text-decoration-thickness:2px; }
+.muted { opacity:.5; font-size:.82em; }
+.space-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--gap); align-content:start; }
+.space-grid .entry-row { display:flex; flex-direction:column; align-items:flex-start; }
+.record-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); flex:1; min-height:0; }
+.calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px; background:#e8eeee; }
+.calendar-cell { background:#fff; min-height:5em; padding:.4em; min-width:0; }
+.calendar-event { font-size:.82em; display:block; background:#edf5f6; border-radius:.4em; padding:.25em; margin-top:.3em; width:100%; text-align:left; overflow-wrap:anywhere; }
+.calendar-hours { display:grid; grid-template-columns:3.5em repeat(var(--days),minmax(0,1fr)); gap:1px; background:#e8eeee; }
+.calendar-hours > div { background:white; min-width:0; padding:.3em; min-height:3em; }
+.wallet-dialog { border:1px solid #ab96c6; border-radius:var(--radius); color:var(--teal); background:#fff; width:min(90vw,42em); max-height:85dvh; padding:var(--card); font:inherit; }
+.wallet-dialog::backdrop { background:#194b5940; }
+.wallet-form { display:flex; flex-direction:column; gap:var(--gap); }
+.wallet-form label { display:flex; flex-direction:column; gap:.3em; min-width:0; }
+.wallet-form input:not([type=checkbox]),.wallet-form textarea,.wallet-form select { border:0; border-radius:.7em; padding:.6em; background:var(--paper); font:inherit; color:inherit; width:100%; }
+.wallet-form .record-grid { flex:none; }
 @media (max-width:768px) {
  #loginCard { --unit:min(100vw / 412, 100dvh / 891, 1px); width:min(100%,calc(530 * var(--unit))); min-height:calc(390 * var(--unit)); }
- #mainPage { min-height:0; align-self:start; }
+ #mainPage { height:calc(891 * var(--unit) - 2 * var(--page)); max-width:100%; align-self:center; }
  .wallet-header h1 { font-size:var(--subtitle); }
  .wallet-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .wallet-nav { flex-wrap:wrap; gap:calc(var(--gap) / 2); }
  .wallet-nav button { font-size:calc(16 * var(--unit)); }
  .wallet-workspace { grid-template-columns:minmax(0,1fr); }
- .wallet-side { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:auto; }
- .wallet-months { min-height:calc(210 * var(--unit)); }
+ .wallet-side { display:none; }
+ .space-grid { grid-template-columns:1fr; }
+ .record-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (prefers-reduced-motion:reduce) { #progressFill { transition:none; } }
 </style>
@@ -86,19 +118,18 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 </div>
 </main>
 <main id="mainPage" hidden>
-<header class="wallet-card wallet-header wallet-row"><h1>Wallet Room</h1><button id="logout" type="button" hidden>Sign out</button></header>
+<header class="wallet-card wallet-header wallet-row"><h1>Wallet Room</h1><button type="button" id="addItem">+ Add Item</button><button id="logout" type="button" hidden>Sign out</button></header>
 <section class="wallet-stats" aria-label="Summary">
-<div class="wallet-card wallet-stat"><span>Available</span><strong>—</strong></div>
-<div class="wallet-card wallet-stat"><span>Savings</span><strong>—</strong></div>
-<div class="wallet-card wallet-stat"><span>Income</span><strong>—</strong></div>
-<div class="wallet-card wallet-stat"><span>IOU</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat"><span class="marker">Available</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat"><span class="marker">Savings</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat"><span class="marker">Income</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat"><span class="marker">IOU</span><strong>—</strong></div>
 </section>
 <nav class="wallet-nav" role="tablist" aria-label="Wallet views">
 <button role="tab" type="button" aria-selected="false" data-view="Calendar" aria-controls="walletContent">Calendar</button>
-<button role="tab" type="button" aria-selected="false" data-view="List" aria-controls="walletContent">List</button>
 <button role="tab" type="button" aria-selected="true" data-view="2 Months" aria-controls="walletContent">2 Months</button>
-<button role="tab" type="button" aria-selected="false" data-view="Projects" aria-controls="walletContent">Projects</button>
-<button role="tab" type="button" aria-selected="false" data-view="History" aria-controls="walletContent">History</button>
+<button role="tab" type="button" aria-selected="false" data-view="My Space" aria-controls="walletContent">My Space</button>
+<button role="tab" type="button" aria-selected="false" data-view="Records" aria-controls="walletContent">Records</button>
 </nav>
 <section class="wallet-workspace" id="walletWorkspace" data-view="2 Months">
 <div id="walletContent" class="wallet-months wallet-view" role="tabpanel" aria-label="2 Months">
@@ -108,6 +139,7 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 <aside class="wallet-side" id="walletSide"><section class="wallet-card"><h3>Projects</h3></section><section class="wallet-card"><h3>Records</h3></section></aside>
 </section>
 </main>
+<dialog id="entryDialog" class="wallet-dialog"></dialog>
 <section id="storageTest" hidden><input id="testNote" type="text" disabled></section>
 <script>
 'use strict';
@@ -119,19 +151,70 @@ function resetProgress(){progress.hidden=true;fill.style.width='0%';progress.set
 function fail(message){resetProgress();status.classList.add('error');status.textContent=message;login.disabled=false;}
 let walletData=null;
 const walletContent=document.getElementById('walletContent'), walletWorkspace=document.getElementById('walletWorkspace'), walletSide=document.getElementById('walletSide');
-const monthLabel=(offset)=>{const now=new Date();return new Date(now.getFullYear(),now.getMonth()+offset,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'}).split(' ').reverse().join(' ');};
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const monthLabel=d=>d.getFullYear()+' '+d.toLocaleString('en',{month:'long'});
+const dayKey=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+const displayDate=x=>x&&/^\d{4}-\d{2}-\d{2}/.test(x)?monthLabel(new Date(x.slice(0,10)+'T12:00:00'))+' '+x.slice(8,10):String(x||'');
+const money=x=>x==null||x===''?'': 'RM '+Math.round(Number(x)).toLocaleString('en-MY');
+const dialog=document.getElementById('entryDialog');
+let viewName='2 Months',recordsMode='By Event',calendarMode='Month',calendarDate=new Date();
+const list=(key)=>Array.isArray(walletData?.[key])?walletData[key]:[];
+const all=()=>['items','projects','records','savings','iou'].flatMap(key=>list(key).filter(x=>x&&typeof x==='object').map((item,index)=>({item,key,index})));
+const nameOf=x=>x.name??x.title??x.item??'';
+const dateOf=x=>x.date??x.dueDate??x.deadline??'';
+const amountOf=x=>x.amount??x.cost??x.estimatedCost;
+const isInactive=e=>e.key==='records'||e.item.active===false||['completed','cancelled','paid','inactive','cleared'].includes(String(e.item.status||'').toLowerCase());
+const isSpace=e=>e.key==='projects'||e.item.category==='My Space';
+const title=t=>'<h3><span class="marker">'+esc(t)+'</span></h3>';
+const arrows='<div class="scroll-buttons">'+[-1,1].map(n=>'<button type="button" data-scroll="'+n+'" aria-label="'+(n<0?'Scroll up':'Scroll down')+'"><svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+(n<0?'M3 18 L15 4 L27 18 Z':'M3 4 L15 18 L27 4 Z')+'"/></svg></button>').join('')+'</div>';
+const panel=(heading,color,body)=>'<section class="wallet-card wallet-panel '+color+'">'+title(heading)+'<div class="wallet-scroll">'+body+'</div>'+arrows+'</section>';
+const row=(e,second)=>'<button type="button" class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(second??money(amountOf(e.item)))+'</small></button>';
 function setView(view){
+ viewName=view;
  for(const tab of mainPage.querySelectorAll('[role="tab"]'))tab.setAttribute('aria-selected',String(tab.dataset.view===view));
- walletWorkspace.dataset.view=view;
- walletSide.hidden=view==='Calendar';
+ walletWorkspace.dataset.view=view;walletSide.hidden=view!=='2 Months';
  walletContent.setAttribute('aria-label',view);
- walletContent.className='wallet-view'+(view==='2 Months'?' wallet-months':' wallet-card');
- walletContent.replaceChildren();
+ walletContent.className='wallet-view'+(view==='2 Months'?' wallet-months':'');
+ const entries=all().filter(e=>nameOf(e.item));
  if(view==='2 Months'){
- for(let offset=0;offset<2;offset++){const panel=document.createElement('section');panel.className='wallet-card';const heading=document.createElement('h3');heading.textContent=monthLabel(offset);panel.append(heading);walletContent.append(panel);}
- }else{const heading=document.createElement('h3');heading.textContent=view;walletContent.append(heading);}
+ const now=new Date();
+ walletContent.innerHTML=[0,1].map((offset)=>{const d=new Date(now.getFullYear(),now.getMonth()+offset,1);return panel(monthLabel(d),offset?'green':'',entries.filter(e=>!isSpace(e)&&dateOf(e.item).slice(0,7)===dayKey(d).slice(0,7)).map(e=>row(e)).join(''));}).join('');
+ walletSide.innerHTML=panel('My Space','purple',entries.filter(isSpace).map(e=>row(e,displayDate(dateOf(e.item)))).join(''))+panel('Records','orange',entries.filter(isInactive).map(e=>row(e)).join(''));
+ }else if(view==='My Space'){
+ walletContent.classList.add('wallet-card','wallet-panel','purple');walletContent.innerHTML=title('My Space')+'<div class="wallet-scroll space-grid">'+entries.filter(isSpace).map(e=>row(e,displayDate(dateOf(e.item)))).join('')+'</div>'+arrows;
+ }else if(view==='Records'){
+ walletContent.classList.add('wallet-panel');
+ const grouped=items=>{const groups=new Map();for(const e of items){const k=recordsMode==='By Event'?nameOf(e.item):dateOf(e.item)||'No date';if(!groups.has(k))groups.set(k,[]);groups.get(k).push(e);}let pairs=[...groups];if(recordsMode==='By Date')pairs.sort((a,b)=>b[0].localeCompare(a[0]));return pairs.map(([k,es])=>'<div style="margin-bottom:1em"><strong>'+esc(recordsMode==='By Date'?displayDate(k):k)+'</strong>'+es.map(e=>recordsMode==='By Event'?'<button class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(displayDate(dateOf(e.item)))+'</span><small>'+esc(money(amountOf(e.item)))+'</small></button>':row(e)).join('')+'</div>').join('');};
+ walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div>'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid">'+panel('Active','green',grouped(entries.filter(e=>!isInactive(e))))+panel('Inactive','pink',grouped(entries.filter(isInactive)))+'</div>';
+ }else if(view==='Calendar'){renderCalendar(entries);}
 }
-mainPage.querySelector('.wallet-nav').addEventListener('click',e=>{const tab=e.target.closest('[data-view]');if(tab)setView(tab.dataset.view);});
+function renderCalendar(entries){
+ walletContent.classList.add('wallet-card','wallet-panel');const y=calendarDate.getFullYear(),m=calendarDate.getMonth();
+ const controls='<div class="wallet-row">'+title('Calendar')+'<div>'+['Month','Week','Day'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row"><button data-step="-1">‹</button><strong>'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong><button data-step="1">›</button></div>';
+ const event=e=>'<button class="calendar-event" data-entry="'+e.key+':'+e.index+'">'+esc(e.item.time?e.item.time+' ':'')+esc(nameOf(e.item))+'</button>';
+ let body='';
+ if(calendarMode==='Month'){
+ const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());
+ body='<div class="calendar-grid">'+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<div class="calendar-cell" style="min-height:0">'+x+'</div>').join('')+Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return '<div class="calendar-cell"><span class="'+(d.getMonth()!==m?'muted':'')+'">'+d.getDate()+'</span>'+entries.filter(e=>dateOf(e.item).slice(0,10)===dayKey(d)).map(event).join('')+'</div>';}).join('')+'</div>';
+ }else{
+ const start=new Date(calendarDate);if(calendarMode==='Week')start.setDate(start.getDate()-start.getDay());const days=Array.from({length:calendarMode==='Week'?7:1},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
+ const eventsFor=(d,h)=>entries.filter(e=>dateOf(e.item).slice(0,10)===dayKey(d)&&(h===null?!e.item.time:parseInt(e.item.time,10)===h)).map(event).join('');
+ body='<div class="calendar-hours" style="--days:'+days.length+'"><div></div>'+days.map(d=>'<div>'+d.toLocaleString('en',{weekday:'short'})+' '+d.getDate()+'</div>').join('')+'<div class="muted">All day</div>'+days.map(d=>'<div>'+eventsFor(d,null)+'</div>').join('')+Array.from({length:24},(_,h)=>'<div class="muted">'+String(h).padStart(2,'0')+':00</div>'+days.map(d=>'<div>'+eventsFor(d,h)+'</div>').join('')).join('')+'</div>';
+ }
+ walletContent.innerHTML=controls+'<div class="wallet-scroll">'+body+'</div>'+arrows;
+}
+function openEntry(key,index,edit=false){
+ const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{};
+ if(e&&!edit){dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><button data-close>Close</button></div><p class="muted">'+esc(displayDate(dateOf(x)))+'</p><p>'+esc(money(amountOf(x)))+'</p><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+ (Array.isArray(x.tasks)?x.tasks.map(t=>'<p>'+esc(typeof t==='string'?t:t.text)+'</p>').join(''):'')+'<button data-edit="'+key+':'+index+'">Edit</button></div>';if(!dialog.open)dialog.showModal();return;}
+ const category=x.category|| (key==='projects'?'My Space':key==='savings'?'Savings':key==='iou'?'IOU':'Expense');
+ const field=(label,n,v='',type='text')=>'<label>'+label+'<input name="'+n+'" type="'+type+'" value="'+esc(v)+'" '+(n==='name'?'required':'')+(type==='number'?' step="1"':'')+'></label>';
+ dialog.innerHTML='<form class="wallet-form" id="walletEntry"><div class="wallet-row"><h2>'+(e?'Edit Item':'Add Item')+'</h2><button type="button" data-close>Close</button></div><label>Category<select name="category">'+[...new Set(['Expense','Income','Savings','IOU','My Space',category])].map(c=>'<option '+(c===category?'selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label>'+field('Group','group',x.group)+field('Item','name',nameOf(x))+'<div class="record-grid">'+field('Amount (RM)','amount',amountOf(x)??'','number')+field('Date','date',dateOf(x),'date')+field('Time','time',x.time,'time')+'<label>Status<select name="status">'+[...new Set(['Saved','In progress','Completed','Cancelled',x.status||'Saved'])].map(c=>'<option '+(c===(x.status||'Saved')?'selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label></div><label>Notes<textarea name="notes" rows="3">'+esc(x.notes||'')+'</textarea></label><label>Checklist / Subtasks<textarea name="tasks" rows="2">'+esc((x.tasks||[]).map(t=>typeof t==='string'?t:t.text).join('\n'))+'</textarea></label>'+field('Contact','contact',x.contact)+field('Website','website',x.website)+ '<p class="muted" id="entryStatus" role="status"></p><div class="wallet-row"><button type="button" data-close>Cancel</button><button type="submit">Save Item</button></div></form>';
+ const form=dialog.querySelector('form');form.onsubmit=async event=>{event.preventDefault();if(saving)return;const values=Object.fromEntries(new FormData(form));const taskLines=values.tasks.split('\n').filter(t=>t.trim());const updated={...x,...values,name:values.name.trim(),amount:values.amount===''?null:Number(values.amount),tasks:taskLines.map(text=>({text,done:(x.tasks||[]).some(t=>t.text===text&&t.done)})),id:x.id||crypto.randomUUID()};const dest=key||({ 'My Space':'projects',Savings:'savings',IOU:'iou'}[values.category]||'items');const msg=dialog.querySelector('#entryStatus');saving=true;form.querySelector('button[type=submit]').disabled=true;logout.disabled=true;try{const current=generation,access=token,file=dataId;await navigator.locks.request('wallet-room-data:'+folderId,async()=>{const data=await readData(access,current,file);if(JSON.stringify(data[dest]||[])!==JSON.stringify(walletData[dest]||[]))throw Error('Records changed elsewhere. Please sign in again.');const arr=data[dest]||[];if(e)arr[index]=updated;else arr.push(updated);data[dest]=arr;await drive('upload/drive/v3/files/'+encodeURIComponent(file)+'?uploadType=media&fields=id',access,current,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});walletData=data;});dialog.close();setView(viewName);}catch(err){msg.textContent=err.message;}finally{saving=false;logout.disabled=false;form.querySelector('button[type=submit]').disabled=false;}};
+ if(!dialog.open)dialog.showModal();
+}
+mainPage.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;if(d.view)setView(d.view);else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
+dialog.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||saving)return;if(b.hasAttribute('data-close'))dialog.close();else if(b.dataset.edit){const [k,i]=b.dataset.edit.split(':');openEntry(k,Number(i),true);}});
+dialog.addEventListener('cancel',e=>{if(saving)e.preventDefault();});
 let client, token=null, generation=0, folderId=null, dataId=null, savedNote='', saving=false, ready=false;
 const test=document.getElementById('storageTest'), note=document.getElementById('testNote');
 function checkSession(current){if(current!==generation)throw new Error('Session changed.');}
