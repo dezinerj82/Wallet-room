@@ -8,7 +8,7 @@
 <style>
 :root {
  --teal:#194b59; --orange:#ffb458; --cream:#fcebd9; --paper:#f4f6f5; --sage:#dfe8e1; --rose:#efdddd; --white:#fff;
- --unit:min(100vw / 1920, 100dvh / 1080, 1px);
+ --unit:calc(.75 * min(100vw / 1920, 100dvh / 1080, 1px));
  --title:calc(42.6667 * var(--unit));
  --subtitle:calc(29.3333 * var(--unit));
  --normal:calc(21.3333 * var(--unit));
@@ -19,7 +19,7 @@
  --pill:calc(13.3333 * var(--unit));
 }
 @media (max-width:768px) {
- :root { --unit:min(100vw / 412, 100dvh / 891, 1px); }
+ :root { --unit:calc(.75 * min(100vw / 412, 100dvh / 891, 1px)); }
 }
 * { box-sizing:border-box; }
 [hidden] { display:none !important; }
