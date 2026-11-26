@@ -11,13 +11,76 @@
 <h1>Wallet Room</h1>
 <button id="login" disabled>Continue with Google</button>
 <button id="logout" hidden>Sign out</button>
+<section id="storageTest" hidden>
+<label for="testNote">Temporary saving test</label>
+<input id="testNote" type="text" autocomplete="off" placeholder="Type a test note" disabled>
+</section>
 <p id="status" role="status" aria-live="polite"></p>
 </main>
 <script>
 'use strict';
 const login=document.getElementById('login'), logout=document.getElementById('logout'), status=document.getElementById('status');
 const scope='https://www.googleapis.com/auth/drive.file';
-let client, token=null, generation=0, folderId=null;
+let client, token=null, generation=0, folderId=null, dataId=null, savedNote='', saving=false, ready=false;
+const test=document.getElementById('storageTest'), note=document.getElementById('testNote');
+function checkSession(current){if(current!==generation)throw new Error('Session changed.');}
+async function drive(path,access,current,options={}){
+ checkSession(current);
+ const res=await fetch('https://www.googleapis.com/'+path,{...options,headers:{Authorization:'Bearer '+access,...options.headers},cache:'no-store'});
+ checkSession(current);
+ if(!res.ok)throw new Error('Drive request failed ('+res.status+').');
+ return res.json();
+}
+async function readData(access,current,file){
+ const data=await drive('drive/v3/files/'+encodeURIComponent(file)+'?alt=media',access,current);
+ if(!data||data.schemaVersion!==1||Array.isArray(data)||typeof data!=='object')throw new Error('Unrecognized data file. No changes made.');
+ return data;
+}
+async function ensureData(access,current,folder){
+ return navigator.locks.request('wallet-room-data:'+folder,async()=>{
+  let page,matches=[];
+  do{
+   const q=new URLSearchParams({q:"trashed = false and '"+folder+"' in parents and name = 'wallet-data.json'",fields:'nextPageToken,files(id,name,mimeType)',pageSize:'100'});
+   if(page)q.set('pageToken',page);
+   const result=await drive('drive/v3/files?'+q,access,current);
+   matches.push(...(result.files||[]));page=result.nextPageToken;
+  }while(page);
+  if(matches.length>1)throw new Error('Multiple data files found. No changes made.');
+  let file=matches[0]?.id;
+  if(!file){
+   const boundary='wallet_room_'+crypto.randomUUID();
+   const metadata={name:'wallet-data.json',mimeType:'application/json',parents:[folder],appProperties:{walletRoom:'data-v1'}};
+   const empty={schemaVersion:1,items:[],projects:[],records:[],savings:[],iou:[],settings:{},testNote:''};
+   const body='--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+'\r\n--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+JSON.stringify(empty)+'\r\n--'+boundary+'--\r\n';
+   const created=await drive('upload/drive/v3/files?uploadType=multipart&fields=id',access,current,{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+boundary},body});
+   file=created.id;
+   if(!file)throw new Error('Data file creation could not be confirmed.');
+  }
+  return {file,data:await readData(access,current,file)};
+ });
+}
+async function savePending(){
+ if(!ready||saving||note.value===savedNote)return;
+ saving=true;logout.disabled=true;
+ const current=generation,access=token,file=dataId,folder=folderId;
+ let failed=false;
+ try{
+  while(current===generation&&note.value!==savedNote){
+   const value=note.value;status.textContent='Saving…';
+   await navigator.locks.request('wallet-room-data:'+folder,async()=>{
+    const data=await readData(access,current,file);
+    if((data.testNote??'')!==savedNote)throw new Error('The file changed elsewhere. Reconnect before saving.');
+    data.testNote=value;
+    await drive('upload/drive/v3/files/'+encodeURIComponent(file)+'?uploadType=media&fields=id',access,current,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+   });
+   checkSession(current);savedNote=value;
+  }
+  status.textContent='Saved to Google Drive.';
+ }catch(e){failed=true;if(current===generation)status.textContent='Not saved. '+e.message;}
+ finally{if(current===generation){saving=false;logout.disabled=false;if(failed)note.setAttribute('aria-invalid','true');else note.removeAttribute('aria-invalid');}}
+}
+note.addEventListener('input',savePending);
+window.addEventListener('beforeunload',e=>{if(ready&&note.value!==savedNote){e.preventDefault();e.returnValue='';}});
 async function ensureFolder(access,current){
  const base='https://www.googleapis.com/drive/v3/';
  async function request(path,options={}){
@@ -59,7 +122,10 @@ function initialize(){
  const found=await ensureFolder(response.access_token,current);
  if(current!==generation)return;
  folderId=found;
- status.textContent='Wallet room folder ready.';
+ const loaded=await ensureData(response.access_token,current,found);
+ checkSession(current);
+ dataId=loaded.file; savedNote=String(loaded.data.testNote??''); note.value=savedNote; ready=true; test.hidden=false; note.disabled=false;
+ status.textContent='Private data file ready.';
  login.hidden=true;
  }catch(e){if(current===generation){status.textContent=e.message;login.disabled=false;}}
  },
@@ -68,7 +134,7 @@ function initialize(){
  login.disabled=false;
 }
 login.addEventListener('click',()=>{login.disabled=true;status.textContent='';client.requestAccessToken({prompt:'select_account'});});
-logout.addEventListener('click',()=>{const previous=token;token=null;folderId=null;generation++;login.hidden=false;login.disabled=false;logout.hidden=true;status.textContent='Signed out.';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
+logout.addEventListener('click',()=>{if(saving)return;if(ready&&note.value!==savedNote&&!confirm('Unsaved changes will be lost. Sign out?'))return;const previous=token;ready=false;token=null;folderId=null;dataId=null;generation++;savedNote='';note.value='';note.disabled=true;test.hidden=true;login.hidden=false;login.disabled=false;logout.hidden=true;status.textContent='Signed out.';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
 window.addEventListener('load',initialize);
 </script>
 </body>
