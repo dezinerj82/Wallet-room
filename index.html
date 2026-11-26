@@ -17,7 +17,33 @@
 'use strict';
 const login=document.getElementById('login'), logout=document.getElementById('logout'), status=document.getElementById('status');
 const scope='https://www.googleapis.com/auth/drive.file';
-let client, token=null, generation=0;
+let client, token=null, generation=0, folderId=null;
+async function ensureFolder(access,current){
+ const base='https://www.googleapis.com/drive/v3/';
+ async function request(path,options={}){
+  if(current!==generation)throw new Error('Session changed.');
+  const res=await fetch(base+path,{...options,headers:{Authorization:'Bearer '+access,...options.headers},cache:'no-store'});
+  if(!res.ok)throw new Error('Drive request failed ('+res.status+').');
+  return res.json();
+ }
+ const account=await request('about?fields=user(permissionId)');
+ const accountId=account.user?.permissionId;
+ if(!accountId)throw new Error('Unable to identify Drive account.');
+ if(!navigator.locks)throw new Error('Use Chrome to safely set up your folder.');
+ return navigator.locks.request('wallet-room-folder:'+accountId,async()=>{
+  const matches=[];let page;
+  do{
+   const q=new URLSearchParams({q:"trashed = false and mimeType = 'application/vnd.google-apps.folder' and 'root' in parents and name = 'Wallet room'",fields:'nextPageToken,files(id,name,appProperties)',pageSize:'100'});
+   if(page)q.set('pageToken',page);
+   const result=await request('files?'+q);matches.push(...(result.files||[]));page=result.nextPageToken;
+  }while(page);
+  if(matches.length>1)throw new Error('Multiple Wallet room folders found. Please check Google Drive before continuing.');
+  if(matches.length===1)return matches[0].id;
+  const created=await request('files?fields=id,name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Wallet room',mimeType:'application/vnd.google-apps.folder',parents:['root'],appProperties:{walletRoom:'root-v1'}})});
+  if(!created.id)throw new Error('Folder creation could not be confirmed.');
+  return created.id;
+ });
+}
 function initialize(){
  if(!window.google?.accounts?.oauth2){status.textContent='Google login could not load. Refresh and try again.';return;}
  client=google.accounts.oauth2.initTokenClient({
@@ -30,10 +56,10 @@ function initialize(){
  const current=++generation;
  logout.hidden=false;
  try{
- const res=await fetch('https://www.googleapis.com/drive/v3/files?pageSize=1&fields=nextPageToken', {headers:{Authorization:'Bearer '+token},cache:'no-store'});
+ const found=await ensureFolder(response.access_token,current);
  if(current!==generation)return;
- if(!res.ok)throw new Error('Drive access failed ('+res.status+').');
- status.textContent='Google Drive connected successfully.';
+ folderId=found;
+ status.textContent='Wallet room folder ready.';
  login.hidden=true;
  }catch(e){if(current===generation){status.textContent=e.message;login.disabled=false;}}
  },
@@ -42,7 +68,7 @@ function initialize(){
  login.disabled=false;
 }
 login.addEventListener('click',()=>{login.disabled=true;status.textContent='';client.requestAccessToken({prompt:'select_account'});});
-logout.addEventListener('click',()=>{const previous=token;token=null;generation++;login.hidden=false;login.disabled=false;logout.hidden=true;status.textContent='Signed out.';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
+logout.addEventListener('click',()=>{const previous=token;token=null;folderId=null;generation++;login.hidden=false;login.disabled=false;logout.hidden=true;status.textContent='Signed out.';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
 window.addEventListener('load',initialize);
 </script>
 </body>
