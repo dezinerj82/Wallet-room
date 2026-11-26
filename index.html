@@ -4,6 +4,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wallet Room</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body></body>
+<body>
+<main>
+<h1>Wallet Room</h1>
+<button id="login" disabled>Continue with Google</button>
+<button id="logout" hidden>Sign out</button>
+<p id="status" role="status" aria-live="polite"></p>
+</main>
+<script>
+'use strict';
+const login=document.getElementById('login'), logout=document.getElementById('logout'), status=document.getElementById('status');
+const scope='https://www.googleapis.com/auth/drive.file';
+let client, token=null, generation=0;
+function initialize(){
+ if(!window.google?.accounts?.oauth2){status.textContent='Google login could not load. Refresh and try again.';return;}
+ client=google.accounts.oauth2.initTokenClient({
+ client_id:'623537097247-8cov6532dpjs199jmoqapa6g6h4ogvh1.apps.googleusercontent.com',
+ scope, include_granted_scopes:false,
+ callback:async response=>{
+ if(response.error||!response.access_token){status.textContent='Google authorization was not completed.';login.disabled=false;return;}
+ if(!google.accounts.oauth2.hasGrantedAllScopes(response,scope)){status.textContent='Drive permission is required.';login.disabled=false;return;}
+ token=response.access_token;
+ const current=++generation;
+ logout.hidden=false;
+ try{
+ const res=await fetch('https://www.googleapis.com/drive/v3/files?pageSize=1&fields=nextPageToken', {headers:{Authorization:'Bearer '+token},cache:'no-store'});
+ if(current!==generation)return;
+ if(!res.ok)throw new Error('Drive access failed ('+res.status+').');
+ status.textContent='Google Drive connected successfully.';
+ login.hidden=true;
+ }catch(e){if(current===generation){status.textContent=e.message;login.disabled=false;}}
+ },
+ error_callback:()=>{status.textContent='Google login was closed or blocked. Try again.';login.disabled=false;}
+ });
+ login.disabled=false;
+}
+login.addEventListener('click',()=>{login.disabled=true;status.textContent='';client.requestAccessToken({prompt:'select_account'});});
+logout.addEventListener('click',()=>{const previous=token;token=null;generation++;login.hidden=false;login.disabled=false;logout.hidden=true;status.textContent='Signed out.';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
+window.addEventListener('load',initialize);
+</script>
+</body>
 </html>
