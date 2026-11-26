@@ -4,23 +4,62 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wallet Room</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+ --teal:#194b59; --orange:#ffb458; --cream:#fcebd9; --paper:#f4f6f5;
+ --unit:min(100vw / 1920, 100dvh / 1080, 1px);
+ --title:calc(42.6667 * var(--unit));
+ --subtitle:calc(29.3333 * var(--unit));
+ --normal:calc(21.3333 * var(--unit));
+ --page:calc(32 * var(--unit));
+ --card:calc(22 * var(--unit));
+ --gap:calc(21.3333 * var(--unit));
+ --radius:calc(21.3333 * var(--unit));
+ --pill:calc(13.3333 * var(--unit));
+}
+@media (max-width:768px) {
+ :root { --unit:min(100vw / 412, 100dvh / 891, 1px); }
+}
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; min-height:100dvh; padding:var(--page); display:grid; place-items:center; background:var(--paper); color:var(--teal); font-family:'Google Sans',Arial,sans-serif; font-size:var(--normal); line-height:1.3; }
+h1,h2,p { margin:0; }
+h1 { font-size:var(--title); font-weight:600; line-height:1.2; }
+h2 { font-size:var(--subtitle); font-weight:500; }
+button { font:inherit; color:inherit; border:0; border-radius:9999px; padding:var(--pill); background:var(--orange); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:var(--pill); }
+button:disabled { cursor:default; opacity:.65; }
+button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194b5938; }
+#loginCard { background:#fff; border-radius:var(--radius); padding:var(--card); width:calc(557 * var(--unit)); min-height:calc(270 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--gap); text-align:center; }
+#login svg { width:1.12em; height:1.12em; flex-shrink:0; }
+#progress { width:100%; height:calc(7 * var(--unit)); background:var(--cream); border-radius:9999px; overflow:hidden; }
+#progressFill { height:100%; width:0; border-radius:inherit; background:var(--teal); transition:width .2s ease; }
+#status { color:#a64b50; overflow-wrap:anywhere; max-width:100%; }
+#status:empty { display:none; }
+@media (max-width:768px) { #loginCard { width:100%; min-height:0; } }
+@media (prefers-reduced-motion:reduce) { #progressFill { transition:none; } }
+</style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-<main>
+<main id="loginCard">
 <h1>Wallet Room</h1>
-<button id="login" disabled>Continue with Google</button>
-<button id="logout" hidden>Sign out</button>
-<section id="storageTest" hidden>
-<label for="testNote">Temporary saving test</label>
-<input id="testNote" type="text" autocomplete="off" placeholder="Type a test note" disabled>
-</section>
+<button id="login" disabled><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.1v5h6.6c3.9-3.6 6.1-8.8 6.1-14.8z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.7l-6.6-5c-1.8 1.2-4.1 1.9-6.9 1.9-5.3 0-9.8-3.6-11.4-8.4H5.8V33A20 20 0 0 0 24 44z"/><path fill="#FBBC05" d="M12.6 27.8a12 12 0 0 1 0-7.6V15H5.8a20 20 0 0 0 0 18z"/><path fill="#EA4335" d="M24 11.8c3 0 5.7 1 7.8 3l5.9-5.9A19.8 19.8 0 0 0 24 4 20 20 0 0 0 5.8 15l6.8 5.2c1.6-4.8 6.1-8.4 11.4-8.4z"/></svg>Continue with Google</button>
+<div id="progress" role="progressbar" aria-label="Loading Wallet Room" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><div id="progressFill"></div></div>
 <p id="status" role="status" aria-live="polite"></p>
 </main>
+<main id="mainPage" hidden></main>
+<button id="logout" hidden>Sign out</button>
+<section id="storageTest" hidden><input id="testNote" type="text" disabled></section>
 <script>
 'use strict';
 const login=document.getElementById('login'), logout=document.getElementById('logout'), status=document.getElementById('status');
 const scope='https://www.googleapis.com/auth/drive.file';
+const card=document.getElementById('loginCard'), mainPage=document.getElementById('mainPage'), progress=document.getElementById('progress'), fill=document.getElementById('progressFill');
+function setProgress(value){progress.hidden=false;fill.style.width=value+'%';progress.setAttribute('aria-valuenow',String(value));}
+function resetProgress(){progress.hidden=true;fill.style.width='0%';progress.setAttribute('aria-valuenow','0');}
+function fail(message){resetProgress();status.textContent=message;login.disabled=false;}
+let walletData=null;
 let client, token=null, generation=0, folderId=null, dataId=null, savedNote='', saving=false, ready=false;
 const test=document.getElementById('storageTest'), note=document.getElementById('testNote');
 function checkSession(current){if(current!==generation)throw new Error('Session changed.');}
@@ -113,28 +152,33 @@ function initialize(){
  client_id:'623537097247-8cov6532dpjs199jmoqapa6g6h4ogvh1.apps.googleusercontent.com',
  scope, include_granted_scopes:false,
  callback:async response=>{
- if(response.error||!response.access_token){status.textContent='Google authorization was not completed.';login.disabled=false;return;}
- if(!google.accounts.oauth2.hasGrantedAllScopes(response,scope)){status.textContent='Drive permission is required.';login.disabled=false;return;}
+ if(response.error||!response.access_token){fail('Google authorization was not completed.');return;}
+ if(!google.accounts.oauth2.hasGrantedAllScopes(response,scope)){fail('Drive permission is required.');return;}
  token=response.access_token;
  const current=++generation;
- logout.hidden=false;
+ setProgress(25);
  try{
  const found=await ensureFolder(response.access_token,current);
  if(current!==generation)return;
  folderId=found;
+ setProgress(55);
  const loaded=await ensureData(response.access_token,current,found);
  checkSession(current);
- dataId=loaded.file; savedNote=String(loaded.data.testNote??''); note.value=savedNote; ready=true; test.hidden=false; note.disabled=false;
- status.textContent='Private data file ready.';
- login.hidden=true;
- }catch(e){if(current===generation){status.textContent=e.message;login.disabled=false;}}
+ dataId=loaded.file; walletData=loaded.data; savedNote=String(loaded.data.testNote??''); note.value=savedNote; ready=true;
+ if(document.fonts)await document.fonts.ready;
+ checkSession(current);
+ setProgress(100);
+ await new Promise(resolve=>setTimeout(resolve,220));
+ checkSession(current);
+ card.hidden=true; mainPage.hidden=false; status.textContent='';
+ }catch(e){if(current===generation){ready=false;walletData=null;token=null;folderId=null;dataId=null;fail(e.message);}}
  },
- error_callback:()=>{status.textContent='Google login was closed or blocked. Try again.';login.disabled=false;}
+ error_callback:()=>{fail('Google login was closed or blocked. Try again.');}
  });
  login.disabled=false;
 }
-login.addEventListener('click',()=>{login.disabled=true;status.textContent='';client.requestAccessToken({prompt:'select_account'});});
-logout.addEventListener('click',()=>{if(saving)return;if(ready&&note.value!==savedNote&&!confirm('Unsaved changes will be lost. Sign out?'))return;const previous=token;ready=false;token=null;folderId=null;dataId=null;generation++;savedNote='';note.value='';note.disabled=true;test.hidden=true;login.hidden=false;login.disabled=false;logout.hidden=true;status.textContent='Signed out.';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
+login.addEventListener('click',()=>{login.disabled=true;status.textContent='';setProgress(10);client.requestAccessToken({prompt:'select_account'});});
+logout.addEventListener('click',()=>{if(saving)return;if(ready&&note.value!==savedNote&&!confirm('Unsaved changes will be lost. Sign out?'))return;const previous=token;ready=false;walletData=null;token=null;folderId=null;dataId=null;generation++;savedNote='';note.value='';note.disabled=true;test.hidden=true;login.hidden=false;login.disabled=false;logout.hidden=true;card.hidden=false;mainPage.hidden=true;resetProgress();status.textContent='';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
 window.addEventListener('load',initialize);
 </script>
 </body>
