@@ -15,7 +15,7 @@
  --page:calc(32 * var(--unit));
  --card:calc(22 * var(--unit));
  --gap:calc(21.3333 * var(--unit));
- --radius:calc(21.3333 * var(--unit));
+ --radius:calc(32 * var(--unit));
  --pill:calc(13.3333 * var(--unit));
 }
 @media (max-width:768px) {
@@ -31,11 +31,15 @@ button { font:inherit; color:inherit; border:0; border-radius:9999px; padding:va
 button:disabled { cursor:default; opacity:.65; }
 button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194b5938; }
 #loginCard { background:#fff; border-radius:var(--radius); padding:var(--card); width:calc(557 * var(--unit)); min-height:calc(270 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--gap); text-align:center; }
+#login { font-size:calc(16 * var(--unit)); width:100%; }
+#loginActions { display:grid; grid-template-columns:max-content; justify-content:center; gap:calc(8 * var(--unit)); max-width:100%; }
 #login svg { width:1.12em; height:1.12em; flex-shrink:0; }
 #progress { width:100%; height:calc(7 * var(--unit)); background:var(--cream); border-radius:9999px; overflow:hidden; }
 #progressFill { height:100%; width:0; border-radius:inherit; background:var(--teal); transition:width .2s ease; }
-#status { color:#a64b50; overflow-wrap:anywhere; max-width:100%; }
-#status:empty { display:none; }
+#status { color:var(--teal); font-size:calc(12 * var(--unit)); overflow-wrap:anywhere; max-width:100%; width:0; min-width:100%; min-height:calc(16 * var(--unit)); }
+#status.error { color:#a64b50; }
+#progress[hidden] { display:block !important; visibility:hidden; }
+#status:empty { visibility:hidden; }
 @media (max-width:768px) { #loginCard { width:100%; min-height:0; } }
 @media (prefers-reduced-motion:reduce) { #progressFill { transition:none; } }
 </style>
@@ -44,9 +48,11 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 <body>
 <main id="loginCard">
 <h1>Wallet Room</h1>
+<div id="loginActions">
 <button id="login" disabled><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.1v5h6.6c3.9-3.6 6.1-8.8 6.1-14.8z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.7l-6.6-5c-1.8 1.2-4.1 1.9-6.9 1.9-5.3 0-9.8-3.6-11.4-8.4H5.8V33A20 20 0 0 0 24 44z"/><path fill="#FBBC05" d="M12.6 27.8a12 12 0 0 1 0-7.6V15H5.8a20 20 0 0 0 0 18z"/><path fill="#EA4335" d="M24 11.8c3 0 5.7 1 7.8 3l5.9-5.9A19.8 19.8 0 0 0 24 4 20 20 0 0 0 5.8 15l6.8 5.2c1.6-4.8 6.1-8.4 11.4-8.4z"/></svg>Continue with Google</button>
 <div id="progress" role="progressbar" aria-label="Loading Wallet Room" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><div id="progressFill"></div></div>
 <p id="status" role="status" aria-live="polite"></p>
+</div>
 </main>
 <main id="mainPage" hidden></main>
 <button id="logout" hidden>Sign out</button>
@@ -56,9 +62,9 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 const login=document.getElementById('login'), logout=document.getElementById('logout'), status=document.getElementById('status');
 const scope='https://www.googleapis.com/auth/drive.file';
 const card=document.getElementById('loginCard'), mainPage=document.getElementById('mainPage'), progress=document.getElementById('progress'), fill=document.getElementById('progressFill');
-function setProgress(value){progress.hidden=false;fill.style.width=value+'%';progress.setAttribute('aria-valuenow',String(value));}
+function setProgress(value){status.classList.remove('error');status.textContent=value<25?'Connecting to Google…':value<100?'Getting your Wallet Room ready…':'All ready!';progress.hidden=false;fill.style.width=value+'%';progress.setAttribute('aria-valuenow',String(value));}
 function resetProgress(){progress.hidden=true;fill.style.width='0%';progress.setAttribute('aria-valuenow','0');}
-function fail(message){resetProgress();status.textContent=message;login.disabled=false;}
+function fail(message){resetProgress();status.classList.add('error');status.textContent=message;login.disabled=false;}
 let walletData=null;
 let client, token=null, generation=0, folderId=null, dataId=null, savedNote='', saving=false, ready=false;
 const test=document.getElementById('storageTest'), note=document.getElementById('testNote');
