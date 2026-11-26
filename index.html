@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap">
 <style>
 :root {
- --teal:#194b59; --orange:#ffb458; --cream:#fcebd9; --paper:#f4f6f5;
+ --teal:#194b59; --orange:#ffb458; --cream:#fcebd9; --paper:#f4f6f5; --sage:#dfe8e1; --rose:#efdddd; --white:#fff;
  --unit:min(100vw / 1920, 100dvh / 1080, 1px);
  --title:calc(42.6667 * var(--unit));
  --subtitle:calc(29.3333 * var(--unit));
@@ -24,13 +24,13 @@
 * { box-sizing:border-box; }
 [hidden] { display:none !important; }
 body { margin:0; min-height:100dvh; padding:var(--page); display:grid; place-items:center; background:var(--paper); color:var(--teal); font-family:'Google Sans',Arial,sans-serif; font-size:var(--normal); line-height:1.3; }
-h1,h2,p { margin:0; }
+h1,h2,h3,p { margin:0; }
 h1 { font-size:var(--title); font-weight:600; line-height:1.2; }
 h2 { font-size:var(--subtitle); font-weight:500; }
 button { font:inherit; color:inherit; border:0; border-radius:9999px; padding:var(--pill); background:var(--orange); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:var(--pill); }
 button:disabled { cursor:default; opacity:.65; }
 button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194b5938; }
-#loginCard { background:#fff; border-radius:var(--radius); padding:var(--card); width:calc(557 * var(--unit)); min-height:calc(270 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--gap); text-align:center; }
+#loginCard { background:var(--white); border-radius:var(--radius); padding:var(--card); width:calc(557 * var(--unit)); min-height:calc(270 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--gap); text-align:center; }
 #login { font-size:calc(16 * var(--unit)); width:100%; }
 #loginActions { display:grid; grid-template-columns:max-content; justify-content:center; gap:calc(8 * var(--unit)); max-width:100%; }
 #login svg { width:1.12em; height:1.12em; flex-shrink:0; }
@@ -40,7 +40,38 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 #status.error { color:#a64b50; }
 #progress[hidden] { display:block !important; visibility:hidden; }
 #status:empty { visibility:hidden; }
-@media (max-width:768px) { #loginCard { width:100%; min-height:0; } }
+#mainPage { width:100%; max-width:calc(1920 * var(--unit) - 2 * var(--page)); min-height:calc(1080 * var(--unit) - 2 * var(--page)); display:flex; flex-direction:column; gap:var(--gap); align-self:center; }
+.wallet-card { background:var(--white); border-radius:var(--radius); padding:var(--card); min-width:0; }
+.wallet-row { display:flex; align-items:center; justify-content:space-between; gap:var(--gap); }
+.wallet-header { background:var(--teal); color:var(--white); }
+.wallet-header button { color:var(--teal); }
+.wallet-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); }
+.wallet-stat { display:flex; flex-direction:column; gap:calc(var(--gap) / 2); }
+.wallet-stat strong { font-size:var(--subtitle); font-weight:500; }
+.wallet-stat:nth-child(1) { background:var(--orange); }
+.wallet-stat:nth-child(2) { background:var(--cream); }
+.wallet-stat:nth-child(3) { background:var(--sage); }
+.wallet-stat:nth-child(4) { background:var(--rose); }
+.wallet-nav { display:flex; align-items:center; gap:var(--gap); }
+.wallet-nav button { background:transparent; white-space:nowrap; }
+.wallet-nav button[aria-selected="true"] { background:var(--orange); }
+.wallet-workspace { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:var(--gap); flex:1; align-items:stretch; }
+.wallet-workspace[data-view="Calendar"] { grid-template-columns:minmax(0,1fr); }
+.wallet-months { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); }
+.wallet-side { display:grid; grid-template-rows:1fr 1fr; gap:var(--gap); }
+.wallet-view { min-height:0; }
+.wallet-card h3 { font-size:var(--subtitle); font-weight:500; }
+@media (max-width:768px) {
+ #loginCard { width:100%; min-height:0; }
+ #mainPage { min-height:0; align-self:start; }
+ .wallet-header h1 { font-size:var(--subtitle); }
+ .wallet-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .wallet-nav { flex-wrap:wrap; gap:calc(var(--gap) / 2); }
+ .wallet-nav button { font-size:calc(16 * var(--unit)); }
+ .wallet-workspace { grid-template-columns:minmax(0,1fr); }
+ .wallet-side { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:auto; }
+ .wallet-months { min-height:calc(210 * var(--unit)); }
+}
 @media (prefers-reduced-motion:reduce) { #progressFill { transition:none; } }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -54,8 +85,29 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 <p id="status" role="status" aria-live="polite"></p>
 </div>
 </main>
-<main id="mainPage" hidden></main>
-<button id="logout" hidden>Sign out</button>
+<main id="mainPage" hidden>
+<header class="wallet-card wallet-header wallet-row"><h1>Wallet Room</h1><button id="logout" type="button" hidden>Sign out</button></header>
+<section class="wallet-stats" aria-label="Summary">
+<div class="wallet-card wallet-stat"><span>Available</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat"><span>Savings</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat"><span>Income</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat"><span>IOU</span><strong>—</strong></div>
+</section>
+<nav class="wallet-nav" role="tablist" aria-label="Wallet views">
+<button role="tab" type="button" aria-selected="false" data-view="Calendar" aria-controls="walletContent">Calendar</button>
+<button role="tab" type="button" aria-selected="false" data-view="List" aria-controls="walletContent">List</button>
+<button role="tab" type="button" aria-selected="true" data-view="2 Months" aria-controls="walletContent">2 Months</button>
+<button role="tab" type="button" aria-selected="false" data-view="Projects" aria-controls="walletContent">Projects</button>
+<button role="tab" type="button" aria-selected="false" data-view="History" aria-controls="walletContent">History</button>
+</nav>
+<section class="wallet-workspace" id="walletWorkspace" data-view="2 Months">
+<div id="walletContent" class="wallet-months wallet-view" role="tabpanel" aria-label="2 Months">
+<section class="wallet-card"><h3 id="firstMonth"></h3></section>
+<section class="wallet-card"><h3 id="secondMonth"></h3></section>
+</div>
+<aside class="wallet-side" id="walletSide"><section class="wallet-card"><h3>Projects</h3></section><section class="wallet-card"><h3>Records</h3></section></aside>
+</section>
+</main>
 <section id="storageTest" hidden><input id="testNote" type="text" disabled></section>
 <script>
 'use strict';
@@ -66,6 +118,20 @@ function setProgress(value){status.classList.remove('error');status.textContent=
 function resetProgress(){progress.hidden=true;fill.style.width='0%';progress.setAttribute('aria-valuenow','0');}
 function fail(message){resetProgress();status.classList.add('error');status.textContent=message;login.disabled=false;}
 let walletData=null;
+const walletContent=document.getElementById('walletContent'), walletWorkspace=document.getElementById('walletWorkspace'), walletSide=document.getElementById('walletSide');
+const monthLabel=(offset)=>{const now=new Date();return new Date(now.getFullYear(),now.getMonth()+offset,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'}).split(' ').reverse().join(' ');};
+function setView(view){
+ for(const tab of mainPage.querySelectorAll('[role="tab"]'))tab.setAttribute('aria-selected',String(tab.dataset.view===view));
+ walletWorkspace.dataset.view=view;
+ walletSide.hidden=view==='Calendar';
+ walletContent.setAttribute('aria-label',view);
+ walletContent.className='wallet-view'+(view==='2 Months'?' wallet-months':' wallet-card');
+ walletContent.replaceChildren();
+ if(view==='2 Months'){
+ for(let offset=0;offset<2;offset++){const panel=document.createElement('section');panel.className='wallet-card';const heading=document.createElement('h3');heading.textContent=monthLabel(offset);panel.append(heading);walletContent.append(panel);}
+ }else{const heading=document.createElement('h3');heading.textContent=view;walletContent.append(heading);}
+}
+mainPage.querySelector('.wallet-nav').addEventListener('click',e=>{const tab=e.target.closest('[data-view]');if(tab)setView(tab.dataset.view);});
 let client, token=null, generation=0, folderId=null, dataId=null, savedNote='', saving=false, ready=false;
 const test=document.getElementById('storageTest'), note=document.getElementById('testNote');
 function checkSession(current){if(current!==generation)throw new Error('Session changed.');}
@@ -173,10 +239,11 @@ function initialize(){
  dataId=loaded.file; walletData=loaded.data; savedNote=String(loaded.data.testNote??''); note.value=savedNote; ready=true;
  if(document.fonts)await document.fonts.ready;
  checkSession(current);
+ setView('2 Months');
  setProgress(100);
  await new Promise(resolve=>setTimeout(resolve,220));
  checkSession(current);
- card.hidden=true; mainPage.hidden=false; status.textContent='';
+ card.hidden=true; mainPage.hidden=false; logout.hidden=false; status.textContent='';
  }catch(e){if(current===generation){ready=false;walletData=null;token=null;folderId=null;dataId=null;fail(e.message);}}
  },
  error_callback:()=>{fail('Google login was closed or blocked. Try again.');}
