@@ -49,7 +49,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-card.purple { --accent:#ab96c6; --marker:#dbcaeb; }
 .wallet-card.yellow { --accent:#c6ae59; --marker:#f2e2a3; }
 .marker { display:inline-block; position:relative; isolation:isolate; padding:0 .18em; width:fit-content; }
-.marker::before,.marker::after,.entry-row:is(:hover,:active,:focus-visible) > :not(.accounting)::before,.entry-row:is(:hover,:active,:focus-visible) > .accounting > span::before { content:""; position:absolute; inset:0 -.14em; z-index:-1; background:var(--hover-marker,var(--marker,#bad9e5)); opacity:.78; clip-path:polygon(2% 13%,8% 7%,19% 12%,29% 4%,40% 9%,54% 3%,66% 10%,78% 5%,94% 10%,98% 19%,96% 30%,100% 42%,97% 54%,99% 67%,95% 77%,98% 89%,87% 93%,74% 88%,61% 96%,49% 89%,38% 96%,25% 89%,12% 95%,2% 86%,5% 70%,0 58%,4% 45%,0 30%); transform:rotate(-1.5deg); }
+.marker::before,.marker::after,.entry-row:is(:hover,:active,:focus-visible,[aria-pressed="true"]) > :not(.accounting)::before,.entry-row:is(:hover,:active,:focus-visible,[aria-pressed="true"]) > .accounting > span::before { content:""; position:absolute; inset:0 -.14em; z-index:-1; background:var(--hover-marker,var(--marker,#bad9e5)); opacity:.78; clip-path:polygon(2% 13%,8% 7%,19% 12%,29% 4%,40% 9%,54% 3%,66% 10%,78% 5%,94% 10%,98% 19%,96% 30%,100% 42%,97% 54%,99% 67%,95% 77%,98% 89%,87% 93%,74% 88%,61% 96%,49% 89%,38% 96%,25% 89%,12% 95%,2% 86%,5% 70%,0 58%,4% 45%,0 30%); transform:rotate(-1.5deg); }
 .marker::after { inset:3px -.2em 2px; transform:rotate(1deg); opacity:.46; }
 .wallet-row { display:flex; align-items:center; justify-content:space-between; gap:var(--gap); }
 .wallet-header { background:transparent; color:var(--teal); border:0; padding:0; }
@@ -87,7 +87,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .entry-row { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--gap)/2); padding:7px; width:100%; text-align:left; background:none; border-radius:0; }
 .entry-row > span:first-child { text-decoration:underline; text-decoration-color:var(--accent,#8ebacb); text-underline-offset:.3em; text-decoration-thickness:2px; }
 .entry-row > *, .accounting > span { position:relative; isolation:isolate; }
-.entry-row:is(:hover,:active,:focus-visible) { --hover-marker:var(--button-outline); box-shadow:none; }
+.entry-row:is(:hover,:active,:focus-visible,[aria-pressed="true"]) { --hover-marker:var(--button-outline); box-shadow:none; }
 .accounting { display:inline-flex; justify-content:space-between; gap:.6em; min-width:6.5em; font-variant-numeric:tabular-nums; }
 .wallet-stat .accounting { width:100%; }
 .entry-row .accounting { text-align:right; }
@@ -103,6 +103,10 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .record-summary > :last-child:not(.accounting) { justify-self:end; }
 .record-summary > :first-child { overflow-wrap:anywhere; justify-self:start; }
 .record-summary small { font-size:inherit; }
+.entry-row.trash-summary { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(85px,auto); gap:var(--gap); align-items:center; }
+.trash-summary > span { width:fit-content; max-width:100%; min-width:0; }
+.trash-summary > span:nth-child(2) { font-size:.82em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trash-summary > span:last-child { font-size:.82em; justify-self:end; white-space:nowrap; }
 .record-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); flex:1; min-height:0; }
 .record-grid.invisible-columns > .wallet-panel { background:none; border:0; padding:4px 7px; }
 .record-grid.invisible-columns > .wallet-panel > h3 { font-size:15px; }
@@ -229,7 +233,7 @@ const tableDate=x=>x&&/^\d{4}-\d{2}-\d{2}/.test(x)?new Date(x.slice(0,10)+'T12:0
 const money=x=>x==null||x===''?'': 'RM '+Math.round(Number(x)).toLocaleString('en-MY');
 const accounting=(x,absolute=false)=>x==null||x===''?'':'<span class="accounting"><span>RM</span><span>'+esc(Math.round(absolute?Math.abs(Number(x)):Number(x)).toLocaleString('en-MY'))+'</span></span>';
 const dialog=document.getElementById('entryDialog');
-let viewName='2 Months',recordsMode='By Event',calendarMode='Month',calendarDate=new Date();
+let viewName='2 Months',recordsMode='By Event',calendarMode='Month',calendarDate=new Date(),trashSelection=-1;
 const list=(key)=>Array.isArray(walletData?.[key])?walletData[key]:[];
 const all=()=>['items','projects','records','savings','iou'].flatMap(key=>list(key).map((item,index)=>({item,key,index})).filter(e=>e.item&&typeof e.item==='object'));
 const nameOf=x=>x.name??x.title??x.item??'';
@@ -519,8 +523,14 @@ function recordRows(items,entries){
  const rows=[...groups];if(recordsMode==='By Date'){const rank=k=>k==='No date'?0:k==='Recurring'?1:2;rows.sort((a,b)=>rank(a[0])-rank(b[0])||a[0].localeCompare(b[0]));}
  return rows.map(([k,rs])=>'<div class="record-date-group"><strong>'+esc(recordsMode==='By Date'&&/^\d{4}-\d{2}$/.test(k)?tableDate(k+'-01'):k)+'</strong>'+rs.join('')+'</div>').join('');
 }
+function trashNote(item){const note=String(item?.notes||item?.note||item?.text||'').trim().split(/\r?\n/)[0]||'';return note.match(/^.*?[.!?](?=\s|$)/)?.[0]||note;}
+function selectTrash(index){
+ trashSelection=trashSelection===index?-1:index;
+ for(const row of walletContent.querySelectorAll('[data-select-trash]'))row.setAttribute('aria-pressed',String(Number(row.dataset.selectTrash)===trashSelection));
+ const restore=walletContent.querySelector('[data-restore-selected]');if(restore)restore.disabled=trashSelection<0;
+}
 function setView(view){
- viewName=view;
+ trashSelection=-1;viewName=view;
  for(const tab of mainPage.querySelectorAll('[role="tab"]'))tab.setAttribute('aria-selected',String(tab.dataset.view===view));
  walletWorkspace.dataset.view=view;walletSide.hidden=view!=='2 Months';
  walletContent.setAttribute('aria-label',view);
@@ -536,7 +546,7 @@ function setView(view){
  walletContent.classList.add('wallet-card','wallet-panel');
  walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div class="wallet-actions">'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid invisible-columns">'+panel('Active','green',recordRows(entries.filter(e=>!isInactive(e)),entries))+panel('Inactive','inactive',recordRows(entries.filter(isInactive),entries))+'</div>';
  }else if(view==='Trash'){
- walletContent.classList.add('wallet-card','wallet-panel');walletContent.innerHTML='<div class="wallet-row">'+title('Trash')+'<button data-empty-trash>Empty Trash</button></div><div class="wallet-scroll">'+(list('trash').map((t,i)=>'<div class="wallet-row"><span>'+esc(nameOf(t.item))+'</span><span>'+esc(tableDate(dateOf(t.item)))+'</span><button data-restore-trash="'+i+'">Restore</button></div>').join('')||'<p class="muted">Trash is empty.</p>')+'</div>';
+ walletContent.classList.add('wallet-card','wallet-panel');walletContent.innerHTML='<div class="wallet-row">'+title('Trash')+'<div class="wallet-actions"><button type="button" data-restore-selected disabled>Restore</button><button type="button" data-empty-trash'+(list('trash').length?'':' disabled')+'>Empty Trash</button></div></div><div class="wallet-scroll">'+(list('trash').map((t,i)=>'<button type="button" class="entry-row trash-summary" data-select-trash="'+i+'" aria-pressed="false"><span>'+esc(nameOf(t.item))+'</span><span>'+esc(trashNote(t.item))+'</span><span>'+esc(tableDate(dateOf(t.item))||'No date')+'</span></button>').join('')||'<p class="muted">Trash is empty.</p>')+'</div>'+(list('trash').length?'<p class="muted">Select an item to restore.</p>':'');
  }else if(view==='Calendar'){renderCalendar(entries);}
 }
 
@@ -962,7 +972,7 @@ function editSavingsBalance(index){
  };
 }
 
-mainPage.addEventListener('click',e=>{const b=e.target.closest('button');const replacing=b?(b.id==='addItem'||b.id==='clearBill'||b.dataset.monthGroup||b.dataset.entry||b.dataset.series||b.dataset.mainBill||b.hasAttribute('data-empty-trash')||b.dataset.restoreTrash!==undefined):e.target.closest('[data-add-date]');if(replacing&&dialog.open&&dialog.querySelector('form')){if(!confirm('Close the current form without saving?'))return;dialog.close();}if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.restoreTrash!==undefined){restoreTrash(Number(d.restoreTrash));return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
+mainPage.addEventListener('click',e=>{const b=e.target.closest('button');const replacing=b?(b.id==='addItem'||b.id==='clearBill'||b.dataset.monthGroup||b.dataset.entry||b.dataset.series||b.dataset.mainBill||b.hasAttribute('data-empty-trash')||b.hasAttribute('data-restore-selected')):e.target.closest('[data-add-date]');if(replacing&&dialog.open&&dialog.querySelector('form')){if(!confirm('Close the current form without saving?'))return;dialog.close();}if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.selectTrash!==undefined){selectTrash(Number(d.selectTrash));return;}if(b.hasAttribute('data-restore-selected')){if(trashSelection>=0&&list('trash')[trashSelection])restoreTrash(trashSelection);return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
 dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
  if(b.hasAttribute('data-suggest-value')){const p=b.closest('[data-suggestion-popup]'),input=p.previousElementSibling;input.value=b.dataset.suggestValue;closePickers();input.dispatchEvent(new Event('input',{bubbles:true}));closePickers();}
