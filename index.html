@@ -441,6 +441,56 @@ function newRule(data,x,id){
  const date=x.frequency==='Weekly'?weeklyMonthStart(x.date):x.date;
  data.settings.recurringRules.push({id:crypto.randomUUID(),seriesId:id||crypto.randomUUID(),date,fullWeekMonth:x.frequency==='Weekly',endDate:x.endDate||defaultRecurringEnd(date,x.frequency,x.interval||1,x.weekdays||{}),frequency:x.frequency,interval:Number(x.interval)||1,weekdays:x.weekdays||{},template});
 }
+function renewalEnd(rule){
+ const interval=Math.max(1,Math.trunc(Number(rule.interval)||1)),old=rule.endDate;
+ if(!validDate(rule.date)||!validDate(old))return '';
+ let next='',last='';
+ if(rule.frequency==='Weekly'){
+  const dayDiff=d=>Math.round((new Date(d+'T12:00:00')-new Date(rule.date+'T12:00:00'))/86400000);
+  const occurs=d=>Math.floor(dayDiff(d)/7)%interval===0&&Object.hasOwn(rule.weekdays||{},new Date(d+'T12:00:00').getDay());
+  for(let d=datePlus(old,1),i=0;i<=interval*7+7;i++,d=datePlus(d,1)){if(occurs(d)){next=d;break;}}
+  if(!next)return '';
+  const limit=monthDate(shiftMonth(monthKey(next),12),next.slice(8,10));
+  for(let d=next;d<limit;d=datePlus(d,1))if(occurs(d))last=d;
+ }else if(['Monthly','Yearly'].includes(rule.frequency)){
+  const step=interval*(rule.frequency==='Yearly'?12:1),anchor=monthKey(rule.date);
+  const distance=(Number(old.slice(0,4))-Number(rule.date.slice(0,4)))*12+Number(old.slice(5,7))-Number(rule.date.slice(5,7));
+  let n=Math.max(0,Math.floor(distance/step)),d=monthDate(shiftMonth(anchor,n*step),rule.date.slice(8,10));
+  while(d<=old){n++;d=monthDate(shiftMonth(anchor,n*step),rule.date.slice(8,10));}
+  next=d;const limit=monthDate(shiftMonth(monthKey(next),12),next.slice(8,10));
+  while(d<limit){last=d;n++;d=monthDate(shiftMonth(anchor,n*step),rule.date.slice(8,10));}
+ }
+ return last;
+}
+function renewalCandidates(data,now=today()){
+ const rules=data.settings?.recurringRules||[],latest=new Map();
+ for(const r of rules){const p=latest.get(r.seriesId);if(!p||r.date>=p.date)latest.set(r.seriesId,r);}
+ const dismissed=new Set(data.settings?.dismissedRenewals||[]);
+ return [...latest.values()].filter(r=>r.template?.category==='Expense'&&!r.template.contracts?.length&&validDate(r.date)&&validDate(r.endDate)&&r.endDate>=r.date&&now<=r.endDate&&now>=monthDate(shiftMonth(monthKey(r.endDate),-1),r.endDate.slice(8,10))&&!dismissed.has(r.id+':'+r.endDate)&&renewalEnd(r)).sort((a,b)=>a.endDate.localeCompare(b.endDate));
+}
+function showRenewalAlerts(){
+ const rows=renewalCandidates(walletData);
+ if(!rows.length)return;
+ openDialog(dialogHead('Recurring bill ending')+rows.map(r=>'<div class="wallet-form"><div class="wallet-row"><strong>'+esc(nameOf(r.template))+'</strong><span>'+esc(displayDate(r.endDate))+'</span></div><p>Would you like to extend the recurring payments for another year?</p><div class="wallet-actions"><button type="button" data-renew-rule="'+esc(r.id)+'" data-renew-action="extend">Extend</button><button type="button" data-renew-rule="'+esc(r.id)+'" data-renew-action="edit">Edit</button><button type="button" data-renew-rule="'+esc(r.id)+'" data-renew-action="dismiss">Dismiss</button></div></div>').join('')+'<p class="muted" role="status" data-form-error></p>');
+}
+async function handleRenewal(id,action){
+ const r=renewalCandidates(walletData).find(x=>x.id===id);if(!r)return;
+ if(action==='edit'){
+  const members=ordered(all().filter(e=>e.key==='items'&&e.item.ruleId===id&&!excluded(e)&&!isPaid(e)));
+  const chosen=members.find(e=>dateOf(e.item)>=today())||members.at(-1);
+  if(chosen){openEntry(chosen.key,chosen.index,true);entryTab(dialog.querySelector('#walletEntry'),'advanced');}else showError(Error('No editable payments found.'));
+  return;
+ }
+ try{
+  await commitWallet(data=>{
+   const rule=(data.settings.recurringRules||[]).find(x=>x.id===id);
+   if(!rule||rule.endDate!==r.endDate)throw Error('Recurring bill changed. Refresh and try again.');
+   if(action==='extend'){const end=renewalEnd(rule);if(!end)throw Error('No recurring payments found.');rule.endDate=end;}
+   else if(action==='dismiss'){data.settings.dismissedRenewals??=[];data.settings.dismissedRenewals.push(rule.id+':'+rule.endDate);}
+  });
+  closeRefresh();showRenewalAlerts();
+ }catch(err){showError(err);}
+}
 function saveProgress(active){
  if(!dialog.open)return;
  const form=dialog.querySelector('.wallet-form');if(!form)return;
@@ -823,6 +873,22 @@ function defaultRecurringEnd(date,frequency,interval=1,week={}){
  }
  return last;
 }
+function recurringFormSignature(form){
+ const e=form.elements,week={};
+ if(e.frequency.value==='Weekly')for(let i=0;i<7;i++)if(e['week'+i]?.checked)week[i]=e['price'+i]?.value||'';
+ return JSON.stringify([normalizeDate(e.date.value),e.frequency.value,e.interval.value,Object.keys(week)]);
+}
+function syncDefaultEnd(form){
+ const e=form.elements;
+ if(form.dataset.contractMode==='true'||!['Expense','Income'].includes(e.category.value))return;
+ const signature=recurringFormSignature(form);
+ if(signature===form.dataset.scheduleSignature)return;
+ const date=normalizeDate(e.date.value),frequency=e.frequency.value;
+ if(date&&!validDate(date))return;
+ form.dataset.scheduleSignature=signature;
+ const week={};if(frequency==='Weekly')for(let i=0;i<7;i++)if(e['week'+i]?.checked)week[i]=e['price'+i]?.value||'';
+ e.endDate.value=defaultRecurringEnd(frequency==='Weekly'?weeklyMonthStart(date):date,frequency,e.interval.value,week);e.endDate.setCustomValidity('');
+}
 function reminderDaysForForm(x){
  const v=x.reminderValue??x.reminderDays;if(v==null||v==='')return '';
  if(x.reminderUnit!=='Months')return v;
@@ -868,8 +934,9 @@ function openEntry(key,index,edit=false,presetDate=''){
  const savingPicker=form.querySelector('[data-picker-name="savingsAccount"]');const emptySaving=savingPicker.querySelector('[data-choice=""]');if(emptySaving)emptySaving.textContent='Clear selection';if(!form.elements.savingsAccount.value)savingPicker.querySelector('.wallet-picker-button span').textContent='Select account';
  form.noValidate=true;
  form.dataset.manualAmount=form.elements.amount.value;form.dataset.manualFrequency=form.elements.frequency.value;form.dataset.manualInterval=form.elements.interval.value;form.dataset.manualEnd=form.elements.endDate.value;
- form.addEventListener('input',ev=>{if(ev.target.closest('[data-contract-row]')||ev.target.name==='date')syncContractForm(form);});
- form.elements.frequency.onchange=()=>syncEntryForm(form);
+ form.dataset.scheduleSignature=recurringFormSignature(form);
+ form.addEventListener('input',ev=>{if(ev.target.closest('[data-contract-row]')||ev.target.name==='date')syncContractForm(form);if(ev.target.name==='date'||ev.target.name==='interval'||/^week[0-6]$/.test(ev.target.name))syncDefaultEnd(form);});
+ form.elements.frequency.onchange=()=>{syncEntryForm(form);syncDefaultEnd(form);};
  form.elements.subject.oninput=()=>refreshSuggestions(form);
  form.elements.reminderValue.oninput=()=>{form.dataset.reminderEdited='true';};
  syncEntryForm(form);refreshSuggestions(form);
@@ -879,6 +946,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   try{
   const status=form.querySelector('[data-form-error]');if(status)status.textContent='';
   for(const input of form.querySelectorAll('[data-direct-date]'))if(!input.disabled){const message=validateDateInput(input,true);if(message){entryTab(form,input.closest('[data-form-panel]')?.dataset.formPanel||'basic');showError(Error(message));input.focus();return;}}
+  syncDefaultEnd(form);
   const v=Object.fromEntries(new FormData(form)),category=v.category, dest=categoryDest(category),name=String(v.name||'').trim(),group=String(v.group||'').trim();
   const contracts=category==='Expense'?readContracts(form):[],contractChanged=JSON.stringify(contracts)!==JSON.stringify(x.contracts||[]);const hasContracts=contracts.length>0;
   if(hasContracts){v.frequency='Monthly';v.interval='1';v.endDate='';}
@@ -898,7 +966,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   if(recurring&&(!Number.isInteger(interval)||interval<1||interval>1200)){showError(Error('Check the recurring interval.'));return;}
   if(!date&&recurring&&e&&info.recurring&&dateOf(x)&&v.scope==='future'){showError(Error('Set a date for future recurring payments.'));return;}
   if(amount!==null&&!Number.isFinite(amount)){showError(Error('Check the amount.'));return;}
-  if(recurring&&v.endDate&&(!validDate(v.endDate)||v.endDate<date)){showError(Error('Check the end date.'));return;}
+  if(recurring&&v.endDate&&(!validDate(v.endDate)||v.endDate<(v.frequency==='Weekly'?weeklyMonthStart(date):date))){entryTab(form,'advanced');showError(Error('Check the end date.'));return;}
   if(recurring&&v.frequency==='Weekly'){
    for(let i=0;i<7;i++)if(v['week'+i]){if(v['price'+i]!==''&&!Number.isFinite(Number(v['price'+i]))){showError(Error('Check the price for '+weekdays[i]+'.'));return;}week[i]=v['price'+i]===''?null:Number(v['price'+i]);}
    if(!Object.keys(week).length){showError(Error('Select at least one day.'));return;}
@@ -957,7 +1025,7 @@ function openEntry(key,index,edit=false,presetDate=''){
      return;
     }
     if((date&&e&&info.recurring&&key==='items'&&dest==='items'&&v.scope==='future'&&dateOf(x))||replace){
-     const original=replace||ref,from=recurring&&v.frequency==='Weekly'?weeklyMonthStart(date):date,series=cutRecurring(data,original,from);
+     const original=replace||ref,oldDate=original.item.scheduledDate||dateOf(original.item),first=[date,oldDate].filter(Boolean).sort()[0],from=recurring&&v.frequency==='Weekly'?weeklyMonthStart(first):first,series=cutRecurring(data,original,from);
      if(recurring)newRule(data,updated,series);else{delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;updated.id=crypto.randomUUID();data.items.push(updated);}
     }else if(recurring&&date&&(!e||!info.recurring||!dateOf(x)&&!x.ruleId||key!=='items')){
      if(e){if(key==='projects')removeProjectLinks(data,x.id);data[key].splice(index,1);}
@@ -1167,7 +1235,8 @@ function editSavingsBalance(index){
 mainPage.addEventListener('click',e=>{const b=e.target.closest('button');const replacing=b?(b.id==='addItem'||b.id==='clearBill'||b.dataset.monthGroup||b.dataset.entry||b.dataset.series||b.dataset.mainBill||b.hasAttribute('data-empty-trash')||b.hasAttribute('data-restore-selected')):e.target.closest('[data-add-date]');if(replacing&&dialog.open&&dialog.querySelector('form')){if(!confirm('Close the current form without saving?'))return;dialog.close();}if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.selectTrash!==undefined){selectTrash(Number(d.selectTrash));return;}if(b.hasAttribute('data-restore-selected')){if(trashSelection>=0&&list('trash')[trashSelection])restoreTrash(trashSelection);return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
 dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
- if(b.hasAttribute('data-contract-add')){const form=b.closest('#walletEntry');if(form){if(!readContracts(form).length){form.dataset.manualAmount=form.elements.amount.value;form.dataset.manualFrequency=form.elements.frequency.value;form.dataset.manualInterval=form.elements.interval.value;form.dataset.manualEnd=form.elements.endDate.value;}form.querySelector('#contractRows').insertAdjacentHTML('beforeend',contractRow());syncEntryForm(form);}}
+ if(d.renewRule){handleRenewal(d.renewRule,d.renewAction);}
+ else if(b.hasAttribute('data-contract-add')){const form=b.closest('#walletEntry');if(form){if(!readContracts(form).length){form.dataset.manualAmount=form.elements.amount.value;form.dataset.manualFrequency=form.elements.frequency.value;form.dataset.manualInterval=form.elements.interval.value;form.dataset.manualEnd=form.elements.endDate.value;}form.querySelector('#contractRows').insertAdjacentHTML('beforeend',contractRow());syncEntryForm(form);}}
  else if(b.hasAttribute('data-contract-remove')){const form=b.closest('#walletEntry');if(form){closePickers();b.closest('[data-contract-row]').remove();syncEntryForm(form);}}
  else if(d.formTab){const form=b.closest('#walletEntry');if(form)entryTab(form,d.formTab);}
  else if(d.saveScope){const form=b.closest('#walletEntry');if(form){form.dataset.saveScope=d.saveScope;closePickers();form.requestSubmit();}}
@@ -1190,7 +1259,7 @@ dialog.addEventListener('click',e=>{
  if(['date','startDate','endDate','serviceDate'].includes(n)||/^contract(?:Start|End)\d+$/.test(n)){const dt=v?new Date(v.slice(0,10)+'T12:00:00'):new Date();const date=Number.isNaN(dt.getTime())?new Date():dt;fillDate(p,date.getFullYear(),date.getMonth());}
  else if(n==='time')fillTime(p,v);
  showFloating(p,w.querySelector('.wallet-date-input')||b);b.setAttribute('aria-expanded','true');
- }else if(w&&d.choice!==undefined){choosePicker(w,d.choice);if(['category','group','name','savingsAccount'].includes(w.dataset.pickerName)){const form=dialog.querySelector('#walletEntry');if(form){entryChoiceChanged(form,w.dataset.pickerName);if(w.dataset.pickerName==='savingsAccount'&&!d.choice)w.querySelector('.wallet-picker-button span').textContent='Select account';}}const entry=dialog.querySelector('#walletEntry');if(entry&&(w.dataset.pickerName==='date'||/^contract(?:Start|End)\d+$/.test(w.dataset.pickerName)))syncContractForm(entry);}
+ }else if(w&&d.choice!==undefined){choosePicker(w,d.choice);if(['category','group','name','savingsAccount'].includes(w.dataset.pickerName)){const form=dialog.querySelector('#walletEntry');if(form){entryChoiceChanged(form,w.dataset.pickerName);if(w.dataset.pickerName==='savingsAccount'&&!d.choice)w.querySelector('.wallet-picker-button span').textContent='Select account';}}const entry=dialog.querySelector('#walletEntry');if(entry&&(w.dataset.pickerName==='date'||/^contract(?:Start|End)\d+$/.test(w.dataset.pickerName))){syncContractForm(entry);if(w.dataset.pickerName==='date')syncDefaultEnd(entry);}}
  else if(w&&b.hasAttribute('data-go-month'))goPickerMonth(w.querySelector('.wallet-picker-options'));
  else if(w&&d.pickerMonth){const p=w.querySelector('.wallet-picker-options'),dt=new Date(Number(p.dataset.year),Number(p.dataset.month)+Number(d.pickerMonth),1);fillDate(p,dt.getFullYear(),dt.getMonth());}
  else if(w&&b.hasAttribute('data-time-set')){const h=w.querySelector('[data-hour]'),m=w.querySelector('[data-minute]');if(h.value===''||m.value==='')return;if(!h.reportValidity()||!m.reportValidity())return;choosePicker(w,String(h.value).padStart(2,'0')+':'+String(m.value).padStart(2,'0'));}
@@ -1406,6 +1475,7 @@ function initialize(){
  checkSession(current);
  card.hidden=true; mainPage.hidden=false; logout.hidden=false; status.textContent='';
  if(today()>lastDay(currentMonth()))alert('Please clear your bill');
+ showRenewalAlerts();
  }catch(e){if(current===generation){ready=false;walletData=null;token=null;folderId=null;dataId=null;fail(e.message);}}
  },
  error_callback:()=>{if(reconnecting)reconnectFailed('Google reconnect was closed or blocked. Try again.');else if(!ready)fail('Google login was closed or blocked. Try again.');}
