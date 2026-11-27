@@ -435,11 +435,28 @@ function cutRecurring(data,e,from){
  data.items=data.items.filter(x=>!removed.has(x.id));
  return series;
 }
+function isWeeklyBill(e){return e.key==='items'&&e.item.frequency==='Weekly'&&e.item.recurring!==false&&!e.item.carryOf&&scheduledBill(e);}
+function weeklyDueDate(e,ym=monthKey(dateOf(e.item)),data=walletData){
+ const x=e.item,rule=(data?.settings?.recurringRules||[]).find(r=>r.id===x.ruleId);
+ const day=Number(x.paymentDay||rule?.paymentDay||(validDate(rule?.template?.date)?rule.template.date.slice(8,10):'')||(validDate(rule?.date)?rule.date.slice(8,10):'')||(validDate(dateOf(x))?dateOf(x).slice(8,10):1));
+ return monthDate(ym,day);
+}
+function calendarBillGroups(entries){
+ const groups=new Map();
+ for(const e of entries.filter(e=>scheduledBill(e)||e.item.serviceEvent)){
+  if(!validDate(dateOf(e.item)))continue;
+  const weekly=isWeeklyBill(e),date=weekly?weeklyDueDate(e):dateOf(e.item),main=baseBill(e);
+  const key=weekly?JSON.stringify([e.item.seriesId||e.item.ruleId||seriesKey(e),date,main]):e.key+':'+e.index;
+  if(!groups.has(key))groups.set(key,{e,date,weekly,main,members:[],amount:null});
+  const g=groups.get(key),amount=amountOf(e.item);g.members.push(e);if(amount!=null&&amount!=='')g.amount=(g.amount??0)+Number(amount);
+ }
+ return [...groups.values()];
+}
 function newRule(data,x,id){
  data.settings??={};data.settings.recurringRules??=[];
  const template={...x};for(const k of ['id','ruleId','seriesId','scheduledDate','status','paid','source','originMonth','carryOf','carriedTo','clearedOn','frequency','weekdays','startDate','endDate'])delete template[k];
  const date=x.frequency==='Weekly'?weeklyMonthStart(x.date):x.date;
- data.settings.recurringRules.push({id:crypto.randomUUID(),seriesId:id||crypto.randomUUID(),date,fullWeekMonth:x.frequency==='Weekly',endDate:x.endDate||defaultRecurringEnd(date,x.frequency,x.interval||1,x.weekdays||{}),frequency:x.frequency,interval:Number(x.interval)||1,weekdays:x.weekdays||{},template});
+ data.settings.recurringRules.push({id:crypto.randomUUID(),seriesId:id||crypto.randomUUID(),date,fullWeekMonth:x.frequency==='Weekly',paymentDay:x.frequency==='Weekly'?Number(x.date.slice(8,10)):undefined,endDate:x.endDate||defaultRecurringEnd(date,x.frequency,x.interval||1,x.weekdays||{}),frequency:x.frequency,interval:Number(x.interval)||1,weekdays:x.weekdays||{},template});
 }
 function renewalEnd(rule){
  const interval=Math.max(1,Math.trunc(Number(rule.interval)||1)),old=rule.endDate;
@@ -535,6 +552,7 @@ function showMonthGroup(key,index,ym){
  const e={key,index,item:list(key)[index]};if(!e.item)return;
  if(key==='savings'){showSavings(index,ym);return;}
  const members=monthlyEntries(all(),ym).find(x=>seriesKey(x.e)===seriesKey(e))?.members||[e];
+ if(members.length&&members.every(isWeeklyBill)&&members.every(a=>a.item.seriesId===members[0].item.seriesId)){showItemSummary(e.key,e.index,false,true);return;}
  if(members.length===1){openEntry(members[0].key,members[0].index);return;}
  openDialog(dialogHead(nameOf(e.item))+'<p class="muted">'+esc(tableDate(ym+'-01'))+'</p>'+members.map(x=>'<button class="entry-row" data-entry="'+x.key+':'+x.index+'"><span>'+esc(x.item.originMonth?tableDate(x.item.originMonth+'-01'):displayDate(dateOf(x.item)))+'</span><span>'+esc(statusLabel(x))+'</span>'+accounting(amountOf(x.item))+'</button>').join('')+'<div class="wallet-row"><strong>Total</strong>'+accounting(members.reduce((n,x)=>n+Number(amountOf(x.item)||0),0))+'</div>');
 }
@@ -690,12 +708,13 @@ function renderCalendar(entries){
  entries=entries.concat(serviceEvents(entries,shiftMonth(monthKey(dayKey(calendarDate)),-1),shiftMonth(monthKey(dayKey(calendarDate)),1)));
  walletContent.classList.add('wallet-card','wallet-panel');const y=calendarDate.getFullYear(),m=calendarDate.getMonth();
  const controls='<div class="wallet-row">'+title('Calendar')+'<div class="wallet-actions">'+['Month','Week'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row">'+directionButton('left','data-step="-1"','Previous')+'<strong class="calendar-heading">'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong>'+directionButton('right','data-step="1"','Next')+'</div>';
- const event=e=>'<button class="calendar-event extra'+(dateOf(e.item)<today()&&(!dueBill(e)||isPaid(e))?' past-cleared':'')+'" title="'+esc(nameOf(e.item))+'" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span>'+(hasAmount(e)?'<small>'+esc(money(amountOf(e.item)))+'</small>':'')+'</button>';
+ const groups=calendarBillGroups(entries);
+ const event=g=>'<button class="calendar-event extra'+(g.date<today()&&g.members.every(e=>!dueBill(e)||isPaid(e))?' past-cleared':'')+'" title="'+esc(nameOf(g.e.item))+'" '+(g.weekly?'data-weekly-summary="'+g.e.key+':'+g.e.index+'"':'data-entry="'+g.e.key+':'+g.e.index+'"')+'><span>'+esc(nameOf(g.e.item))+'</span>'+(g.amount!=null?'<small>'+esc(money(g.amount))+'</small>':'')+'</button>';
  const eventsForDate=(d,h=null,month=false)=>{
-  const date=dayKey(d),es=entries.filter(e=>dateOf(e.item).slice(0,10)===date&&(scheduledBill(e)||e.item.serviceEvent));
-  const defaults=es.filter(baseBill);
-  const bill=(month||h===null)&&defaults.length?'<button class="calendar-event'+(date<today()&&defaults.every(isPaid)?' past-cleared':'')+'" data-main-bill="'+date+'">Main bill</button>':'';
-  return bill+es.filter(e=>!baseBill(e)&&(month||(h===null?!e.item.time:parseInt(e.item.time,10)===h))).map(event).join('');
+  const date=dayKey(d),es=groups.filter(g=>g.date===date);
+  const defaults=es.filter(g=>g.main);
+  const bill=(month||h===null)&&defaults.length?'<button class="calendar-event'+(date<today()&&defaults.every(g=>g.members.every(isPaid))?' past-cleared':'')+'" data-main-bill="'+date+'">Main bill</button>':'';
+  return bill+es.filter(g=>!g.main&&(month||(h===null?g.weekly||!g.e.item.time:!g.weekly&&parseInt(g.e.item.time,10)===h))).map(event).join('');
  };
  let body='';
  if(calendarMode==='Month'){
@@ -766,18 +785,19 @@ dialog.addEventListener('input',e=>{if(e.target.matches('[data-direct-date]'))va
 document.addEventListener('pointerdown',e=>{if(dialog.open&&!e.target.closest('.wallet-picker,.wallet-picker-options,input[data-suggestions]'))closePickers();},true);
 dialog.addEventListener('scroll',e=>{if(!e.target.closest?.('.wallet-picker-options'))closePickers();},true);
 function showMainBill(date){
- const entries=all().filter(e=>baseBill(e)&&scheduledBill(e)&&dateOf(e.item).slice(0,10)===date);
- dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>Main bill</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div><p class="muted">'+esc(displayDate(date))+'</p>'+entries.map(e=>row(e,money(amountOf(e.item))+' · '+statusLabel(e))).join('')+'</div>';openWindow();
+ const groups=calendarBillGroups(all()).filter(g=>g.main&&g.date===date);
+ dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>Main bill</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div><p class="muted">'+esc(displayDate(date))+'</p>'+groups.map(g=>g.weekly?'<button type="button" class="entry-row" data-weekly-summary="'+g.e.key+':'+g.e.index+'"><span>'+esc(nameOf(g.e.item))+'</span><small>'+esc(money(g.amount)+' · '+(g.members.every(isPaid)?'Paid':'Unpaid'))+'</small></button>':row(g.e,money(g.amount)+' · '+statusLabel(g.e))).join('')+'</div>';openWindow();
 }
 function recurrenceLabel(x,fallback='None'){const f=x.frequency||fallback,n=Number(x.interval)||1;return ['Weekly','Monthly','Yearly'].includes(f)?'Every '+n+' '+({Weekly:'week',Monthly:'month',Yearly:'year'}[f])+(n===1?'':'s'):f;}
-function showItemSummary(key,index,series=false){
+function showItemSummary(key,index,series=false,weeklyMonth=false){
  const x=list(key)[index];if(!x)return;const ref={key,index,item:x},info=seriesInfo(ref),category=categoryOf(ref);
  const field=(label,value,full=false)=>value!==null&&value!==undefined&&value!==''?'<div'+(full?' class="field-full"':'')+'><small>'+esc(label)+'</small><span>'+esc(value)+'</span></div>':'';
- const date=series?(info.end?displayDate(info.end):displayDate(info.start)):displayDate(dateOf(x)),amount=series&&x.frequency==='Weekly'?seriesMonthAmount(info,ref):amountOf(x);
+ const weekly=weeklyMonth||series&&isWeeklyBill(ref),monthMembers=weekly?info.members.filter(e=>monthKey(dateOf(e.item))===monthKey(dateOf(x))&&scheduledBill(e)):[];
+ const date=weekly?displayDate(weeklyDueDate(ref)):series?(info.end?displayDate(info.end):displayDate(info.start)):displayDate(dateOf(x)),amount=weekly?seriesMonthAmount(info,ref):amountOf(x);
  const fields=field('Category',category)+field('Group',x.group)+field('Type',category==='Expense'?(baseBill(ref)?'Main':'Extra'):'')+
- field(series?'End date':'Date',date)+field('Status',series?'In progress':statusLabel(ref))+field('Amount',amount==null?'':money(amount))+
- field('Label',x.subject,true)+field('Note',x.notes,true)+field('Recurring',series?recurrenceLabel(x,importedBase(ref)?'Monthly':'Recurring'):'',true)+field('Saving',x.savingsAccount)+field('Amount to use',x.savingsAccount?money(savingsPart(x)):'');
- openDialog(dialogHead(nameOf(x))+'<div class="recurrence-fields summary-fields">'+fields+'</div><div class="wallet-actions entry-footer">'+(info.recurring?'<button type="button" data-schedule="'+key+':'+index+'" style="margin-right:auto">Payment schedule</button>':'')+'<button type="button" data-delete="'+key+':'+index+'">Delete</button><button type="button" data-edit="'+key+':'+index+'">Edit</button></div>');
+ field(series&&!weekly?'End date':'Date',date)+field('Status',weekly?(monthMembers.every(isPaid)?'Paid':'Unpaid'):series?'In progress':statusLabel(ref))+field('Amount',amount==null?'':money(amount))+
+ field('Label',x.subject,true)+field('Note',x.notes,true)+field('Recurring',series||weekly?recurrenceLabel(x,importedBase(ref)?'Monthly':'Recurring'):'',true)+field('Saving',x.savingsAccount)+field('Amount to use',x.savingsAccount?money(savingsPart(x)):'');
+ openDialog(dialogHead(nameOf(x))+'<div class="recurrence-fields summary-fields">'+fields+'</div><div class="wallet-actions entry-footer">'+(info.recurring?'<button type="button" data-schedule="'+key+':'+index+'" style="margin-right:auto">Payment schedule</button>':'')+'<button type="button" data-delete="'+key+':'+index+'">Delete</button><button type="button" data-edit="'+key+':'+index+'"'+(weekly?' data-weekly-edit':'')+'>Edit</button></div>');
 }
 function showSeries(key,index){
  const e={key,index,item:list(key)[index]};if(!e.item)return;const info=seriesInfo(e);
@@ -897,7 +917,7 @@ function reminderDaysForForm(x){
  const earlier=monthDate(shiftMonth(monthKey(date),-Number(v)),date.slice(8,10));
  return Math.round((new Date(date+'T12:00:00')-new Date(earlier+'T12:00:00'))/86400000);
 }
-function openEntry(key,index,edit=false,presetDate=''){
+function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
  const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{date:presetDate},ref=e?{key,index,item:e}:null,info=ref?seriesInfo(ref):{recurring:false,start:'',end:''};
  if(e&&edit&&key==='savings'){editSavingsBalance(index);return;}
  if(e&&!edit){
@@ -916,7 +936,7 @@ function openEntry(key,index,edit=false,presetDate=''){
  picker('Category','category',c,[...new Set(['Expense','Income','Savings','IOU','My Space',c])])+
  picker('Group','group',x.group||'',[])+picker('Item','name',nameOf(x),[])+
  '<div id="subjectField">'+inputField('Label','subject',x.subject||'')+'</div>'+
- '<div id="amountField">'+inputField('Amount','amount',amountOf(x)??'','number','step="any"')+'</div>'+picker('Date','date',dateOf(x))+
+ '<div id="amountField">'+inputField('Amount','amount',amountOf(x)??'','number','step="any"')+'</div>'+picker('Date','date',weeklyEdit&&ref&&isWeeklyBill(ref)?weeklyDueDate(ref):dateOf(x))+
  '<div id="statusExpense">'+selectField('Status','expenseStatus',[['Unpaid','Unpaid'],['Paid','Paid']],expenseStatus)+'</div><div id="statusSpace">'+selectField('Status','spaceStatus',[['In Progress','In progress'],['Completed','Completed'],['Cancelled','Cancelled']],spaceStatus)+'</div>'+
  '<label id="mainField" class="main-check"><span><input type="checkbox" name="mainBill" '+(ref&&baseBill(ref)?'checked':'')+'> Main</span></label>'+
  '<div id="spaceFields" class="field-full recurrence-fields">'+inputField('Contact','contact',x.contact||'')+inputField('Website','website',x.website||'')+(e?'':'<div class="field-full" id="projectSuggestions"></div>')+'</div>'+
@@ -1032,7 +1052,7 @@ function openEntry(key,index,edit=false,presetDate=''){
      newRule(data,updated,x.seriesId);
     }else if(e){
      if(dest!==key){if(key==='projects')removeProjectLinks(data,x.id);if(x.ruleId){data.settings??={};data.settings.suppressedOccurrences??=[];data.settings.suppressedOccurrences.push(x.id);}data[key].splice(index,1);delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;data[dest].push(updated);}
-     else{if(info.recurring&&key==='items'&&dateOf(x)){updated.recurring=true;updated.frequency=x.frequency||frequency;updated.interval=x.interval||1;updated.endDate=x.endDate||'';updated.weekdays=x.weekdays||{};if(x.frequency==='Weekly'&&v.frequency==='Weekly'){const weekday=new Date(dateOf(x)+'T12:00:00').getDay();updated.amount=Object.hasOwn(week,weekday)?week[weekday]:amountOf(x);}}data[key][index]=updated;}
+     else{if(info.recurring&&key==='items'&&dateOf(x)){updated.recurring=true;updated.frequency=x.frequency||frequency;updated.interval=x.interval||1;updated.endDate=x.endDate||'';updated.weekdays=x.weekdays||{};if(x.frequency==='Weekly'&&v.frequency==='Weekly'){const weekday=new Date(dateOf(x)+'T12:00:00').getDay();updated.amount=Object.hasOwn(week,weekday)?week[weekday]:amountOf(x);if(weeklyEdit){updated.date=dateOf(x);const day=Number(date.slice(8,10));if(validDate(date))for(const item of data.items)if(item.seriesId===x.seriesId&&monthKey(dateOf(item))===monthKey(dateOf(x))&&!item.carryOf)item.paymentDay=day;updated.paymentDay=day||x.paymentDay;}}}data[key][index]=updated;}
     }else data[dest].push(updated);
     if(dest==='projects')syncProjectBudget(data,updated);
    });
@@ -1232,7 +1252,7 @@ function editSavingsBalance(index){
  };
 }
 
-mainPage.addEventListener('click',e=>{const b=e.target.closest('button');const replacing=b?(b.id==='addItem'||b.id==='clearBill'||b.dataset.monthGroup||b.dataset.entry||b.dataset.series||b.dataset.mainBill||b.hasAttribute('data-empty-trash')||b.hasAttribute('data-restore-selected')):e.target.closest('[data-add-date]');if(replacing&&dialog.open&&dialog.querySelector('form')){if(!confirm('Close the current form without saving?'))return;dialog.close();}if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.selectTrash!==undefined){selectTrash(Number(d.selectTrash));return;}if(b.hasAttribute('data-restore-selected')){if(trashSelection>=0&&list('trash')[trashSelection])restoreTrash(trashSelection);return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
+mainPage.addEventListener('click',e=>{const b=e.target.closest('button');const replacing=b?(b.id==='addItem'||b.id==='clearBill'||b.dataset.monthGroup||b.dataset.entry||b.dataset.series||b.dataset.mainBill||b.dataset.weeklySummary||b.hasAttribute('data-empty-trash')||b.hasAttribute('data-restore-selected')):e.target.closest('[data-add-date]');if(replacing&&dialog.open&&dialog.querySelector('form')){if(!confirm('Close the current form without saving?'))return;dialog.close();}if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.selectTrash!==undefined){selectTrash(Number(d.selectTrash));return;}if(b.hasAttribute('data-restore-selected')){if(trashSelection>=0&&list('trash')[trashSelection])restoreTrash(trashSelection);return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.weeklySummary){const [k,i]=d.weeklySummary.split(':');showItemSummary(k,Number(i),false,true);}else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
 dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
  if(d.renewRule){handleRenewal(d.renewRule,d.renewAction);}
@@ -1253,7 +1273,7 @@ dialog.addEventListener('click',e=>{
  else if(d.debtMonth){const [i,m]=d.debtMonth.split(':');editDebtMonth(Number(i),m);}
  else if(d.debtAdjust!==undefined)editDebtBalance(Number(d.debtAdjust));
  else if(d.savingsAdjust!==undefined)editSavingsBalance(Number(d.savingsAdjust));
- else if(d.schedule){const [k,i]=d.schedule.split(':');showSchedule(k,Number(i));}else if(d.edit){const [k,i]=d.edit.split(':');openEntry(k,Number(i),true);}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}
+ else if(d.weeklySummary){const [k,i]=d.weeklySummary.split(':');showItemSummary(k,Number(i),false,true);}else if(d.schedule){const [k,i]=d.schedule.split(':');showSchedule(k,Number(i));}else if(d.edit){const [k,i]=d.edit.split(':');openEntry(k,Number(i),true,'',b.hasAttribute('data-weekly-edit'));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}
  else if(w&&b.hasAttribute('data-picker-toggle')){
  const p=w.querySelector('.wallet-picker-options'),was=p.hidden;closePickers();if(!was)return;const v=pickerInput(w).value,n=w.dataset.pickerName;
  if(['date','startDate','endDate','serviceDate'].includes(n)||/^contract(?:Start|End)\d+$/.test(n)){const dt=v?new Date(v.slice(0,10)+'T12:00:00'):new Date();const date=Number.isNaN(dt.getTime())?new Date():dt;fillDate(p,date.getFullYear(),date.getMonth());}
