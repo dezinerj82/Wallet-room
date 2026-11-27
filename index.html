@@ -94,11 +94,14 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .muted { opacity:.5; font-size:.82em; }
 .space-grid { display:flex; flex-direction:column; align-content:start; }
 .space-grid .entry-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,auto); gap:var(--gap); align-items:center; }
-.space-grid .entry-row > :last-child { text-align:right; white-space:nowrap; }
+.space-grid .entry-row > :not(.accounting) { width:fit-content; max-width:100%; justify-self:start; }
+.space-grid .entry-row > :last-child { text-align:right; white-space:nowrap; justify-self:end; }
 .record-grid .record-summary { display:grid; grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1fr)); gap:5px; align-items:center; }
+.record-summary > :not(.accounting) { width:fit-content; max-width:100%; justify-self:center; }
 .record-summary > :not(:first-child) { text-align:center; overflow-wrap:anywhere; }
 .record-summary > :last-child { text-align:right; }
-.record-summary > :first-child { overflow-wrap:anywhere; }
+.record-summary > :last-child:not(.accounting) { justify-self:end; }
+.record-summary > :first-child { overflow-wrap:anywhere; justify-self:start; }
 .record-summary small { font-size:inherit; }
 .record-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); flex:1; min-height:0; }
 .record-grid.invisible-columns > .wallet-panel { background:none; border:0; padding:4px 7px; }
@@ -235,7 +238,7 @@ const actualMonth=()=>today().slice(0,7);
 const shiftMonth=(ym,n)=>dayKey(new Date(Number(ym.slice(0,4)),Number(ym.slice(5,7))-1+n,1)).slice(0,7);
 const lastDay=ym=>dayKey(new Date(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0));
 const isBalance=e=>e.key==='savings'&&e.item.kind==='balance';
-const importedBase=e=>e.key==='items'&&e.item.source?.file==='EXPENSE.xlsx'&&!e.item.carryOf;
+const importedBase=e=>e.key==='items'&&e.item.source?.file==='EXPENSE.xlsx'&&e.item.source?.column!==29&&e.item.recurring!==false&&!e.item.carryOf;
 const baseBill=e=>categoryOf(e)==='Expense'&&!isSpace(e)&&!e.item.serviceEvent&&!e.item.serviceSchedule&&!e.item.carryOf&&(importedBase(e)||e.item.recurring===true);
 const hasAmount=e=>amountOf(e.item)!=null&&amountOf(e.item)!==''&&Number.isFinite(Number(amountOf(e.item)))&&Number(amountOf(e.item))!==0;
 const scheduledBill=e=>!isSpace(e)&&e.key!=='records'&&['Expense','IOU'].includes(categoryOf(e))&&!excluded(e)&&!(importedBase(e)&&Number(amountOf(e.item))===0&&amountOf(e.item)!=null);
