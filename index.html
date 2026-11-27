@@ -117,8 +117,15 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .calendar-cell[data-add-date] { cursor:pointer; }
 .calendar-hours { display:grid; grid-template-columns:3.5em repeat(var(--days),minmax(0,1fr)); gap:1px; background:#e8eeee; }
 .calendar-hours > div { background:white; min-width:0; padding:.3em; min-height:3em; }
-.wallet-dialog { border:1px solid #ab96c6; border-radius:var(--radius); color:var(--teal); background:#fff; width:min(90vw,42em); max-height:85dvh; padding:var(--card); font:inherit; }
+.wallet-dialog { position:fixed; border:1px solid #ab96c6; border-radius:var(--radius); color:var(--teal); background:#fff; width:min(90vw,42em); max-height:85dvh; padding:var(--card); font:inherit; }
+.wallet-dialog > .wallet-form > .wallet-row:first-child { cursor:move; touch-action:none; }
+.wallet-dialog > .wallet-form > .wallet-row:first-child h2 { user-select:none; }
 .wallet-dialog::backdrop { background:#194b5940; }
+[data-sort-id],[data-task-sort] { cursor:grab; }
+.drag-source { opacity:.4; }
+.drag-before { box-shadow:inset 0 3px var(--orange)!important; }
+.drag-after { box-shadow:inset 0 -3px var(--orange)!important; }
+.drag-preview { position:fixed!important; left:0; top:0; z-index:10000; margin:0!important; background:#fff!important; border:1px solid #76d6b8!important; border-radius:8px!important; padding:7px!important; color:var(--teal); box-shadow:0 5px 12px #194b5925!important; pointer-events:none; opacity:1!important; }
 .wallet-form { display:flex; flex-direction:column; gap:var(--gap); }
 .wallet-form label { display:flex; flex-direction:column; gap:.3em; min-width:0; }
 .wallet-form input:not([type=checkbox]),.wallet-form textarea,.wallet-form select,.wallet-form button.wallet-picker-button { border:1px solid #d3e2e5; border-radius:12px; padding:12px; background:var(--paper); font:inherit; color:inherit; width:100%; min-width:0; }
@@ -251,7 +258,7 @@ const sortItems=(es,space=false)=>{
  return es.slice().sort((a,b)=>(rank.get(itemOrderKey(a))??Number.MAX_SAFE_INTEGER)-(rank.get(itemOrderKey(b))??Number.MAX_SAFE_INTEGER));
 };
 function monthlyEntries(entries,ym){
- const same=sortItems(entries.filter(e=>!isSpace(e)&&e.key!=='records'&&e.key!=='savings'&&!excluded(e)&&monthKey(dateOf(e.item))===ym&&hasAmount(e)));
+ const same=sortItems(entries.filter(e=>dueBill(e)&&monthKey(dateOf(e.item))===ym));
  const result=[];
  for(const e of same){
   const group=result.find(x=>seriesKey(x.e)===seriesKey(e));
@@ -259,9 +266,7 @@ function monthlyEntries(entries,ym){
   if(group){group.amount+=Number(amountOf(e.item));group.extra||=extra;group.members.push(e);if(baseBill(e)&&!baseBill(group.e))group.e=e;}
   else result.push({e,amount:Number(amountOf(e.item)),extra,members:[e]});
  }
- const accounts=new Map();for(const e of ordered(entries.filter(e=>e.key==='savings'&&!excluded(e)&&dateOf(e.item)&&monthKey(dateOf(e.item))<=ym)))accounts.set(nameOf(e.item),e);
- for(const [name,e] of accounts){const amount=savingsBalance(entries,ym,name);if(amount)result.push({e,amount,extra:false,members:[e]});}
- const order=sortItems(result.map(x=>x.e));return order.map(e=>result.find(x=>x.e===e)).filter(x=>x.amount!==0);
+  const order=sortItems(result.map(x=>x.e));return order.map(e=>result.find(x=>x.e===e)).filter(x=>x.amount!==0);
 }
 function savingsBalance(entries,ym,account=null){
  const accounts=new Map();
@@ -366,6 +371,7 @@ function showMonthGroup(key,index,ym){
  const e={key,index,item:list(key)[index]};if(!e.item)return;
  if(key==='savings'){showSavings(index,ym);return;}
  const members=monthlyEntries(all(),ym).find(x=>seriesKey(x.e)===seriesKey(e))?.members||[e];
+ if(members.length===1){openEntry(members[0].key,members[0].index);return;}
  openDialog(dialogHead(nameOf(e.item))+'<p class="muted">'+esc(tableDate(ym+'-01'))+'</p>'+members.map(x=>'<button class="entry-row" data-entry="'+x.key+':'+x.index+'"><span>'+esc(x.item.originMonth?tableDate(x.item.originMonth+'-01'):displayDate(dateOf(x.item)))+'</span><span>'+esc(statusLabel(x))+'</span>'+accounting(amountOf(x.item))+'</button>').join('')+'<div class="wallet-row"><strong>Total</strong>'+accounting(members.reduce((n,x)=>n+Number(amountOf(x.item)||0),0))+'</div>');
 }
 function clearMonth(){
@@ -458,7 +464,8 @@ function recordRows(items,entries){
   const chosen=members.find(x=>monthKey(dateOf(x.item))===currentMonth())||members.at(-1)||e;
   const st=info.recurring&&!isInactive(e)?'Ongoing':statusLabel(chosen);
   const date=info.recurring?(info.end||info.start):dateOf(chosen.item);
-  const group=recordsMode==='By Event'?categoryOf(e):(st||'No status')+' · '+(info.recurring&&!info.end?'Ongoing':tableDate(date)||'No date');
+  const dateGroup=info.recurring&&!info.end?'Ongoing':tableDate(date)||'No date';
+  const group=recordsMode==='By Event'?categoryOf(e):[...new Set([st||'No status',dateGroup])].join(' · ');
   const html='<button type="button" class="entry-row record-summary"'+(recordsMode==='By Event'?dragAttr(e):'')+' data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(date))+'</small><small>'+esc(st)+'</small>'+accounting(amountOf(chosen.item))+'</button>';
   if(!groups.has(group))groups.set(group,[]);groups.get(group).push(html);
  }
@@ -491,7 +498,7 @@ function renderCalendar(entries){
  const controls='<div class="wallet-row">'+title('Calendar')+'<div class="wallet-actions">'+['Month','Week'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row">'+directionButton('left','data-step="-1"','Previous')+'<strong class="calendar-heading">'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong>'+directionButton('right','data-step="1"','Next')+'</div>';
  const event=e=>'<button class="calendar-event extra'+(dateOf(e.item)<today()&&(!dueBill(e)||isPaid(e))?' past-cleared':'')+'" title="'+esc(nameOf(e.item))+'" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span>'+(hasAmount(e)?'<small>'+esc(money(amountOf(e.item)))+'</small>':'')+'</button>';
  const eventsForDate=(d,h=null,month=false)=>{
-  const date=dayKey(d),es=entries.filter(e=>dateOf(e.item).slice(0,10)===date&&!isBalance(e)&&!isSpace(e)&&!excluded(e)&&e.key!=='records'&&!(e.key==='items'&&!hasAmount(e)&&!e.item.serviceEvent));
+  const date=dayKey(d),es=entries.filter(e=>dateOf(e.item).slice(0,10)===date&&(dueBill(e)||e.item.serviceEvent));
   const defaults=es.filter(baseBill);
   const bill=(month||h===null)&&defaults.length?'<button class="calendar-event'+(date<today()&&defaults.every(isPaid)?' past-cleared':'')+'" data-main-bill="'+date+'">Main bill</button>':'';
   return bill+es.filter(e=>!baseBill(e)&&(month||(h===null?!e.item.time:parseInt(e.item.time,10)===h))).map(event).join('');
@@ -533,7 +540,7 @@ function showSeries(key,index){
 }
 function showSchedule(key,index){
  const e={key,index,item:list(key)[index]};if(!e.item)return;const info=seriesInfo(e);
- openDialog(dialogHead(nameOf(e.item))+'<p>'+esc(e.item.frequency||'Monthly')+'</p>'+info.members.filter(hasAmount).slice().reverse().map(x=>'<button type="button" class="entry-row" data-edit="'+x.key+':'+x.index+'"><span>'+esc(displayDate(dateOf(x.item)))+'</span><span>'+esc(statusLabel(x))+'</span>'+accounting(amountOf(x.item))+'</button>').join(''));
+ openDialog(dialogHead(nameOf(e.item))+'<p>'+esc(e.item.frequency||'Monthly')+'</p>'+info.members.filter(hasAmount).slice().reverse().map(x=>'<button type="button" class="entry-row" data-entry="'+x.key+':'+x.index+'"><span>'+esc(displayDate(dateOf(x.item)))+'</span><span>'+esc(statusLabel(x))+'</span>'+accounting(amountOf(x.item))+'</button>').join(''));
 }
 const inputField=(label,n,v='',type='text',attrs='')=>'<label>'+esc(label)+'<input name="'+n+'" type="'+type+'" value="'+esc(v)+'" '+attrs+'></label>';
 const textField=(label,n,v='',rows=3)=>'<label>'+esc(label)+'<textarea name="'+n+'" rows="'+rows+'">'+esc(v)+'</textarea></label>';
@@ -566,7 +573,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   if(key==='projects'){showProject(index);return;}
   if(key==='iou'){showIOU(key,index);return;}
   if(key==='savings'){showSavings(index);return;}
-  openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button><button type="button" data-delete="'+key+':'+index+'">Delete</button></div></div><p class="muted">'+esc(displayDate(dateOf(x)))+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<div class="wallet-row"><span>'+esc(ref?statusLabel(ref):'')+'</span>'+accounting(amountOf(x))+'</div><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+(x.contact?'<p>'+esc(x.contact)+'</p>':'')+(x.website?'<p>'+esc(x.website)+'</p>':'')+(x.tasks||[]).map(t=>'<p>'+esc(typeof t==='string'?t:t.text||t.subject||'')+'</p>').join('')+(info.recurring?'<button data-schedule="'+key+':'+index+'">Payment schedule</button>':''));
+  openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button><button type="button" data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(ref))+(x.group?' · '+esc(x.group):'')+'</p><p class="muted">'+esc(displayDate(dateOf(x)))+(x.time?' · '+esc(x.time):'')+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<div class="wallet-row"><span>'+esc(ref?statusLabel(ref):'')+'</span>'+accounting(amountOf(x))+'</div><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+(x.contact?'<p>'+esc(x.contact)+'</p>':'')+(x.website?'<p>'+esc(x.website)+'</p>':'')+(x.tasks||[]).map(t=>'<p>'+esc(typeof t==='string'?t:t.text||t.subject||'')+'</p>').join('')+(info.recurring?'<button data-schedule="'+key+':'+index+'">Payment schedule</button>':''));
   return;
  }
  const c=ref?categoryOf(ref):'Expense',frequency=x.frequency||(info.recurring?'Monthly':'None');
@@ -839,7 +846,7 @@ function editSavingsBalance(index){
  const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form)),n=Number(v.balance);if(!Number.isFinite(n)||!String(v.notes||'').trim()){showError(Error('Enter the balance and a note.'));return;}try{await commitWallet(data=>{const delta=roundMoney(n-old);if(delta)data.savings.push({id:crypto.randomUUID(),name:account,group:seed.group||'',category:'Savings',kind:'adjustment',date:monthDate(ym,Number(today().slice(8,10))),amount:delta,notes:v.notes,status:'Completed'});});closeRefresh();}catch(err){showError(err);}};
 }
 
-mainPage.addEventListener('click',e=>{const b=e.target.closest('button');if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.restoreTrash!==undefined){restoreTrash(Number(d.restoreTrash));return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view)setView(d.view);else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
+mainPage.addEventListener('click',e=>{const b=e.target.closest('button');if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.restoreTrash!==undefined){restoreTrash(Number(d.restoreTrash));return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
 dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
  if(b.hasAttribute('data-close'))dialog.close();
@@ -861,16 +868,45 @@ dialog.addEventListener('click',e=>{
  else if(w&&d.pickerMonth){const p=w.querySelector('.wallet-picker-options'),dt=new Date(Number(p.dataset.year),Number(p.dataset.month)+Number(d.pickerMonth),1);fillDate(p,dt.getFullYear(),dt.getMonth());}
  else if(w&&b.hasAttribute('data-time-set')){const h=w.querySelector('[data-hour]'),m=w.querySelector('[data-minute]');if(h.value===''||m.value==='')return;if(!h.reportValidity()||!m.reportValidity())return;choosePicker(w,String(h.value).padStart(2,'0')+':'+String(m.value).padStart(2,'0'));}
 });
-let dragged=null,draggedTask=null;
+let dragged=null,draggedTask=null,popupDrag=null;
+function clampPopup(left,top){
+ const rect=dialog.getBoundingClientRect(),w=document.documentElement.clientWidth,h=document.documentElement.clientHeight;
+ dialog.style.margin='0';dialog.style.right='auto';dialog.style.bottom='auto';
+ dialog.style.left=Math.max(0,Math.min(left,w-rect.width))+'px';dialog.style.top=Math.max(0,Math.min(top,h-rect.height))+'px';
+}
+dialog.addEventListener('pointerdown',e=>{
+ const heading=e.target.closest('.wallet-row');
+ if(!heading||heading!==dialog.querySelector(':scope > .wallet-form > .wallet-row:first-child')||e.target.closest('button,input,select,textarea,a')||e.button!==0)return;
+ const r=dialog.getBoundingClientRect();popupDrag={id:e.pointerId,x:e.clientX-r.left,y:e.clientY-r.top};
+ dialog.setPointerCapture(e.pointerId);e.preventDefault();
+});
+dialog.addEventListener('pointermove',e=>{if(popupDrag&&e.pointerId===popupDrag.id)clampPopup(e.clientX-popupDrag.x,e.clientY-popupDrag.y);});
+const stopPopupDrag=()=>{popupDrag=null;};
+dialog.addEventListener('pointerup',stopPopupDrag);dialog.addEventListener('pointercancel',stopPopupDrag);dialog.addEventListener('lostpointercapture',stopPopupDrag);
+dialog.addEventListener('close',()=>{stopPopupDrag();dialog.style.removeProperty('left');dialog.style.removeProperty('top');dialog.style.removeProperty('right');dialog.style.removeProperty('bottom');dialog.style.removeProperty('margin');});
+window.addEventListener('resize',()=>{if(dialog.open&&dialog.style.left){const r=dialog.getBoundingClientRect();clampPopup(r.left,r.top);}});
+let dragSource=null,dropTarget=null,dragPreview=null,dropAfter=false;
+function clearDropMark(){if(dropTarget)dropTarget.classList.remove('drag-before','drag-after');dropTarget=null;}
+function clearDragVisual(){clearDropMark();if(dragSource)dragSource.classList.remove('drag-source');dragSource=null;if(dragPreview)dragPreview.remove();dragPreview=null;}
+function startDragVisual(e,el){
+ clearDragVisual();dragSource=el;
+ const r=el.getBoundingClientRect(),clone=el.cloneNode(true);
+ clone.classList.add('drag-preview');clone.removeAttribute('draggable');clone.style.width=r.width+'px';clone.setAttribute('aria-hidden','true');
+ (el.closest('dialog')||document.body).appendChild(clone);dragPreview=clone;
+ e.dataTransfer.setDragImage(clone,Math.min(r.width-1,Math.max(0,e.clientX-r.left)),Math.min(r.height-1,Math.max(0,e.clientY-r.top)));
+ requestAnimationFrame(()=>{if(dragPreview===clone){clone.remove();dragPreview=null;}if(dragSource===el)el.classList.add('drag-source');});
+}
+function markDrop(e,el){clearDropMark();if(!el||el===dragSource)return;const r=el.getBoundingClientRect();dropAfter=e.clientY>=r.top+r.height/2;dropTarget=el;el.classList.add(dropAfter?'drag-after':'drag-before');}
+
 dialog.addEventListener('change',async e=>{const el=e.target;if(!el.hasAttribute('data-task-check')||saving)return;const [p,i]=el.dataset.taskCheck.split(':').map(Number),checked=el.checked;try{await commitWallet(data=>{const project=data.projects[p];project.tasks=normalizedTasks(project);project.tasks[i].done=checked;});setView(viewName);showProject(p);}catch(err){el.checked=!checked;showError(err);}});
-dialog.addEventListener('dragstart',e=>{const el=e.target.closest('[data-task-sort]');if(!el||saving)return;draggedTask={project:Number(el.dataset.projectIndex),index:Number(el.dataset.taskSort)};e.dataTransfer.setData('text/plain',String(draggedTask.index));e.dataTransfer.effectAllowed='move';});
-dialog.addEventListener('dragover',e=>{if(draggedTask&&e.target.closest('[data-task-sort]'))e.preventDefault();});
-dialog.addEventListener('drop',async e=>{const el=e.target.closest('[data-task-sort]');if(!draggedTask||!el)return;e.preventDefault();const {project,index}=draggedTask,target=Number(el.dataset.taskSort);draggedTask=null;if(index===target||project!==Number(el.dataset.projectIndex))return;try{await commitWallet(data=>{const p=data.projects[project];p.tasks=normalizedTasks(p);const [t]=p.tasks.splice(index,1);p.tasks.splice(target,0,t);});showProject(project);}catch(err){showError(err);}});
-dialog.addEventListener('dragend',()=>{draggedTask=null;});
-mainPage.addEventListener('dragstart',e=>{const b=e.target.closest('[data-sort-id]');if(!b||saving)return;dragged={id:b.dataset.sortId,scope:b.dataset.sortScope};e.dataTransfer.setData('text/plain',dragged.id);e.dataTransfer.effectAllowed='move';});
-mainPage.addEventListener('dragover',e=>{const b=e.target.closest('[data-sort-id]');if(dragged&&b?.dataset.sortScope===dragged.scope){e.preventDefault();e.dataTransfer.dropEffect='move';}});
-mainPage.addEventListener('drop',async e=>{const b=e.target.closest('[data-sort-id]');if(!dragged||b?.dataset.sortScope!==dragged.scope)return;e.preventDefault();const {id,scope}=dragged,target=b.dataset.sortId;dragged=null;if(id===target)return;try{await commitWallet(data=>{data.settings??={};data.settings.sortOrder??={};const ids=[...new Set([...sortItems(all().filter(x=>isSpace(x)===(scope==='space')),scope==='space').map(itemOrderKey)])];const from=ids.indexOf(id),to=ids.indexOf(target);if(from<0||to<0)throw Error('Item order changed.');ids.splice(from,1);ids.splice(to,0,id);data.settings.sortOrder[scope]=ids;});setView(viewName);}catch(err){showError(err);}});
-mainPage.addEventListener('dragend',()=>{dragged=null;});
+dialog.addEventListener('dragstart',e=>{const el=e.target.closest('[data-task-sort]');if(!el||saving)return;draggedTask={project:Number(el.dataset.projectIndex),index:Number(el.dataset.taskSort)};e.dataTransfer.setData('text/plain',String(draggedTask.index));e.dataTransfer.effectAllowed='move';startDragVisual(e,el);});
+dialog.addEventListener('dragover',e=>{const el=e.target.closest('[data-task-sort]');if(draggedTask&&el&&draggedTask.project===Number(el.dataset.projectIndex)){e.preventDefault();e.dataTransfer.dropEffect='move';markDrop(e,el);}else clearDropMark();});
+dialog.addEventListener('drop',async e=>{const el=e.target.closest('[data-task-sort]');if(!draggedTask||!el)return;e.preventDefault();const {project,index}=draggedTask,target=Number(el.dataset.taskSort);const after=e.clientY>=el.getBoundingClientRect().top+el.getBoundingClientRect().height/2;draggedTask=null;clearDragVisual();if(index===target||project!==Number(el.dataset.projectIndex))return;try{await commitWallet(data=>{const p=data.projects[project];p.tasks=normalizedTasks(p);const [t]=p.tasks.splice(index,1);p.tasks.splice(target-(index<target?1:0)+(after?1:0),0,t);});showProject(project);}catch(err){showError(err);}});
+dialog.addEventListener('dragend',()=>{draggedTask=null;clearDragVisual();});
+mainPage.addEventListener('dragstart',e=>{const b=e.target.closest('[data-sort-id]');if(!b||saving)return;dragged={id:b.dataset.sortId,scope:b.dataset.sortScope};e.dataTransfer.setData('text/plain',dragged.id);e.dataTransfer.effectAllowed='move';startDragVisual(e,b);});
+mainPage.addEventListener('dragover',e=>{const b=e.target.closest('[data-sort-id]');if(dragged&&b?.dataset.sortScope===dragged.scope){e.preventDefault();e.dataTransfer.dropEffect='move';markDrop(e,b);}else clearDropMark();});
+mainPage.addEventListener('drop',async e=>{const b=e.target.closest('[data-sort-id]');if(!dragged||b?.dataset.sortScope!==dragged.scope)return;e.preventDefault();const {id,scope}=dragged,target=b.dataset.sortId,rect=b.getBoundingClientRect(),after=e.clientY>=rect.top+rect.height/2;dragged=null;clearDragVisual();if(id===target)return;try{await commitWallet(data=>{data.settings??={};data.settings.sortOrder??={};const ids=[...new Set([...sortItems(all().filter(x=>isSpace(x)===(scope==='space')),scope==='space').map(itemOrderKey)])];const from=ids.indexOf(id),to=ids.indexOf(target);if(from<0||to<0)throw Error('Item order changed.');ids.splice(from,1);ids.splice(to-(from<to?1:0)+(after?1:0),0,id);data.settings.sortOrder[scope]=ids;});setView(viewName);}catch(err){showError(err);}});
+mainPage.addEventListener('dragend',()=>{dragged=null;clearDragVisual();});
 dialog.addEventListener('cancel',e=>{if(saving)e.preventDefault();});
 let client, token=null, generation=0, folderId=null, dataId=null, savedNote='', saving=false, ready=false;
 const test=document.getElementById('storageTest'), note=document.getElementById('testNote');
