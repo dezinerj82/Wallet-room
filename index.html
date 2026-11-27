@@ -223,7 +223,7 @@ const shiftMonth=(ym,n)=>dayKey(new Date(Number(ym.slice(0,4)),Number(ym.slice(5
 const lastDay=ym=>dayKey(new Date(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0));
 const isBalance=e=>e.key==='savings'&&e.item.kind==='balance';
 const importedBase=e=>e.key==='items'&&e.item.source?.file==='EXPENSE.xlsx'&&!e.item.carryOf;
-const baseBill=e=>categoryOf(e)==='Expense'&&!isSpace(e)&&!e.item.carryOf&&(importedBase(e)||e.item.recurring===true);
+const baseBill=e=>categoryOf(e)==='Expense'&&!isSpace(e)&&!e.item.serviceEvent&&!e.item.carryOf&&(importedBase(e)||e.item.recurring===true);
 const hasAmount=e=>amountOf(e.item)!=null&&amountOf(e.item)!==''&&Number.isFinite(Number(amountOf(e.item)))&&Number(amountOf(e.item))!==0;
 const dueBill=e=>!isSpace(e)&&e.key!=='records'&&['Expense','IOU'].includes(categoryOf(e))&&!excluded(e)&&hasAmount(e);
 const seriesKey=e=>JSON.stringify([categoryOf(e),e.item.group||'',nameOf(e.item)]);
@@ -261,7 +261,7 @@ function monthlyEntries(entries,ym){
  }
  return result.filter(x=>x.amount!==0);
 }
-function savingsBalance(entries,ym){
+function savingsBalance(entries,ym,account=null){
  const accounts=new Map();
  for(const e of ordered(entries.filter(e=>e.key==='savings'&&!excluded(e)&&dateOf(e.item)&&monthKey(dateOf(e.item))<=ym))){
   const id=nameOf(e.item);const a=accounts.get(id)||{snapshot:0,delta:0};
@@ -271,7 +271,7 @@ function savingsBalance(entries,ym){
  for(const e of entries.filter(e=>dueBill(e)&&e.item.savingsAccount&&monthKey(dateOf(e.item))<=ym&&dateOf(e.item))){
   const a=accounts.get(e.item.savingsAccount)||{snapshot:0,delta:0};a.delta-=Number(amountOf(e.item)||0);accounts.set(e.item.savingsAccount,a);
  }
- return [...accounts.values()].reduce((n,a)=>n+a.snapshot+a.delta,0);
+ return [...accounts.entries()].filter(([id])=>account===null||id===account).reduce((n,[,a])=>n+a.snapshot+a.delta,0);
 }
 function totals(entries,ym){
  const current=entries.filter(e=>!isSpace(e)&&e.key!=='records'&&!excluded(e)&&monthKey(dateOf(e.item))===ym);
@@ -416,6 +416,21 @@ function restoreTrash(index){
  data[t.key].push(...restore);if(data.settings?.suppressedOccurrences){const ids=new Set(restore.map(x=>x.id));data.settings.suppressedOccurrences=data.settings.suppressedOccurrences.filter(id=>!ids.has(id));}data.trash.splice(index,1);}).then(()=>setView('Trash')).catch(showError);
 }
 
+function serviceEvents(entries,from,to){
+ const settings=new Map();
+ for(const e of ordered(entries.filter(e=>categoryOf(e)==='Expense'&&!isSpace(e)&&!excluded(e)&&!e.item.carryOf&&validDate(e.item.serviceDate)&&Number.isInteger(Number(e.item.serviceMonths))&&Number(e.item.serviceMonths)>0))){
+  const id=e.item.seriesId||seriesKey(e),prev=settings.get(id);if(!prev||prev.item.serviceDate<=e.item.serviceDate)settings.set(id,e);
+ }
+ const out=[];
+ for(const e of settings.values()){
+  const n=Number(e.item.serviceMonths),start=e.item.serviceDate;
+  for(let ym=shiftMonth(monthKey(start),n),i=0;ym<=to&&i<1200;ym=shiftMonth(ym,n),i++){
+   if(ym<from)continue;const d=monthDate(ym,start.slice(8,10));
+   out.push({...e,item:{name:nameOf(e.item)+' service',category:'Expense',date:d,serviceEvent:true,amount:null,recurring:false}});
+  }
+ }
+ return out;
+}
 const title=t=>'<h3><span class="marker">'+esc(t)+'</span></h3>';
 const triangle=dir=>'<svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+({up:'M3 18 L15 4 L27 18 Z',down:'M3 4 L15 18 L27 4 Z',left:'M23 3 L7 11 L23 19 Z',right:'M7 3 L23 11 L7 19 Z'}[dir])+'"/></svg>';
 const directionButton=(dir,attr,label)=>'<button type="button" class="wallet-arrow" '+attr+' aria-label="'+label+'">'+triangle(dir)+'</button>';
@@ -447,7 +462,7 @@ function setView(view){
  expandRecurring(walletData,horizon());const entries=all().filter(e=>nameOf(e.item));renderSummary(entries);
  if(view==='2 Months'){
  const ym=currentMonth();
- walletContent.innerHTML=[0,1].map(offset=>{const m=shiftMonth(ym,offset),d=new Date(m+'-01T12:00:00');return panel(monthLabel(d),offset?'green':'',monthlyEntries(entries,m).map(x=>'<button class="entry-row"'+dragAttr(x.e)+' data-month-group="'+x.e.key+':'+x.e.index+':'+m+'" title="'+esc(x.members.map(e=>money(amountOf(e.item))+' — '+(e.item.originMonth?tableDate(e.item.originMonth+'-01'):displayDate(dateOf(e.item)))).join('\n'))+'"><span>'+esc(nameOf(x.e.item))+'</span><span'+(x.extra?' class="marker extra-bill"':'')+'>'+accounting(x.amount)+'</span></button>').join(''));}).join('');
+ walletContent.innerHTML=[0,1].map(offset=>{const m=shiftMonth(ym,offset),d=new Date(m+'-01T12:00:00');return panel(monthLabel(d),offset?'green':'',monthlyEntries(entries,m) .map(x=>'<button class="entry-row"'+dragAttr(x.e)+' data-month-group="'+x.e.key+':'+x.e.index+':'+m+'" title="'+esc(x.members.map(e=>money(amountOf(e.item))+' — '+(e.item.originMonth?tableDate(e.item.originMonth+'-01'):displayDate(dateOf(e.item)))).join('\n'))+'"><span>'+esc(nameOf(x.e.item))+'</span><span'+(x.extra?' class="marker extra-bill"':'')+'>'+accounting(x.amount)+'</span></button>').join('')+serviceEvents(entries,m,m).map(e=>row(e,displayDate(dateOf(e.item)),true)).join(''));}).join('');
  walletSide.innerHTML=panel('My Space','purple',sortItems(entries.filter(e=>isSpace(e)&&!isInactive(e)),true).map(e=>row(e,tableDate(dateOf(e.item)))).join(''))+panel('Records','orange',entries.filter(isInactive).map(e=>row(e)).join(''));
  }else if(view==='My Space'){
  walletContent.classList.add('wallet-card','wallet-panel','purple');walletContent.innerHTML=title('My Space')+'<div class="wallet-scroll space-grid">'+sortItems(entries.filter(isSpace),true).map(spaceRow).join('')+'</div>'+arrows;
@@ -460,11 +475,12 @@ function setView(view){
 }
 
 function renderCalendar(entries){
+ entries=entries.concat(serviceEvents(entries,shiftMonth(monthKey(dayKey(calendarDate)),-1),shiftMonth(monthKey(dayKey(calendarDate)),1)));
  walletContent.classList.add('wallet-card','wallet-panel');const y=calendarDate.getFullYear(),m=calendarDate.getMonth();
  const controls='<div class="wallet-row">'+title('Calendar')+'<div class="wallet-actions">'+['Month','Week'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row">'+directionButton('left','data-step="-1"','Previous')+'<strong class="calendar-heading">'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong>'+directionButton('right','data-step="1"','Next')+'</div>';
  const event=e=>'<button class="calendar-event extra'+(dateOf(e.item)<today()&&(!dueBill(e)||isPaid(e))?' past-cleared':'')+'" title="'+esc(nameOf(e.item))+'" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span>'+(hasAmount(e)?'<small>'+esc(money(amountOf(e.item)))+'</small>':'')+'</button>';
  const eventsForDate=(d,h=null,month=false)=>{
-  const date=dayKey(d),es=entries.filter(e=>dateOf(e.item).slice(0,10)===date&&!isBalance(e)&&!isSpace(e)&&!excluded(e)&&e.key!=='records'&&!(e.key==='items'&&!hasAmount(e)));
+  const date=dayKey(d),es=entries.filter(e=>dateOf(e.item).slice(0,10)===date&&!isBalance(e)&&!isSpace(e)&&!excluded(e)&&e.key!=='records'&&!(e.key==='items'&&!hasAmount(e)&&!e.item.serviceEvent));
   const defaults=es.filter(baseBill);
   const bill=(month||h===null)&&defaults.length?'<button class="calendar-event'+(date<today()&&defaults.every(isPaid)?' past-cleared':'')+'" data-main-bill="'+date+'">Main bill</button>':'';
   return bill+es.filter(e=>!baseBill(e)&&(month||(h===null?!e.item.time:parseInt(e.item.time,10)===h))).map(event).join('');
@@ -476,7 +492,7 @@ function renderCalendar(entries){
  }else{
  const start=new Date(calendarDate);if(calendarMode==='Week')start.setDate(start.getDate()-start.getDay());const days=Array.from({length:calendarMode==='Week'?7:1},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
  const eventsFor=(d,h)=>eventsForDate(d,h);
- body='<div class="calendar-hours" style="--days:'+days.length+'"><div></div>'+days.map(d=>'<div>'+d.toLocaleString('en',{weekday:'short'})+' '+d.getDate()+'</div>').join('')+'<div class="muted">All day</div>'+days.map(d=>'<div>'+eventsFor(d,null)+'</div>').join('')+Array.from({length:24},(_,h)=>'<div class="muted">'+String(h).padStart(2,'0')+':00</div>'+days.map(d=>'<div>'+eventsFor(d,h)+'</div>').join('')).join('')+'</div>';
+ body='<div class="calendar-hours" style="--days:'+days.length+'"><div></div>'+days.map(d=>'<div class="calendar-cell'+(dayKey(d)<today()?' past':'')+'" data-add-date="'+dayKey(d)+'"><span class="calendar-day">'+d.toLocaleString('en',{weekday:'short'})+' '+d.getDate()+'</span></div>').join('')+'<div class="muted">All day</div>'+days.map(d=>'<div class="calendar-cell'+(dayKey(d)<today()?' past':'')+'" data-add-date="'+dayKey(d)+'">'+eventsFor(d,null)+'</div>').join('')+Array.from({length:24},(_,h)=>'<div class="muted">'+String(h).padStart(2,'0')+':00</div>'+days.map(d=>'<div class="calendar-cell'+(dayKey(d)<today()?' past':'')+'" data-add-date="'+dayKey(d)+'">'+eventsFor(d,h)+'</div>').join('')).join('')+'</div>';
  }
  walletContent.innerHTML=controls+'<div class="wallet-scroll">'+body+'</div>'+arrows;
 }
@@ -495,7 +511,7 @@ function fillTime(p,value){
 function closePickers(){dialog.querySelectorAll('.wallet-picker-options').forEach(p=>{p.hidden=true;p.parentElement.querySelector('[data-picker-toggle]').setAttribute('aria-expanded','false');});}
 function choosePicker(w,value){w.querySelector('input[type=hidden]').value=value;w.querySelector('.wallet-picker-button span').textContent=value||'Select '+w.dataset.pickerName;w.querySelectorAll('.wallet-choice').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.choice===value)));closePickers();w.querySelector('[data-picker-toggle]').focus();}
 function showMainBill(date){
- const entries=all().filter(e=>baseBill(e)&&hasAmount(e)&&dateOf(e.item).slice(0,10)===date);
+ const entries=all().filter(e=>baseBill(e)&&!excluded(e)&&hasAmount(e)&&dateOf(e.item).slice(0,10)===date);
  dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>Main bill</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div><p class="muted">'+esc(displayDate(date))+'</p>'+entries.map(e=>row(e,money(amountOf(e.item))+' · '+statusLabel(e))).join('')+'</div>';if(!dialog.open)dialog.showModal();
 }
 function showSeries(key,index){
@@ -536,6 +552,7 @@ function openEntry(key,index,edit=false,presetDate=''){
  const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{date:presetDate},ref=e?{key,index,item:e}:null,info=ref?seriesInfo(ref):{recurring:false,start:'',end:''};
  if(e&&!edit){
   if(key==='iou'){showIOU(key,index);return;}
+  if(key==='savings'){showSavings(index);return;}
   openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button><button type="button" data-delete="'+key+':'+index+'">Delete</button></div></div><p class="muted">'+esc(displayDate(dateOf(x)))+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<div class="wallet-row"><span>'+esc(ref?statusLabel(ref):'')+'</span>'+accounting(amountOf(x))+'</div><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+(x.contact?'<p>'+esc(x.contact)+'</p>':'')+(x.website?'<p>'+esc(x.website)+'</p>':'')+(x.tasks||[]).map(t=>'<p>'+esc(typeof t==='string'?t:t.text||t.subject||'')+'</p>').join('')+(info.recurring?'<button data-schedule="'+key+':'+index+'">Payment schedule</button>':''));
   return;
  }
@@ -568,7 +585,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   const amount=v.amount==null||v.amount===''?null:Number(v.amount);
   const date=v.date||'',week={};
   if(!name)return;
-  if(category!=='My Space'&&(!validDate(date)||amount===null&&!(recurring&&v.frequency==='Weekly'))){showError(Error('Enter a date and amount.'));return;}
+  if(category!=='My Space'&&(!validDate(date)||amount===null&&!(recurring&&v.frequency==='Weekly')||category==='IOU'&&amount<=0)){showError(Error('Enter a date and amount.'));return;}
   if(amount!==null&&!Number.isFinite(amount)){showError(Error('Check the amount.'));return;}
   if(recurring&&v.endDate&&(!validDate(v.endDate)||v.endDate<date)){showError(Error('Check the end date.'));return;}
   if(recurring&&v.frequency==='Weekly'){
@@ -592,9 +609,16 @@ function openEntry(key,index,edit=false,presetDate=''){
    const choice=prompt('Recurring bill already exists. Enter 1 to update existing bill, 2 to create a separate recurring bill, or Cancel.');
    if(choice===null)return;if(choice==='1')replace=match;else if(choice!=='2'){showError(Error('Select 1 or 2.'));return;}
   }
+  let debtMatch=null,debtMode='add';
+  if(!e&&category==='IOU'){
+   debtMatch=all().find(a=>a.key==='iou'&&!isPaid(a)&&!excluded(a)&&(a.item.group||'')===group&&nameOf(a.item)===name);
+   if(debtMatch){const choice=prompt('Existing IOU found. Enter 1 to update the balance, 2 to add to the balance, or Cancel.');if(choice===null)return;if(choice==='1')debtMode='replace';else if(choice!=='2'){showError(Error('Select 1 or 2.'));return;}}
+  }
+  if(category==='IOU'&&date<today()&&!e){if(!confirm('Has this payment been cleared?'))return;updated.paid=true;updated.status='Paid';}
   try{
    await commitWallet(data=>{
     data[dest]??=[];
+    if(debtMatch){adjustDebt(data,debtMatch.item,amount,date,debtMode,updated.paid);return;}
     if((e&&info.recurring&&key==='items'&&dest==='items'&&v.scope==='future')||replace){
      const original=replace||ref,series=cutRecurring(data,original,date);
      if(recurring)newRule(data,updated,series);else{delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;updated.id=crypto.randomUUID();data.items.push(updated);}
@@ -610,9 +634,87 @@ function openEntry(key,index,edit=false,presetDate=''){
  };
  if(!dialog.open)dialog.showModal();
 }
+const debtKey=x=>x.debtId||JSON.stringify([x.category||'IOU',x.group||'',nameOf(x)]);
+const sameDebt=(x,seed)=>debtKey(x)===debtKey(seed)||(!x.debtId&&!seed.debtId&&(x.group||'')===(seed.group||'')&&nameOf(x)===nameOf(seed));
+const rawPaid=x=>x.paid===true||['paid','cleared'].includes(String(x.status||'').toLowerCase());
+const rawExcluded=x=>['cancelled','carried forward'].includes(String(x.status||'').toLowerCase());
+const activeDebt=(data,seed)=>(data.iou||[]).filter(x=>sameDebt(x,seed)&&!rawPaid(x)&&!rawExcluded(x));
+const debtTotal=rows=>rows.reduce((n,x)=>n+Number(amountOf(x)||0),0);
+const roundMoney=n=>Math.round(n*100)/100;
+function consolidateDebt(data,seed,plan,old,paidRow=null){
+ const oldSet=new Set(old.map(x=>x.id)),kept=(data.iou||[]).filter(x=>!oldSet.has(x.id));
+ const stable=seed.debtId||crypto.randomUUID(),byMonth=new Map();
+ for(const x of old){const ym=monthKey(dateOf(x));if(!byMonth.has(ym))byMonth.set(ym,[]);byMonth.get(ym).push(x);}
+ const revised=[];
+ for(const [ym,p] of plan){
+  if(p.amount<=0)continue;
+  const prev=byMonth.get(ym)||[];
+  if(prev.length&&Math.abs(debtTotal(prev)-p.amount)<.00001&&prev.every(x=>dateOf(x)===p.date)){
+   kept.push(...prev.map(x=>({...x,debtId:stable})));byMonth.delete(ym);continue;
+  }
+  revised.push(...prev);byMonth.delete(ym);
+  const x={...seed,id:crypto.randomUUID(),debtId:stable,date:p.date,amount:roundMoney(p.amount),category:'IOU',status:'Unpaid',paid:false,recurring:false};
+  for(const k of ['carriedTo','carryOf','clearedOn','originMonth','source'])delete x[k];
+  const origins=prev.flatMap(a=>a.origins||[a.originMonth||monthKey(dateOf(a))]);if(origins.length)x.origins=[...new Set(origins)];
+  kept.push(x);
+ }
+ for(const rows of byMonth.values())revised.push(...rows);
+ if(paidRow){kept.push({...seed,...paidRow,id:crypto.randomUUID(),debtId:stable,category:'IOU',status:'Paid',paid:true,recurring:false,clearedOn:today()});}
+ rememberRevision(data,revised);data.iou=kept;
+}
+function debtPlan(rows){
+ const p=new Map();for(const x of ordered(rows.map(item=>({item}))).map(e=>e.item)){
+  const ym=monthKey(dateOf(x)),r=p.get(ym)||{date:dateOf(x),amount:0};r.amount+=Number(amountOf(x)||0);p.set(ym,r);
+ }return p;
+}
+function addPlan(plan,date,amount){if(amount<=0)return;const ym=monthKey(date),v=plan.get(ym)||{date,amount:0};v.amount=roundMoney(v.amount+amount);plan.set(ym,v);}
+function takePlan(plan,amount,preferred){
+ const order=[...plan.keys()].sort((a,b)=>(a>=preferred?0:1)-(b>=preferred?0:1)||a.localeCompare(b));
+ for(const ym of order){if(amount<=.00001)break;const p=plan.get(ym),take=Math.min(p.amount,amount);p.amount=roundMoney(p.amount-take);amount=roundMoney(amount-take);}
+ if(amount>.00001)throw Error('Repayment exceeds outstanding IOU.');
+}
+function rescheduleDebt(data,seed,selectedMonth,date,amount,markPaid,openMonth){
+ const old=activeDebt(data,seed),plan=debtPlan(old),selected=plan.get(selectedMonth);
+ if(!selected)throw Error('Repayment no longer exists.');
+ if(!validDate(date)||!Number.isFinite(amount)||amount<=0||amount>debtTotal(old)+.00001)throw Error('Check the repayment date and amount.');
+ plan.delete(selectedMonth);
+ const difference=roundMoney(selected.amount-amount);
+ if(difference>0){const next=[shiftMonth(monthKey(date),1),openMonth].sort().at(-1);addPlan(plan,monthDate(next,date.slice(8,10)),difference);}
+ else if(difference<0)takePlan(plan,-difference,monthKey(date));
+ if(!markPaid)addPlan(plan,date,amount);
+ consolidateDebt(data,seed,plan,old,markPaid?{date,amount}:null);
+}
+function adjustDebt(data,seed,amount,date,mode,markPaid=false){
+ if(!validDate(date)||!Number.isFinite(amount)||amount<0)throw Error('Check the amount and date.');
+ const old=activeDebt(data,seed),plan=debtPlan(old),total=debtTotal(old),difference=mode==='replace'?roundMoney(amount-total):amount;
+ if(markPaid)throw Error('Use the repayment schedule to record an earlier payment.');
+ if(difference>0)addPlan(plan,date,difference);
+ else if(difference<0)takePlan(plan,-difference,monthKey(date));
+ consolidateDebt(data,seed,plan,old);
+}
 function showIOU(key,index){
- const e=list(key)[index];if(!e)return;
- openDialog('<div class="wallet-row"><h2>'+esc(nameOf(e))+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-edit="'+key+':'+index+'">Edit</button><button data-delete="'+key+':'+index+'">Delete</button></div></div><div class="wallet-row"><span>'+esc(displayDate(dateOf(e)))+'</span>'+accounting(amountOf(e))+'</div><p>'+esc(e.paid?'Paid':'Unpaid')+'</p><p>'+esc(e.notes||'')+'</p>');
+ const x=list(key)[index];if(!x)return;const members=list('iou').filter(a=>sameDebt(a,x)),old=members.filter(a=>!rawPaid(a)&&!rawExcluded(a)),plan=debtPlan(old);
+ openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-debt-adjust="'+index+'">Edit balance</button><button data-delete="'+key+':'+index+'">Delete</button></div></div><div class="wallet-row"><strong>Outstanding</strong>'+accounting(debtTotal(old))+'</div><h3>Repayment plan</h3>'+([...plan].sort((a,b)=>a[0].localeCompare(b[0])).map(([m,p])=>'<button class="entry-row" data-debt-month="'+index+':'+m+'"><span>'+esc(tableDate(p.date))+'</span>'+accounting(p.amount)+'</button>').join('')||'<p class="muted">No outstanding repayments.</p>')+'<h3>Paid</h3>'+members.filter(rawPaid).sort((a,b)=>dateOf(b).localeCompare(dateOf(a))).map(a=>'<div class="wallet-row"><span>'+esc(tableDate(dateOf(a)))+'</span>'+accounting(amountOf(a))+'</div>').join('')+'<p>'+esc(x.notes||'')+'</p>');
+}
+function editDebtMonth(index,ym){
+ const seed=list('iou')[index];if(!seed)return;const p=debtPlan(activeDebt(walletData,seed)).get(ym);if(!p)return;
+ openDialog(dialogHead('Repayment')+'<form class="wallet-form">'+inputField('Amount (RM)','amount',p.amount,'number','required min="0.01" step="any"')+picker('Date','date',p.date)+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="submit">Save</button></div></form>');
+ const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form)),date=v.date,amount=Number(v.amount);const past=date<today();if(past&&!confirm('Has this payment been cleared?'))return;try{await commitWallet(data=>rescheduleDebt(data,seed,ym,date,amount,past,currentMonth()));closeRefresh();}catch(err){showError(err);}};
+}
+function editDebtBalance(index){
+ const seed=list('iou')[index];if(!seed)return;const total=debtTotal(activeDebt(walletData,seed));
+ openDialog(dialogHead('IOU balance')+'<div class="wallet-row"><span>Outstanding</span>'+accounting(total)+'</div><form class="wallet-form">'+selectField('Action','mode',[['replace','Update existing balance'],['add','Add to existing balance']],'replace')+inputField('Amount (RM)','amount',total,'number','required min="0" step="any"')+picker('Repayment date','date',monthDate(currentMonth(),28))+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="submit">Save</button></div></form>');
+ const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form));if(!v.date||monthKey(v.date)<currentMonth()){showError(Error('Select an open or future budget month.'));return;}try{await commitWallet(data=>adjustDebt(data,seed,Number(v.amount),v.date,v.mode));closeRefresh();}catch(err){showError(err);}};
+}
+function showSavings(index){
+ const x=list('savings')[index];if(!x)return;
+ const account=nameOf(x),ym=currentMonth(),balance=savingsBalance(all(),ym,account);
+ openDialog('<div class="wallet-row"><h2>'+esc(account)+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-savings-adjust="'+index+'">Edit balance</button><button data-edit="savings:'+index+'">Edit item</button><button data-delete="savings:'+index+'">Delete</button></div></div><div class="wallet-row"><strong>Balance</strong>'+accounting(balance)+'</div><p class="muted">'+esc(tableDate(ym+'-01'))+'</p>'+ordered(all().filter(e=>e.key==='savings'&&nameOf(e.item)===account&&monthKey(dateOf(e.item))<=ym)).reverse().map(e=>'<div class="wallet-row"><span>'+esc(tableDate(dateOf(e.item))+' '+(e.item.kind==='adjustment'?'Adjustment':e.item.kind==='balance'?'Balance':'Added'))+'</span>'+accounting(amountOf(e.item))+'</div>'+(e.item.notes?'<p class="muted">'+esc(e.item.notes)+'</p>':'')).join(''));
+}
+function editSavingsBalance(index){
+ const seed=list('savings')[index];if(!seed)return;const account=nameOf(seed),ym=currentMonth(),old=savingsBalance(all(),ym,account);
+ openDialog(dialogHead('Edit balance — '+account)+'<div class="wallet-row"><span>Current balance</span>'+accounting(old)+'</div><form class="wallet-form">'+inputField('Updated balance (RM)','balance',old,'number','required step="any"')+textField('Notes','notes','','3')+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="submit">Save</button></div></form>');
+ const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form)),n=Number(v.balance);if(!Number.isFinite(n)||!String(v.notes||'').trim()){showError(Error('Enter the balance and a note.'));return;}try{await commitWallet(data=>{const delta=roundMoney(n-old);if(delta)data.savings.push({id:crypto.randomUUID(),name:account,group:seed.group||'',category:'Savings',kind:'adjustment',date:monthDate(ym,Number(today().slice(8,10))),amount:delta,notes:v.notes,status:'Completed'});});closeRefresh();}catch(err){showError(err);}};
 }
 
 mainPage.addEventListener('click',e=>{const b=e.target.closest('button');if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.restoreTrash!==undefined){restoreTrash(Number(d.restoreTrash));return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view)setView(d.view);else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
@@ -620,6 +722,9 @@ dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
  if(b.hasAttribute('data-close'))dialog.close();
  else if(d.delete){const [k,i]=d.delete.split(':');trashEntry(k,Number(i));}
+ else if(d.debtMonth){const [i,m]=d.debtMonth.split(':');editDebtMonth(Number(i),m);}
+ else if(d.debtAdjust!==undefined)editDebtBalance(Number(d.debtAdjust));
+ else if(d.savingsAdjust!==undefined)editSavingsBalance(Number(d.savingsAdjust));
  else if(d.schedule){const [k,i]=d.schedule.split(':');showSchedule(k,Number(i));}else if(d.edit){const [k,i]=d.edit.split(':');openEntry(k,Number(i),true);}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}
  else if(w&&b.hasAttribute('data-picker-toggle')){
  const p=w.querySelector('.wallet-picker-options'),was=p.hidden;closePickers();if(!was)return;const v=w.querySelector('input[type=hidden]').value,n=w.dataset.pickerName;
