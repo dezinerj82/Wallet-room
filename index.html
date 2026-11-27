@@ -58,11 +58,11 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-actions { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
 .wallet-dialog .wallet-actions button { font-size:10px; }
 .wallet-dialog .wallet-row { align-items:flex-start; }
-.wallet-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); }
+.wallet-stats { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:var(--gap); }
 .wallet-stat { display:flex; flex-direction:column; gap:calc(var(--gap) / 2); }
 .wallet-stat strong { font-size:var(--subtitle); font-weight:500; color:var(--marker); }
 .wallet-stat[data-summary="available"] { --accent:#d5a268; --marker:#f3d29d; }
-.wallet-stat[data-summary="savings"] { --accent:#8ebacb; --marker:#bad9e5; }
+.wallet-stat[data-savings-account] { --accent:#8ebacb; --marker:#bad9e5; }
 .wallet-stat[data-summary="income"] { --accent:#9bb887; --marker:#d0e1b9; }
 .wallet-stat[data-summary="iou"] { --accent:#c88c9d; --marker:#edc5d0; }
 .wallet-nav { display:flex; align-items:center; gap:10px; }
@@ -228,7 +228,8 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 <section class="wallet-stats" aria-label="Summary">
 <div class="wallet-card wallet-stat" data-summary="income"><span class="marker">Income</span><strong>—</strong></div>
 <div class="wallet-card wallet-stat" data-summary="available"><span class="marker">Available</span><strong>—</strong></div>
-<div class="wallet-card wallet-stat" data-summary="savings"><span class="marker">Savings</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat" data-summary="isaac" data-savings-account="Isaac"><span class="marker">Isaac</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat" data-summary="rainny" data-savings-account="Rainny day"><span class="marker">Rainny day</span><strong>—</strong></div>
 <div class="wallet-card wallet-stat" data-summary="iou"><span class="marker">IOU</span><strong>—</strong></div>
 </section>
 <nav class="wallet-nav" role="tablist" aria-label="Wallet views">
@@ -303,6 +304,7 @@ function seriesFor(e,entries=all()){
  if(e.item.recurring)return candidates.filter(x=>x.item.id===e.item.id||(e.item.seriesId&&x.item.seriesId===e.item.seriesId));
  return [e];
 }
+function contributionSeries(e,entries=all()){const members=ordered(entries.filter(a=>isSavingsContribution(a)&&(e.item.seriesId?a.item.seriesId===e.item.seriesId:a.item.id===e.item.id))),rule=(walletData?.settings?.recurringRules||[]).filter(r=>r.seriesId===e.item.seriesId&&e.item.seriesId).at(-1);return {members,recurring:!!e.item.recurring,start:dateOf(members[0]?.item||e.item),end:rule?.endDate||e.item.endDate||'',first:members[0]||e};}
 function seriesInfo(e,entries=all()){
  const members=ordered(seriesFor(e,entries)),first=members[0]||e;
  const meta=members.slice().reverse().find(x=>x.item.recurring!==undefined||x.item.startDate||x.item.endDate)?.item||{};
@@ -333,6 +335,7 @@ function savingsPart(item){
  const n=Number(item.savingsAmount);
  return Number.isFinite(n)?Math.min(Math.max(0,amount),Math.max(0,n)):0;
 }
+function isSavingsContribution(e){return e.key==='savings'&&e.item.kind==='contribution';}
 function savingsBalance(entries,ym,account=null){
  const accounts=new Map();
  for(const e of ordered(entries.filter(e=>e.key==='savings'&&!excluded(e)&&dateOf(e.item)&&monthKey(dateOf(e.item))<=ym))){
@@ -349,7 +352,7 @@ function totals(entries,ym){
  const current=entries.filter(e=>!isSpace(e)&&e.key!=='records'&&!excluded(e)&&monthKey(dateOf(e.item))===ym);
  const sum=es=>es.reduce((n,e)=>n+(Number(amountOf(e.item))||0),0);
  const income=sum(current.filter(e=>categoryOf(e)==='Income'));
- const available=income-current.filter(dueBill).reduce((n,e)=>n+Number(amountOf(e.item)||0)-savingsPart(e.item),0);
+ const available=income-current.filter(dueBill).reduce((n,e)=>n+Number(amountOf(e.item)||0)-savingsPart(e.item),0)-sum(current.filter(isSavingsContribution));
  const savings=savingsBalance(entries,ym);
  const iou=sum(entries.filter(e=>e.key==='iou'&&!excluded(e)&&!isPaid(e)));
  return {income,available,savings,iou};
@@ -357,8 +360,8 @@ function totals(entries,ym){
 function renderSummary(entries){
  const ym=currentMonth(),v=totals(entries,ym);
  for(const el of mainPage.querySelectorAll('[data-summary]')){
-  const k=el.dataset.summary,n=v[k],a=el.querySelector('strong');a.innerHTML=accounting(n,k==='available'&&n<0);
-  a.style.color=k==='available'&&n<1000?'#e65c5c':(k==='available'&&n<2000||k==='savings'&&n<1000)?'#f29e9e':'';
+  const k=el.dataset.summary,account=el.dataset.savingsAccount,n=account?savingsBalance(entries,ym,account):v[k],a=el.querySelector('strong');a.innerHTML=accounting(n,k==='available'&&n<0);
+  a.style.color=k==='available'&&n<1000?'#e65c5c':(k==='available'&&n<2000||account&&n<1000)?'#f29e9e':'';
  }
  document.getElementById('clearBill').hidden=today()<lastDay(ym);
 }
@@ -395,9 +398,9 @@ function weeklyExpansionStart(data,r,rules){
  return floor;
 }
 function expandRecurring(data,until){
- data.settings??={};data.items??=[];
- const rules=data.settings.recurringRules||[],suppressed=new Set(data.settings.suppressedOccurrences||[]);
- const ids=new Set(data.items.map(x=>x.id)),protectedDates=new Set(data.items.filter(x=>x.seriesId&&(rawPaid(x)||rawExcluded(x))).map(x=>x.seriesId+':'+(x.scheduledDate||dateOf(x))));
+ data.settings??={};data.items??=[];data.savings??=[];
+ const rules=data.settings.recurringRules||[],suppressed=new Set(data.settings.suppressedOccurrences||[]),existing=[...data.items,...data.savings];
+ const ids=new Set(existing.map(x=>x.id)),protectedDates=new Set(existing.filter(x=>x.seriesId&&(rawPaid(x)||rawExcluded(x))).map(x=>x.seriesId+':'+(x.scheduledDate||dateOf(x))));
  for(const r of rules){
   if(!validDate(r.date)||!['Weekly','Monthly','Yearly'].includes(r.frequency))continue;
   const interval=Math.max(1,Math.min(1200,Math.trunc(Number(r.interval)||1))),limit=[until,r.frequency==='Weekly'?datePlus(r.date,6):r.date].sort().at(-1);
@@ -411,7 +414,7 @@ function expandRecurring(data,until){
    ids.add(id);
    const x={...r.template,id,seriesId:r.seriesId,ruleId:r.id,scheduledDate:d,date:d,amount:amount==null||amount===''?null:Number(amount),recurring:true,frequency:r.frequency,interval,weekdays:r.weekdays||{},startDate:r.date,endDate:r.endDate||''};
    if(x.category==='Expense'){x.status='Unpaid';x.paid=false;}else{delete x.status;delete x.paid;}
-   data.items.push(x);
+   if(x.category==='Savings'){x.kind='contribution';data.savings.push(x);}else data.items.push(x);
   };
   if(r.frequency==='Weekly'){
    for(let d=start,i=Math.round((new Date(start+'T12:00:00')-new Date(r.date+'T12:00:00'))/86400000);d<=end&&i<37000;d=datePlus(d,1),i++){const w=new Date(d+'T12:00:00').getDay();if(Math.floor(i/7)%interval===0&&Object.hasOwn(r.weekdays||{},w))emit(d,r.weekdays[w]);}
@@ -427,15 +430,15 @@ function rememberRevision(data,items){
 }
 function cutRecurring(data,e,from){
  data.settings??={};data.settings.recurringRules??=[];
- const old=e.item,id=old.seriesId;
+ const old=e.item,id=old.seriesId,key=e.key==='savings'?'savings':'items';
  const belongs=x=>id?x.seriesId===id:old.source?.file==='EXPENSE.xlsx'?x.source?.file==='EXPENSE.xlsx'&&x.category===old.category&&(x.group||'')===(old.group||'')&&nameOf(x)===nameOf(old):x.id===old.id;
  if(id)data.settings.recurringRules=data.settings.recurringRules.flatMap(r=>r.seriesId!==id?[r]:r.date>=from?[]:[{...r,endDate:r.endDate&&r.endDate<from?r.endDate:datePlus(from,-1)}]);
  const series=id||crypto.randomUUID();
- const replaced=data.items.filter(x=>belongs(x)&&(x.scheduledDate||dateOf(x))>=from&&!rawPaid(x)&&!rawExcluded(x));
- for(const x of data.items)if(belongs(x)&&!x.seriesId)x.seriesId=series;
+ const replaced=data[key].filter(x=>belongs(x)&&(x.scheduledDate||dateOf(x))>=from&&!rawPaid(x)&&!rawExcluded(x));
+ for(const x of data[key])if(belongs(x)&&!x.seriesId)x.seriesId=series;
  rememberRevision(data,replaced);
  const removed=new Set(replaced.map(x=>x.id));
- data.items=data.items.filter(x=>!removed.has(x.id));
+ data[key]=data[key].filter(x=>!removed.has(x.id));
  return series;
 }
 function isWeeklyBill(e){return e.key==='items'&&e.item.frequency==='Weekly'&&e.item.recurring!==false&&!e.item.carryOf&&scheduledBill(e);}
@@ -562,6 +565,7 @@ function refreshDetail(win){
   else if(d.kind==='schedule')html=renderSchedule(d.ref.key,index);
   else if(d.kind==='project')html=renderProject(index);
   else if(d.kind==='savings')html=renderSavings(index,...d.args);
+  else if(d.kind==='savingsSchedule')html=renderSavingsSchedule(index);
   else if(d.kind==='iou')html=renderIOU(d.ref.key,index);
  }
  const opened=[...win.querySelectorAll('details')].map(x=>x.open);
@@ -607,6 +611,7 @@ function handleDetailClick(win,e){
  if(d.weeklySummary){const [k,i]=d.weeklySummary.split(':');showItemSummary(k,Number(i),false,true);return;}
  if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));return;}
  if(d.schedule){const [k,i]=d.schedule.split(':');showSchedule(k,Number(i));return;}
+ if(d.savingsSchedule!==undefined){openDetail('savingsSchedule','savings',Number(d.savingsSchedule));return;}
  if(!prepareDetailEdit())return;
  if(d.edit){const [k,i]=d.edit.split(':');openEntry(k,Number(i),true,'',b.hasAttribute('data-weekly-edit'));}
  else if(d.delete){const [k,i]=d.delete.split(':');trashEntry(k,Number(i));}
@@ -660,20 +665,21 @@ function clearMonth(){
  };
 }
 function trashEntry(key,index){
+ const contribution=key==='contribution';if(contribution)key='savings';
  const e=list(key)[index];if(!e)return;
- if(key==='savings'){if(!confirm('Move this entire savings account and its history to Trash?'))return;commitWallet(data=>{const name=nameOf(e),rows=accountRows(data,name),detachedTasks=[];for(const p of data.projects||[]){for(const t of p.tasks||[]){if(t.budget?.category==='Savings'&&t.budget.name===name){detachedTasks.push({projectId:p.id,taskId:t.id,budget:t.budget});t.budget=null;}}}data.trash??=[];data.trash.push({id:crypto.randomUUID(),key,item:{...e,amount:savingsBalance(all(),currentMonth(),name)},items:rows,detachedTasks,deletedAt:new Date().toISOString()});data.savings=data.savings.filter(x=>nameOf(x)!==name);}).then(closeRefresh).catch(showError);return;}
+ if(key==='savings'&&!contribution){if(!confirm('Move this entire savings account and its history to Trash?'))return;commitWallet(data=>{const name=nameOf(e),rows=accountRows(data,name),detachedTasks=[];for(const p of data.projects||[]){for(const t of p.tasks||[]){if(t.budget?.category==='Savings'&&t.budget.name===name){detachedTasks.push({projectId:p.id,taskId:t.id,budget:t.budget});t.budget=null;}}}data.trash??=[];const rules=(data.settings?.recurringRules||[]).filter(r=>r.template?.category==='Savings'&&nameOf(r.template)===name);data.settings??={};data.settings.recurringRules=(data.settings.recurringRules||[]).filter(r=>!rules.some(a=>a.id===r.id));data.trash.push({id:crypto.randomUUID(),key,item:{...e,amount:savingsBalance(all(),currentMonth(),name)},items:rows,rules,accountDeleted:true,detachedTasks,deletedAt:new Date().toISOString()});data.savings=data.savings.filter(x=>nameOf(x)!==name);}).then(closeRefresh).catch(showError);return;}
  if(e.projectId&&e.projectTaskId&&!confirm('This item is linked to My Space. Removing it will also remove that budget link. Continue?'))return;
- const ref={key,index,item:e},info=seriesInfo(ref);
+ const ref={key,index,item:e},info=contribution?contributionSeries(ref):seriesInfo(ref);
  const perform=scope=>{if(!confirm('Move selected item(s) to Trash?'))return;commitWallet(data=>{
   data.trash??=[];data.settings??={};data.settings.suppressedOccurrences??=[];
-  if(scope==='future'&&key==='items'&&info.recurring){
-   const members=seriesFor(ref),from=dateOf(e),ids=new Set(members.filter(x=>dateOf(x.item)>=from&&!isPaid(x)).map(x=>x.item.id));
+  if(scope==='future'&&['items','savings'].includes(key)&&info.recurring){
+   const members=contribution?info.members:seriesFor(ref),from=dateOf(e),ids=new Set(members.filter(x=>dateOf(x.item)>=from&&!isPaid(x)).map(x=>x.item.id));
    const rules=(data.settings.recurringRules||[]).filter(r=>r.seriesId===e.seriesId);
    const oldRules=rules.map(r=>({...r}));
    if(e.seriesId)data.settings.recurringRules=(data.settings.recurringRules||[]).flatMap(r=>r.seriesId!==e.seriesId?[r]:r.date>=from?[]:[{...r,endDate:r.endDate&&r.endDate<from?r.endDate:datePlus(from,-1)}]);
-   const removed=data.items.filter(x=>ids.has(x.id));data.items=data.items.filter(x=>!ids.has(x.id));
+   const removed=data[key].filter(x=>ids.has(x.id));data[key]=data[key].filter(x=>!ids.has(x.id));
    for(const x of removed)if(x.ruleId)data.settings.suppressedOccurrences.push(x.id);
-   data.trash.push({id:crypto.randomUUID(),key,item:e,items:removed,rules:oldRules,deletedAt:new Date().toISOString()});
+   data.trash.push({id:crypto.randomUUID(),key,item:e,items:removed,rules:oldRules,contributionDeleted:contribution,deletedAt:new Date().toISOString()});
   }else{
    if(e.ruleId)data.settings.suppressedOccurrences.push(e.id);
    const linked=key==='projects'?removeProjectLinks(data,e.id):[];
@@ -687,8 +693,8 @@ function trashEntry(key,index){
 function restoreTrash(index){
  const t=list('trash')[index];if(!t||!['items','projects','records','savings','iou','task'].includes(t.key))return;
  commitWallet(data=>{
- if(t.key==='task'){const p=data.projects.find(x=>x.id===t.projectId);if(!p)throw Error('Restore the project first.');p.tasks=normalizedTasks(p);if(p.tasks.some(x=>x.id===t.item.id))throw Error('Subtask already exists.');const task={...t.item};delete task.name;delete task.date;p.tasks.push(task);if(p.status!=='Cancelled'){for(const l of t.linked||[]){data[l.key]??=[];if(!data[l.key].some(x=>x.id===l.item.id))data[l.key].push(l.item);}syncProjectBudget(data,p);}data.trash.splice(index,1);return;}data[t.key]??=[];const restore=t.items||[t.item];if(t.key==='savings'&&t.items&&accountRows(data,nameOf(t.item)).length)throw Error('A savings account with this name already exists.');if(restore.some(x=>x.id&&data[t.key].some(y=>y.id===x.id)))throw Error('This item already exists. Restore cancelled.');
- if(t.rules?.length){data.settings??={};const series=t.rules[0].seriesId,known=new Set(t.rules.map(r=>r.id));if((data.settings.recurringRules||[]).some(r=>r.seriesId===series&&!known.has(r.id)))throw Error('Recurring schedule changed. Review it before restoring.');data.settings.recurringRules=(data.settings.recurringRules||[]).filter(r=>r.seriesId!==series).concat(t.rules);}
+ if(t.key==='task'){const p=data.projects.find(x=>x.id===t.projectId);if(!p)throw Error('Restore the project first.');p.tasks=normalizedTasks(p);if(p.tasks.some(x=>x.id===t.item.id))throw Error('Subtask already exists.');const task={...t.item};delete task.name;delete task.date;p.tasks.push(task);if(p.status!=='Cancelled'){for(const l of t.linked||[]){data[l.key]??=[];if(!data[l.key].some(x=>x.id===l.item.id))data[l.key].push(l.item);}syncProjectBudget(data,p);}data.trash.splice(index,1);return;}data[t.key]??=[];const restore=t.items||[t.item];if(t.key==='savings'&&t.items&&!t.contributionDeleted&&accountRows(data,nameOf(t.item)).length)throw Error('A savings account with this name already exists.');if(restore.some(x=>x.id&&data[t.key].some(y=>y.id===x.id)))throw Error('This item already exists. Restore cancelled.');
+ if(t.rules?.length){data.settings??={};const series=new Set(t.rules.map(r=>r.seriesId)),known=new Set(t.rules.map(r=>r.id));if((data.settings.recurringRules||[]).some(r=>series.has(r.seriesId)&&!known.has(r.id)))throw Error('Recurring schedule changed. Review it before restoring.');data.settings.recurringRules=(data.settings.recurringRules||[]).filter(r=>!series.has(r.seriesId)).concat(t.rules);}
  if(t.detached){const p=data.projects.find(x=>x.id===t.detached.projectId);if(p){p.tasks=normalizedTasks(p);const task=p.tasks.find(a=>a.id===t.detached.taskId);if(task){if(task.budget)throw Error('A new budget link already exists. Review the project first.');task.budget=t.detached.budget;}}}
  data[t.key].push(...restore);for(const link of t.detachedTasks||[]){const p=data.projects.find(x=>x.id===link.projectId),task=p?.tasks?.find(x=>x.id===link.taskId);if(task&&!task.budget)task.budget=link.budget;}if(t.key==='projects'&&t.item.status!=='Cancelled'){for(const l of t.linked||[]){data[l.key]??=[];if(!data[l.key].some(x=>x.id===l.item.id))data[l.key].push(l.item);}syncProjectBudget(data,data.projects.at(-1));}if(data.settings?.suppressedOccurrences){const ids=new Set(restore.map(x=>x.id));data.settings.suppressedOccurrences=data.settings.suppressedOccurrences.filter(id=>!ids.has(id));}data.trash.splice(index,1);}).then(()=>setView('Trash')).catch(showError);
 }
@@ -722,9 +728,9 @@ function renameSavings(data,seed,updated){
  if(name!==oldName&&accountRows(data,name).length)throw Error('A savings account with this name already exists.');
  const accountId=rows.find(x=>x.accountId)?.accountId||crypto.randomUUID();
  const order=data.settings?.sortOrder?.budget;if(order){const oldKeys=new Set(rows.map(x=>'savings:'+savingsKey({item:x})));data.settings.sortOrder.budget=[...new Set(order.map(k=>oldKeys.has(k)?'savings:'+accountId:k))];}
- for(const row of rows){row.accountId=accountId;row.name=name;row.group=group;row.recurring=false;delete row.frequency;delete row.seriesId;delete row.ruleId;}
+ for(const row of rows){row.accountId=accountId;row.name=name;row.group=group;if(row.kind!=='contribution'){row.recurring=false;delete row.frequency;delete row.seriesId;delete row.ruleId;}}
  for(const item of data.items||[])if(item.savingsAccount===oldName)item.savingsAccount=name;
- for(const rule of data.settings?.recurringRules||[])if(rule.template?.savingsAccount===oldName)rule.template.savingsAccount=name;
+ for(const rule of data.settings?.recurringRules||[]){if(rule.template?.savingsAccount===oldName)rule.template.savingsAccount=name;if(rule.template?.category==='Savings'&&nameOf(rule.template)===oldName){rule.template.name=name;rule.template.group=group;rule.template.accountId=accountId;}}
  for(const p of data.projects||[]){for(const t of p.tasks||[]){if(t.budget?.category==='Savings'&&t.budget.name===oldName){t.budget.name=name;t.budget.group=group;}}}
  const row=rows.find(x=>x.id===seed.id)||rows[0];if(!row)throw Error('Savings account not found.');
  if(dateOf(seed)!==updated.date||amountOf(seed)!==updated.amount){rememberRevision(data,[{...seed}]);row.date=updated.date;row.amount=updated.amount;}
@@ -905,9 +911,9 @@ function entryOptions(form,n,values){
  p.innerHTML=allValues.map(v=>'<button type="button" class="wallet-choice" data-choice="'+esc(v)+'" aria-selected="'+(input.value===v)+'">'+esc(v)+'</button>').join('')+'<button type="button" class="wallet-choice" data-add-option>Add new</button>';
 }
 function entryChoiceChanged(form,n){
- if(n==='category'){for(const k of ['group','name']){const w=form.querySelector('[data-picker-name="'+k+'"]');pickerInput(w).value='';w.querySelector('.wallet-picker-button span').textContent=k==='name'?'Select item':'Select group';}}
+ if(n==='category'){if(form.elements.category.value==='Savings'&&form.dataset.newEntry==='true'){form.elements.frequency.value='Monthly';form.elements.interval.value='1';}for(const k of ['group','name']){const w=form.querySelector('[data-picker-name="'+k+'"]');pickerInput(w).value='';w.querySelector('.wallet-picker-button span').textContent=k==='name'?'Select item':'Select group';}}
  if(n==='group'){const w=form.querySelector('[data-picker-name="name"]');pickerInput(w).value='';w.querySelector('.wallet-picker-button span').textContent='Select item';}
- syncEntryForm(form);
+ syncEntryForm(form);syncDefaultEnd(form);
 }
 let contractFieldId=0;
 function contractRow(c={}){
@@ -925,7 +931,7 @@ function syncContractForm(form){
  if(has){frequency.value='Monthly';interval.value=1;const valid=cs.filter(c=>validDate(c.start)&&validDate(c.end)&&c.end>=c.start);const schedule=contractSchedule(valid,form.elements.date.value,currentMonth());end.value=schedule.end;end.setCustomValidity('');amount.value=contractTotal(valid,validDate(form.elements.date.value)?[currentMonth(),monthKey(form.elements.date.value)].sort().at(-1):currentMonth());}
  else if(form.dataset.contractMode==='true'){amount.value=form.dataset.manualAmount||'';frequency.value=form.dataset.manualFrequency||'None';interval.value=form.dataset.manualInterval||'1';end.value=form.dataset.manualEnd||'';}
  if(has&&form.dataset.contractMode!=='true')form.dataset.contractMode='true';else if(!has)form.dataset.contractMode='false';
- amount.readOnly=has;frequency.disabled=has||!['Expense','Income'].includes(form.elements.category.value);interval.readOnly=has;end.readOnly=has;
+ amount.readOnly=has;frequency.disabled=has||!['Expense','Income','Savings'].includes(form.elements.category.value);interval.readOnly=has;end.readOnly=has;
  const endButton=form.querySelector('[data-picker-name="endDate"] [data-picker-toggle]');if(endButton)endButton.disabled=has;
  form.querySelector('#contractTotal').textContent=money(contractTotal(cs,currentMonth()));
 }
@@ -941,18 +947,18 @@ function syncEntryForm(form){
  toggle('mainField',c==='Expense');
  toggle('deductionField',c==='Expense');
  const deductionTab=form.querySelector('[data-form-tab="deduction"]');deductionTab.hidden=c!=='Expense';if(deductionTab.hidden&&!form.querySelector('[data-form-panel="deduction"]').hidden)entryTab(form,'basic');
- toggle('amountField',financial&&(!['Expense','Income'].includes(c)||frequency!=='Weekly'));
+ toggle('amountField',financial&&(!['Expense','Income','Savings'].includes(c)||frequency!=='Weekly'));
  toggle('statusExpense',c==='Expense');
  toggle('statusSpace',c==='My Space');
- toggle('recurrenceField',c==='Expense'||c==='Income');
- toggle('endField',(c==='Expense'||c==='Income')&&frequency!=='None');
- toggle('intervalField',(c==='Expense'||c==='Income')&&frequency!=='None');
- toggle('weeklyField',(c==='Expense'||c==='Income')&&frequency==='Weekly');
- toggle('reminderField',c==='Expense'||c==='Income');
+ toggle('recurrenceField',c==='Expense'||c==='Income'||c==='Savings');
+ toggle('endField',(c==='Expense'||c==='Income'||c==='Savings')&&frequency!=='None');
+ toggle('intervalField',(c==='Expense'||c==='Income'||c==='Savings')&&frequency!=='None');
+ toggle('weeklyField',(c==='Expense'||c==='Income'||c==='Savings')&&frequency==='Weekly');
+ toggle('reminderField',c==='Expense'||c==='Income'||c==='Savings');
  form.querySelector('#intervalField label').firstChild.textContent='Every ('+({Weekly:'weeks',Monthly:'months',Yearly:'years'}[frequency]||'months')+')';
  toggle('notesField',true);
  toggle('spaceFields',c==='My Space');
- const advanced=form.querySelector('[data-form-tab="advanced"]');advanced.hidden=!(c==='Expense'||c==='Income');if(advanced.hidden&&!form.querySelector('[data-form-panel="advanced"]').hidden)entryTab(form,'basic');
+ const advanced=form.querySelector('[data-form-tab="advanced"]');advanced.hidden=!['Expense','Income','Savings'].includes(c);if(advanced.hidden&&!form.querySelector('[data-form-panel="advanced"]').hidden)entryTab(form,'basic');
  const group=form.elements.group.value,es=all().filter(e=>categoryOf(e)===c);
  entryOptions(form,'group',es.map(e=>e.item.group));
  entryOptions(form,'name',es.filter(e=>(e.item.group||'')===group).map(e=>nameOf(e.item)));
@@ -981,7 +987,7 @@ function recurringFormSignature(form){
 }
 function syncDefaultEnd(form){
  const e=form.elements;
- if(form.dataset.contractMode==='true'||!['Expense','Income'].includes(e.category.value))return;
+ if(form.dataset.contractMode==='true'||!['Expense','Income','Savings'].includes(e.category.value))return;
  const signature=recurringFormSignature(form);
  if(signature===form.dataset.scheduleSignature)return;
  const date=normalizeDate(e.date.value),frequency=e.frequency.value;
@@ -999,8 +1005,8 @@ function reminderDaysForForm(x){
  return Math.round((new Date(date+'T12:00:00')-new Date(earlier+'T12:00:00'))/86400000);
 }
 function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
- const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{date:presetDate},ref=e?{key,index,item:e}:null,info=ref?seriesInfo(ref):{recurring:false,start:'',end:''};
- if(e&&edit&&key==='savings'){editSavingsBalance(index);return;}
+ const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{date:presetDate},ref=e?{key,index,item:e}:null,info=ref?(isSavingsContribution(ref)?contributionSeries(ref):seriesInfo(ref)):{recurring:false,start:'',end:''};
+ if(e&&edit&&key==='savings'&&!isSavingsContribution(ref)){editSavingsBalance(index);return;}
  if(e&&!edit){
   if(key==='projects'){showProject(index);return;}
   if(key==='iou'){showIOU(key,index);return;}
@@ -1011,7 +1017,7 @@ function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
  const c=ref?categoryOf(ref):'Expense',frequency=x.frequency||(info.recurring?'Monthly':'None');
  const accounts=[...new Set(list('savings').map(nameOf).filter(Boolean))];
  const expenseStatus=ref&&isPaid(ref)?'Paid':'Unpaid',spaceStatus=['Completed','Cancelled'].includes(x.status)?x.status:'In Progress';
- dialog.innerHTML='<form class="wallet-form" id="walletEntry" data-recurring="'+info.recurring+'" data-legacy-reminder="'+(x.reminderUnit==='Months')+'">'+dialogHead(e?'Edit Item':'Add Item',e?key+':'+index:'')+
+ dialog.innerHTML='<form class="wallet-form" id="walletEntry" data-recurring="'+info.recurring+'" data-legacy-reminder="'+(x.reminderUnit==='Months')+'">'+dialogHead(e?'Edit Item':'Add Item',e?(key==='savings'?'contribution':key)+':'+index:'')+
  '<div class="wallet-row"><div class="wallet-actions"><button type="button" data-form-tab="basic" class="selected" aria-pressed="true">Basic</button><button type="button" data-form-tab="advanced" aria-pressed="false">Advance</button><button type="button" data-form-tab="contract" aria-pressed="false">Contract</button><button type="button" data-form-tab="deduction" aria-pressed="false">Deduction</button></div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="basic">'+
  picker('Category','category',c,[...new Set(['Expense','Income','Savings','IOU','My Space',c])])+
@@ -1033,7 +1039,7 @@ function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
  '<div class="wallet-picker-options scope-popup" data-scope-popup hidden><strong>Apply change</strong><div class="wallet-actions"><button type="button" data-save-scope="one">This payment only</button><button type="button" data-save-scope="future">This and future payments</button><button type="button" data-scope-cancel>Cancel</button></div></div></form>';
  const form=dialog.querySelector('form');
  const savingPicker=form.querySelector('[data-picker-name="savingsAccount"]');const emptySaving=savingPicker.querySelector('[data-choice=""]');if(emptySaving)emptySaving.textContent='Clear selection';if(!form.elements.savingsAccount.value)savingPicker.querySelector('.wallet-picker-button span').textContent='Select account';
- form.noValidate=true;
+ form.noValidate=true;form.dataset.newEntry=String(!e);
  form.dataset.manualAmount=form.elements.amount.value;form.dataset.manualFrequency=form.elements.frequency.value;form.dataset.manualInterval=form.elements.interval.value;form.dataset.manualEnd=form.elements.endDate.value;
  form.dataset.scheduleSignature=recurringFormSignature(form);
  form.addEventListener('input',ev=>{if(ev.target.closest('[data-contract-row]')||ev.target.name==='date')syncContractForm(form);if(ev.target.name==='date'||ev.target.name==='interval'||/^week[0-6]$/.test(ev.target.name))syncDefaultEnd(form);});
@@ -1053,26 +1059,26 @@ function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
   if(hasContracts){v.frequency='Monthly';v.interval='1';v.endDate='';}
   if(hasContracts&&contracts.some(c=>!validDate(c.start)||!validDate(c.end)||c.end<c.start||c.amount===null||!Number.isFinite(c.amount)||c.amount<0)){entryTab(form,'contract');showError(Error('Check each contract start, end and amount.'));return;}
   const scope=form.dataset.saveScope;delete form.dataset.saveScope;v.scope=scope||'one';
-  const recurring=['Expense','Income'].includes(category)&&v.frequency!=='None';
+  const recurring=['Expense','Income','Savings'].includes(category)&&v.frequency!=='None';
   const amount=v.amount==null||v.amount===''?(v.frequency==='Weekly'&&e?amountOf(x)??null:null):Number(v.amount);
   const date=v.date||'',week={};
   const contractPlan=hasContracts?contractSchedule(contracts,date,currentMonth()):null;
   if(!['Expense','Income','Savings','IOU','My Space'].includes(category)||!group||!name){entryTab(form,'basic');showError(Error('Enter category, group and item name.'));return;}
   for(const field of form.querySelectorAll('input:not([type=hidden]),select,textarea')){if(!field.disabled&&!field.checkValidity()){entryTab(form,field.closest('[data-form-panel]')?.dataset.formPanel||'basic');showError(Error(field.validationMessage||'Check the highlighted field.'));field.focus();return;}}
   if(date&&!validDate(date)){showError(Error('Check the date.'));return;}
-  if(category==='IOU'&&amount!==null&&amount<0){showError(Error('Check the amount.'));return;}
+  if(['IOU','Savings'].includes(category)&&amount!==null&&amount<0){showError(Error('Check the amount.'));return;}
   const savingAccount=category==='Expense'?v.savingsAccount||'':'',savingAmount=v.savingsAmount==null||v.savingsAmount===''?null:Number(v.savingsAmount);
   if(savingAccount&&(savingAmount===null&&!(x.savingsAccount===savingAccount&&x.savingsAmount==null)||savingAmount!==null&&(!Number.isFinite(savingAmount)||savingAmount<0))){entryTab(form,'deduction');showError(Error('Enter the amount to use from savings.'));return;}
   const interval=recurring?Number(v.interval||1):1;
   if(recurring&&(!Number.isInteger(interval)||interval<1||interval>1200)){showError(Error('Check the recurring interval.'));return;}
-  if(!date&&recurring&&e&&info.recurring&&dateOf(x)&&v.scope==='future'){showError(Error('Set a date for future recurring payments.'));return;}
+  if(!date&&recurring&&(category==='Savings'||e&&info.recurring&&dateOf(x)&&v.scope==='future')){showError(Error('Set a date for future recurring payments.'));return;}
   if(amount!==null&&!Number.isFinite(amount)){showError(Error('Check the amount.'));return;}
   if(recurring&&v.endDate&&(!validDate(v.endDate)||v.endDate<(v.frequency==='Weekly'?weeklyMonthStart(date):date))){entryTab(form,'advanced');showError(Error('Check the end date.'));return;}
   if(recurring&&v.frequency==='Weekly'){
    for(let i=0;i<7;i++)if(v['week'+i]){if(v['price'+i]!==''&&!Number.isFinite(Number(v['price'+i]))){showError(Error('Check the price for '+weekdays[i]+'.'));return;}week[i]=v['price'+i]===''?null:Number(v['price'+i]);}
    if(!Object.keys(week).length){showError(Error('Select at least one day.'));return;}
   }
-  if(e&&info.recurring&&key==='items'&&dest==='items'&&!scope&&!contractChanged){entryScopePrompt(form);return;}
+  if(e&&info.recurring&&key===dest&&['items','savings'].includes(key)&&!scope&&!contractChanged){entryScopePrompt(form);return;}
   if(recurring&&date&&!v.endDate&&(!e||!info.recurring||!dateOf(x)||v.scope==='future')&&!hasContracts)v.endDate=defaultRecurringEnd(v.frequency==='Weekly'?weeklyMonthStart(date):date,v.frequency,interval,week);
   const updated={...x,id:x.id||crypto.randomUUID(),category,group,name,date,amount};
   if(['Expense','My Space'].includes(category)){updated.subject=v.subject||'';updated.time='';}
@@ -1083,14 +1089,14 @@ function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
    if(!e)for(const choice of form.querySelectorAll('[data-copy-task]:checked')){const [p,t]=choice.value.split(':').map(Number),source=list('projects')[p],task=copyableTasks(source)[t];if(task){const copy={...task,id:crypto.randomUUID(),done:false,deadline:'',time:'',budget:null};updated.tasks.push(copy);}}
    updated.contact=v.contact||'';updated.website=v.website||'';
    delete updated.amount;delete updated.paid;
-  }else if(category==='Savings'){updated.notes=v.notes||'';if(!e)updated.kind='contribution';delete updated.status;delete updated.paid;}
+  }else if(category==='Savings'){updated.notes=v.notes||'';updated.kind='contribution';delete updated.status;delete updated.paid;}
   else if(category==='IOU'){updated.notes=v.notes||'';updated.status=isPaid(ref||{item:{}})?'Paid':'Unpaid';updated.paid=updated.status==='Paid';updated.debtId=x.debtId||crypto.randomUUID();}
   else{updated.notes=v.notes||'';delete updated.status;delete updated.paid;}
-  if(['Expense','Income'].includes(category)&&!(x.reminderUnit==='Months'&&form.dataset.reminderEdited!=='true')){updated.reminderValue=v.reminderValue===''||v.reminderValue==null?null:Number(v.reminderValue);updated.reminderUnit='Days';updated.reminderDays=updated.reminderValue;}
+  if(['Expense','Income','Savings'].includes(category)&&!(x.reminderUnit==='Months'&&form.dataset.reminderEdited!=='true')){updated.reminderValue=v.reminderValue===''||v.reminderValue==null?null:Number(v.reminderValue);updated.reminderUnit='Days';updated.reminderDays=updated.reminderValue;}
   if(category!=='Expense'){delete updated.mainBill;delete updated.savingsAccount;delete updated.savingsAmount;}
   updated.recurring=recurring;updated.interval=interval;updated.frequency=recurring?v.frequency:'None';updated.endDate=recurring?v.endDate||'':'';updated.weekdays=week;
   if(hasContracts){updated.contracts=contracts;updated.recurring=true;updated.frequency='Monthly';updated.interval=1;updated.endDate=contractPlan.end;updated.weekdays={};updated.amount=contractTotal(contracts,validDate(date)?monthKey(date):currentMonth());}else delete updated.contracts;
-  const match=all().find(a=>a.key==='items'&&categoryOf(a)===category&&(a.item.group||'')===group&&nameOf(a.item)===name&&seriesInfo(a).recurring&&!excluded(a)&&!isPaid(a)&&dateOf(a.item)>=date);
+  const match=all().find(a=>a.key===dest&&['items','savings'].includes(dest)&&(dest!=='savings'||isSavingsContribution(a)&&a.item.recurring)&&categoryOf(a)===category&&(a.item.group||'')===group&&nameOf(a.item)===name&&seriesInfo(a).recurring&&!excluded(a)&&!isPaid(a)&&dateOf(a.item)>=date);
   let replace=null;
   if(!e&&recurring&&date&&match){
    const choice=prompt('Recurring bill already exists. Enter 1 to update existing bill, 2 to create a separate recurring bill, or Cancel.');
@@ -1105,8 +1111,7 @@ function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
   try{
    await commitWallet(data=>{
     data[dest]??=[];
-    if(key==='savings'&&dest==='savings'){renameSavings(data,x,updated);return;}
-    if(dest==='savings'){const existing=accountRows(data,name);if(existing.length){const g=existing.find(a=>String(a.group||'').trim())?.group;if(g&&g!==group)throw Error('A savings account with this name already exists. Edit its group in Records.');updated.accountId=existing.find(a=>a.accountId)?.accountId||crypto.randomUUID();for(const row of existing){row.accountId=updated.accountId;row.group=group;row.recurring=false;}}else updated.accountId=crypto.randomUUID();}
+    if(dest==='savings'){saveSavingsContribution(data,updated,key,index,replace,v.scope);return;}
     if(debtMatch){adjustDebt(data,debtMatch.item,amount,date,debtMode,updated.paid);return;}
     if(hasContracts&&(contractChanged||!e||replace||v.scope==='future')){
      const original=replace||ref,plan=contractPlan;
@@ -1321,10 +1326,41 @@ function editDebtBalance(index){
  const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form));if(v.date&&monthKey(v.date)<currentMonth()){showError(Error('Select an open or future budget month.'));return;}try{await commitWallet(data=>adjustDebt(data,seed,Number(v.amount),v.date,v.mode));closeRefresh();}catch(err){showError(err);}};
 }
 function showSavings(index,ym=currentMonth()){openDetail('savings','savings',index,ym);}
+function saveSavingsContribution(data,updated,key,index,replace,scope){
+ data.savings??=[];
+ const existing=accountRows(data,nameOf(updated)),group=existing.find(a=>String(a.group||'').trim())?.group;
+ if(group&&group!==updated.group)throw Error('A savings account with this name already exists. Edit its group in Records.');
+ updated.accountId=existing.find(a=>a.accountId)?.accountId||crypto.randomUUID();
+ for(const row of existing){row.accountId=updated.accountId;row.group=updated.group;}
+ const old=key?data[key][index]:null,original=replace||(old?{key,index,item:old}:null);
+ if(key==='savings'&&old?.kind!=='contribution')throw Error('Edit the savings balance separately.');
+ if(original&&original.item.recurring&&scope==='one'&&!replace&&key==='savings'){
+  if(!validDate(updated.date))throw Error('Enter a payment date.');
+  const row=original.item;
+  updated.recurring=true;updated.frequency=row.frequency;updated.interval=row.interval;updated.weekdays=row.weekdays;updated.endDate=row.endDate;
+  data.savings[index]=updated;return;
+ }
+ if(original&&original.item.recurring&&(scope==='future'||replace)){
+  const from=[updated.date,original.item.scheduledDate||dateOf(original.item)].filter(Boolean).sort()[0];
+  const series=cutRecurring(data,original,updated.frequency==='Weekly'?weeklyMonthStart(from):from);
+  if(updated.recurring&&validDate(updated.date))newRule(data,updated,series);
+  else{for(const k of ['ruleId','seriesId','scheduledDate','startDate'])delete updated[k];updated.id=crypto.randomUUID();data.savings.push(updated);}
+  return;
+ }
+ if(old){if(key==='projects')removeProjectLinks(data,old.id);data[key].splice(index,1);}
+ if(updated.recurring&&validDate(updated.date)){newRule(data,updated);return;}
+ for(const k of ['ruleId','seriesId','scheduledDate','startDate'])delete updated[k];
+ data.savings.push(updated);
+}
 function renderSavings(index,ym=currentMonth()){
  const x=list('savings')[index];if(!x)return;
  const account=nameOf(x),balance=savingsBalance(all(),ym,account);
- return '<div class="wallet-row"><h2>'+esc(account)+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-savings-adjust="'+index+'">Edit</button><button data-delete="savings:'+index+'">Delete</button></div></div><div class="wallet-row"><strong>Balance</strong>'+accounting(balance)+'</div><details><summary>History</summary>'+ordered(all().filter(e=>e.key==='savings'&&nameOf(e.item)===account)).reverse().map(e=>'<div class="wallet-row"><span>'+esc((tableDate(dateOf(e.item))||'No date')+' '+(e.item.kind==='adjustment'?'Adjustment':e.item.kind==='balance'?(monthKey(dateOf(e.item))>ym?'Projected balance':'Balance'):'Added'))+'</span>'+accounting(amountOf(e.item))+'</div>'+(e.item.notes?'<p class="muted">'+esc(e.item.notes)+'</p>':'')).join('')+'</details>';
+ return '<div class="wallet-row"><h2>'+esc(account)+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-savings-adjust="'+index+'">Edit</button><button data-delete="savings:'+index+'">Delete</button></div></div><div class="wallet-row"><strong>Balance</strong>'+accounting(balance)+'</div><div class="wallet-actions" style="justify-content:center"><button type="button" data-savings-schedule="'+index+'">Payment schedule</button></div><details><summary>History</summary>'+ordered(all().filter(e=>e.key==='savings'&&nameOf(e.item)===account)).reverse().map(e=>'<div class="wallet-row"><span>'+esc((tableDate(dateOf(e.item))||'No date')+' '+(e.item.kind==='adjustment'?'Adjustment':e.item.kind==='balance'?(monthKey(dateOf(e.item))>ym?'Projected balance':'Balance'):'Added'))+'</span>'+accounting(amountOf(e.item))+'</div>'+(e.item.notes?'<p class="muted">'+esc(e.item.notes)+'</p>':'')).join('')+'</details>';
+}
+function renderSavingsSchedule(index){
+ const seed=list('savings')[index];if(!seed)return '';
+ const rows=ordered(all().filter(e=>isSavingsContribution(e)&&nameOf(e.item)===nameOf(seed))).reverse();
+ return dialogHead(nameOf(seed))+(rows.length?rows.map(e=>'<button type="button" class="entry-row" data-edit="savings:'+e.index+'"><span>'+esc(displayDate(dateOf(e.item))||'No date')+'</span>'+accounting(amountOf(e.item))+'</button>').join(''):'<p class="muted">No contributions.</p>');
 }
 function editSavingsBalance(index){
  const seed=list('savings')[index];if(!seed)return;const account=nameOf(seed),ym=currentMonth(),old=savingsBalance(all(),ym,account),group=seed.group||list('savings').find(a=>nameOf(a)===account&&String(a.group||'').trim())?.group||'';
