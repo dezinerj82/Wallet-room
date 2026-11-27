@@ -563,21 +563,22 @@ function seriesMonthAmount(info,chosen){
  const amounts=members.map(e=>amountOf(e.item)).filter(n=>n!==null&&n!==undefined&&n!=='');
  return amounts.length?roundMoney(amounts.reduce((n,a)=>n+Number(a),0)):null;
 }
-function recordRows(items,entries){
+function recordRows(items,entries,compact=false){
  const seen=new Set(),groups=new Map();
  for(const e of sortItems(items)){
   const info=seriesInfo(e,entries),id=e.key==='savings'?'account:'+nameOf(e.item):info.recurring?JSON.stringify([seriesKey(e),info.first.item.id||info.first.key+':'+info.first.index]):e.key+':'+e.index;
   if(seen.has(id))continue;seen.add(id);
   const members=info.members.filter(x=>isInactive(x)===isInactive(e));
-  const chosen=e.key==='savings'?accountRepresentative(info.members,currentMonth())||e:members.find(x=>monthKey(dateOf(x.item))===currentMonth())||members.at(-1)||e;
+  const chosen=e.key==='savings'?accountRepresentative(info.members,currentMonth())||e:members.find(x=>monthKey(dateOf(x.item))===currentMonth())||(compact?members.find(x=>monthKey(dateOf(x.item))>currentMonth()):null)||members.at(-1)||e;
   const st=e.key==='savings'?'':info.recurring&&!isInactive(e)?'In progress':statusLabel(chosen);
   const date=e.key==='savings'?(dateOf(chosen.item)&&monthKey(dateOf(chosen.item))<=currentMonth()?dateOf(chosen.item):''):info.recurring?(info.end||info.start):dateOf(chosen.item);
   const dateGroup=!date?'No date':info.recurring?'Recurring':monthKey(date)||'No date';
   const group=recordsMode==='By Event'?categoryOf(e):dateGroup;
-  const html='<button type="button" class="entry-row record-summary"'+(recordsMode==='By Event'?dragAttr(e):'')+' data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(date)||'No date')+'</small><small>'+esc(st)+'</small>'+accounting(e.key==='savings'?savingsBalance(entries,currentMonth(),nameOf(e.item)):info.recurring&&chosen.item.frequency==='Weekly'?seriesMonthAmount(info,chosen):amountOf(chosen.item))+'</button>';
+  const amount=e.key==='savings'?savingsBalance(entries,currentMonth(),nameOf(e.item)):info.recurring&&chosen.item.frequency==='Weekly'?seriesMonthAmount(info,chosen):amountOf(chosen.item);
+  const html=compact?'<button type="button" class="entry-row" data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span>'+accounting(amount)+'</button>':'<button type="button" class="entry-row record-summary"'+(recordsMode==='By Event'?dragAttr(e):'')+' data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(date)||'No date')+'</small><small>'+esc(st)+'</small>'+accounting(amount)+'</button>';
   if(!groups.has(group))groups.set(group,[]);groups.get(group).push(html);
  }
- const rows=[...groups];if(recordsMode==='By Date'){const rank=k=>k==='No date'?0:k==='Recurring'?1:2;rows.sort((a,b)=>rank(a[0])-rank(b[0])||a[0].localeCompare(b[0]));}
+ const rows=[...groups];if(compact)return rows.flatMap(([,rs])=>rs).join('');if(recordsMode==='By Date'){const rank=k=>k==='No date'?0:k==='Recurring'?1:2;rows.sort((a,b)=>rank(a[0])-rank(b[0])||a[0].localeCompare(b[0]));}
  return rows.map(([k,rs])=>'<div class="record-date-group"><strong>'+esc(recordsMode==='By Date'&&/^\d{4}-\d{2}$/.test(k)?tableDate(k+'-01'):k)+'</strong>'+rs.join('')+'</div>').join('');
 }
 function trashNote(item){const note=String(item?.notes||item?.note||item?.text||'').trim().split(/\r?\n/)[0]||'';return note.match(/^.*?[.!?](?=\s|$)/)?.[0]||note;}
@@ -596,14 +597,14 @@ function setView(view){
  if(view==='2 Months'){
  const ym=currentMonth();
  walletContent.innerHTML=[0,1].map(offset=>{const m=shiftMonth(ym,offset),d=new Date(m+'-01T12:00:00');return panel(monthLabel(d),offset?'green':'',monthlyEntries(entries,m) .map(x=>'<button class="entry-row"'+dragAttr(x.e)+' data-month-group="'+x.e.key+':'+x.e.index+':'+m+'" title="'+esc(x.members.map(e=>money(amountOf(e.item))+' — '+(e.item.originMonth?tableDate(e.item.originMonth+'-01'):displayDate(dateOf(e.item)))).join('\n'))+'"><span'+(x.extra?' class="marker extra-bill"':'')+'>'+esc(nameOf(x.e.item))+'</span><span'+(x.extra?' class="marker extra-bill"':'')+'>'+accounting(x.amount)+'</span></button>').join('')+serviceEvents(entries,m,m).map(e=>row(e,displayDate(dateOf(e.item)),true)).join(''));}).join('');
- walletSide.innerHTML=panel('My Space','purple',sortItems(entries.filter(e=>isSpace(e)&&!isInactive(e)),true).map(e=>row(e,tableDate(dateOf(e.item)))).join(''))+panel('Records','orange',entries.filter(isInactive).map(e=>row(e)).join(''));
+ walletSide.innerHTML=panel('My Space','purple',sortItems(entries.filter(e=>isSpace(e)&&!isInactive(e)),true).map(e=>row(e,tableDate(dateOf(e.item)))).join(''))+panel('Records','orange',recordRows([...entries.filter(e=>!isInactive(e)),...entries.filter(isInactive)],entries,true));
  }else if(view==='My Space'){
  walletContent.classList.add('wallet-card','wallet-panel','purple');walletContent.innerHTML=title('My Space')+'<div class="wallet-scroll space-grid">'+sortItems(entries.filter(e=>isSpace(e)&&!isInactive(e)),true).map(spaceRow).join('')+'</div>'+arrows;
  }else if(view==='Records'){
  walletContent.classList.add('wallet-card','wallet-panel');
  walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div class="wallet-actions">'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid invisible-columns">'+panel('Active','green',recordRows(entries.filter(e=>!isInactive(e)),entries))+panel('Inactive','inactive',recordRows(entries.filter(isInactive),entries))+'</div>';
  }else if(view==='Trash'){
- walletContent.classList.add('wallet-card','wallet-panel');walletContent.innerHTML='<div class="wallet-row">'+title('Trash')+'<div class="wallet-actions"><button type="button" data-restore-selected disabled>Restore</button><button type="button" data-empty-trash'+(list('trash').length?'':' disabled')+'>Empty Trash</button></div></div><div class="wallet-scroll">'+(list('trash').map((t,i)=>'<button type="button" class="entry-row trash-summary" data-select-trash="'+i+'" aria-pressed="false"><span>'+esc(nameOf(t.item))+'</span><span>'+esc(trashNote(t.item))+'</span><span>'+esc(tableDate(dateOf(t.item))||'No date')+'</span></button>').join('')||'<p class="muted">Trash is empty.</p>')+'</div>'+(list('trash').length?'<p class="muted">Select an item to restore.</p>':'');
+ walletContent.classList.add('wallet-card','wallet-panel');walletContent.innerHTML='<div class="wallet-row">'+title('Trash')+'<div class="wallet-actions">'+(list('trash').length?'<span class="muted">Select an item to restore.</span>':'')+'<button type="button" data-restore-selected disabled>Restore</button><button type="button" data-empty-trash'+(list('trash').length?'':' disabled')+'>Empty Trash</button></div></div><div class="wallet-scroll">'+(list('trash').map((t,i)=>'<button type="button" class="entry-row trash-summary" data-select-trash="'+i+'" aria-pressed="false"><span>'+esc(nameOf(t.item))+'</span><span>'+esc(trashNote(t.item))+'</span><span>'+esc(tableDate(dateOf(t.item))||'No date')+'</span></button>').join('')||'<p class="muted">Trash is empty.</p>')+'</div>';
  }else if(view==='Calendar'){renderCalendar(entries);}
 }
 
