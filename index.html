@@ -831,7 +831,7 @@ function hideFloating(p){if(p.matches(':popover-open'))p.hidePopover();p.hidden=
 function positionFloating(p,anchor){
  const r=anchor.getBoundingClientRect(),w=document.documentElement.clientWidth,h=document.documentElement.clientHeight;
  const scope=p.hasAttribute('data-scope-popup');
- p.style.width=Math.min(Math.max(r.width,scope?260:180),w-16)+'px';p.style.maxHeight=Math.min(360,h-16)+'px';
+ p.style.width=Math.min(Math.max(r.width,scope?200:180),w-16)+'px';p.style.maxHeight=Math.min(360,h-16)+'px';
  const ph=p.getBoundingClientRect().height,pw=p.getBoundingClientRect().width,below=h-r.bottom-8,above=r.top-8;
  p.style.top=Math.max(8,below>=ph||below>=above?r.bottom+6:r.top-ph-6)+'px';p.style.left=Math.max(8,Math.min(scope?r.right-pw:r.left,w-pw-8))+'px';
  if(below<ph&&above<ph)p.style.maxHeight=Math.max(80,Math.max(below,above))+'px';
