@@ -57,7 +57,7 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-actions { display:flex; align-items:center; justify-content:flex-end; gap:5px; flex-wrap:wrap; }
 .wallet-dialog .wallet-actions button { font-size:10px; }
 .wallet-dialog .wallet-row { align-items:flex-start; }
-.wallet-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); }
+.wallet-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); margin-bottom:var(--gap); }
 .wallet-stat { display:flex; flex-direction:column; gap:calc(var(--gap) / 2); }
 .wallet-stat strong { font-size:var(--subtitle); font-weight:500; }
 .wallet-stat:nth-child(1) { --accent:#d5a268; --marker:#f3d29d; }
@@ -72,7 +72,8 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-months { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); min-height:0; }
 .wallet-side { display:grid; grid-template-rows:1fr 1fr; gap:var(--gap); min-height:0; }
 .wallet-view { min-height:0; overflow:hidden; }
-.wallet-card h3 { font-size:var(--subtitle); font-weight:500; }
+.wallet-card h3 { font-size:18px; font-weight:500; }
+.calendar-heading { font-size:16px; font-weight:500; }
 .wallet-panel { display:flex; flex-direction:column; gap:calc(var(--gap)/2); overflow:hidden; }
 .wallet-scroll { flex:1; min-height:0; overflow:auto; scrollbar-width:none; }
 .wallet-scroll::-webkit-scrollbar { display:none; }
@@ -82,10 +83,15 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .entry-row { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--gap)/2); padding:7px; width:100%; text-align:left; background:none; border-radius:0; }
 .entry-row span:first-child { text-decoration:underline; text-decoration-color:var(--accent,#8ebacb); text-underline-offset:.3em; text-decoration-thickness:2px; }
 .muted { opacity:.5; font-size:.82em; }
-.space-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--gap); align-content:start; }
-.space-grid .entry-row { display:flex; flex-direction:column; align-items:flex-start; }
+.space-grid { display:flex; flex-direction:column; align-content:start; }
+.space-grid .entry-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,auto); gap:var(--gap); align-items:center; }
+.space-grid .entry-row > :last-child { text-align:right; white-space:nowrap; }
+.record-grid .record-summary { display:grid; grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1fr)); gap:5px; align-items:center; }
+.record-summary > :not(:first-child) { text-align:center; overflow-wrap:anywhere; }
+.record-summary > :first-child { overflow-wrap:anywhere; }
+.record-summary small { font-size:inherit; }
 .record-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); flex:1; min-height:0; }
-.record-grid.invisible-columns > .wallet-panel { background:none; border:0; padding:0; }
+.record-grid.invisible-columns > .wallet-panel { background:none; border:0; padding:4px 7px; }
 .calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px; background:#e8eeee; }
 .calendar-cell { background:#fff; min-height:5em; padding:.4em; min-width:0; }
 .calendar-event { font-size:.82em; display:block; background:#edf5f6; border-radius:.4em; padding:.25em; margin-top:.3em; width:100%; text-align:left; overflow-wrap:anywhere; }
@@ -109,6 +115,8 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-picker-options .wallet-row { gap:5px; align-items:center; }
 .wallet-picker-options .wallet-actions { margin-top:5px; }
 .wallet-form .record-grid { flex:none; }
+.calendar-event.extra { background:var(--cream); }
+.wallet-form .recurrence-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); }
 @media (max-width:768px) {
  #loginCard { --unit:min(100vw / 412, 100dvh / 891, 1px); width:min(100%,calc(530 * var(--unit))); min-height:calc(390 * var(--unit)); }
  #mainPage { height:calc(891 * var(--unit) - 2 * var(--page)); max-width:100%; align-self:center; }
@@ -172,6 +180,7 @@ const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const monthLabel=d=>d.getFullYear()+' '+d.toLocaleString('en',{month:'long'});
 const dayKey=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
 const displayDate=x=>x&&/^\d{4}-\d{2}-\d{2}/.test(x)?monthLabel(new Date(x.slice(0,10)+'T12:00:00'))+' '+x.slice(8,10):String(x||'');
+const tableDate=x=>x&&/^\d{4}-\d{2}-\d{2}/.test(x)?new Date(x.slice(0,10)+'T12:00:00').toLocaleDateString('en-GB',{month:'short',year:'numeric'}):String(x||'');
 const money=x=>x==null||x===''?'': 'RM '+Math.round(Number(x)).toLocaleString('en-MY');
 const dialog=document.getElementById('entryDialog');
 let viewName='2 Months',recordsMode='By Event',calendarMode='Month',calendarDate=new Date();
@@ -182,12 +191,59 @@ const dateOf=x=>x.date??x.dueDate??x.deadline??'';
 const amountOf=x=>x.amount??x.cost??x.estimatedCost;
 const isInactive=e=>e.key==='records'||e.item.active===false||['completed','cancelled','paid','inactive','cleared'].includes(String(e.item.status||'').toLowerCase());
 const isSpace=e=>e.key==='projects'||e.item.category==='My Space';
+const monthKey=x=>String(x||'').slice(0,7);
+const currentMonth=()=>dayKey(new Date()).slice(0,7);
+const importedBase=e=>e.key==='items'&&e.item.source?.file==='EXPENSE.xlsx';
+const baseBill=e=>importedBase(e)||e.key==='items'&&e.item.recurring===true&&e.item.category==='Expense';
+const isBalance=e=>e.key==='savings'&&e.item.kind==='balance';
+const seriesKey=e=>JSON.stringify([e.key,e.item.category||'',e.item.group||'',nameOf(e.item)]);
+const hasAmount=e=>amountOf(e.item)!=null&&amountOf(e.item)!==''&&Number(amountOf(e.item))!==0;
+const ordered=es=>es.slice().sort((a,b)=>String(dateOf(a.item)).localeCompare(String(dateOf(b.item))));
+function seriesFor(e,entries=all()){
+ const candidates=entries.filter(x=>seriesKey(x)===seriesKey(e));
+ if(importedBase(e)||isBalance(e))return candidates.filter(x=>importedBase(x)||isBalance(x));
+ if(e.item.recurring)return candidates.filter(x=>x.item.id===e.item.id||(e.item.seriesId&&x.item.seriesId===e.item.seriesId));
+ return [e];
+}
+function seriesInfo(e,entries=all()){
+ const members=ordered(seriesFor(e,entries)), first=members[0]||e;
+ const meta=members.slice().reverse().find(x=>x.item.recurring!==undefined||x.item.startDate||x.item.endDate)?.item||{};
+ const recurring=meta.recurring===false?false:!!(meta.recurring||members.length>1&&(importedBase(e)||isBalance(e)));
+ return {members,recurring,start:meta.startDate||dateOf(first.item),end:meta.endDate||'',first};
+}
+function monthlyEntries(entries,ym){
+ const same=entries.filter(e=>!isSpace(e)&&monthKey(dateOf(e.item))===ym);
+ const result=[];
+ for(const e of same){
+  if(isBalance(e)){if(hasAmount(e))result.push({e,amount:Number(amountOf(e.item))});continue;}
+  const group=result.find(x=>!isBalance(x.e)&&seriesKey(x.e)===seriesKey(e));
+  if(group){group.amount+=Number(amountOf(e.item)||0);if(baseBill(e)&&!baseBill(group.e))group.e=e;}
+  else result.push({e,amount:Number(amountOf(e.item)||0)});
+ }
+ return result.filter(x=>x.amount!==0);
+}
 const title=t=>'<h3><span class="marker">'+esc(t)+'</span></h3>';
 const triangle=dir=>'<svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+({up:'M3 18 L15 4 L27 18 Z',down:'M3 4 L15 18 L27 4 Z',left:'M23 3 L7 11 L23 19 Z',right:'M7 3 L23 11 L7 19 Z'}[dir])+'"/></svg>';
 const directionButton=(dir,attr,label)=>'<button type="button" class="wallet-arrow" '+attr+' aria-label="'+label+'">'+triangle(dir)+'</button>';
 const arrows='<div class="scroll-buttons">'+[-1,1].map(n=>'<button type="button" data-scroll="'+n+'" aria-label="'+(n<0?'Scroll up':'Scroll down')+'"><svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+(n<0?'M3 18 L15 4 L27 18 Z':'M3 4 L15 18 L27 4 Z')+'"/></svg></button>').join('')+'</div>';
 const panel=(heading,color,body)=>'<section class="wallet-card wallet-panel '+color+'">'+title(heading)+'<div class="wallet-scroll">'+body+'</div>'+arrows+'</section>';
 const row=(e,second)=>'<button type="button" class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(second??money(amountOf(e.item)))+'</small></button>';
+const spaceRow=e=>'<button type="button" class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span><span>'+esc(e.item.subject||'')+'</span><small>'+esc(tableDate(dateOf(e.item)))+'</small></button>';
+function recordRows(items,entries){
+ if(recordsMode==='By Date'){
+  const groups=new Map();for(const e of items){const k=monthKey(dateOf(e.item))||'No date';if(!groups.has(k))groups.set(k,[]);groups.get(k).push(e);}
+  return [...groups].sort((a,b)=>b[0].localeCompare(a[0])).map(([k,es])=>'<div style="margin-bottom:1em"><strong>'+esc(k==='No date'?k:tableDate(k+'-01'))+'</strong>'+es.map(e=>row(e)).join('')+'</div>').join('');
+ }
+ const seen=new Set();return items.map(e=>{
+  const info=seriesInfo(e,entries),id=info.recurring?seriesKey(e):e.key+':'+e.index;
+  if(seen.has(id))return '';seen.add(id);
+  const members=info.members.filter(x=>isInactive(x)===isInactive(e));
+  const thisMonth=members.find(x=>monthKey(dateOf(x.item))===currentMonth());
+  const chosen=thisMonth||(!info.recurring?e:isInactive(e)?members.at(-1):members[0])||e;
+  const amount=info.recurring&&!thisMonth&&!isInactive(e)?null:amountOf(chosen.item);
+  return '<button type="button" class="entry-row record-summary" data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(info.recurring?info.start:dateOf(e.item)))+'</small><small>'+esc(info.recurring?(tableDate(info.end)||'Ongoing'):'')+'</small><small>'+esc(money(amount))+'</small></button>';
+ }).join('');
+}
 function setView(view){
  viewName=view;
  for(const tab of mainPage.querySelectorAll('[role="tab"]'))tab.setAttribute('aria-selected',String(tab.dataset.view===view));
@@ -197,32 +253,37 @@ function setView(view){
  const entries=all().filter(e=>nameOf(e.item));
  if(view==='2 Months'){
  const now=new Date();
- walletContent.innerHTML=[0,1].map((offset)=>{const d=new Date(now.getFullYear(),now.getMonth()+offset,1);return panel(monthLabel(d),offset?'green':'',entries.filter(e=>!isSpace(e)&&dateOf(e.item).slice(0,7)===dayKey(d).slice(0,7)).map(e=>row(e)).join(''));}).join('');
- walletSide.innerHTML=panel('My Space','purple',entries.filter(isSpace).map(e=>row(e,displayDate(dateOf(e.item)))).join(''))+panel('Records','orange',entries.filter(isInactive).map(e=>row(e)).join(''));
+ walletContent.innerHTML=[0,1].map((offset)=>{const d=new Date(now.getFullYear(),now.getMonth()+offset,1);return panel(monthLabel(d),offset?'green':'',monthlyEntries(entries,dayKey(d).slice(0,7)).map(x=>row(x.e,money(x.amount))).join(''));}).join('');
+ walletSide.innerHTML=panel('My Space','purple',entries.filter(isSpace).map(e=>row(e,tableDate(dateOf(e.item)))).join(''))+panel('Records','orange',entries.filter(isInactive).map(e=>row(e)).join(''));
  }else if(view==='My Space'){
- walletContent.classList.add('wallet-card','wallet-panel','purple');walletContent.innerHTML=title('My Space')+'<div class="wallet-scroll space-grid">'+entries.filter(isSpace).map(e=>row(e,displayDate(dateOf(e.item)))).join('')+'</div>'+arrows;
+ walletContent.classList.add('wallet-card','wallet-panel','purple');walletContent.innerHTML=title('My Space')+'<div class="wallet-scroll space-grid">'+entries.filter(isSpace).map(spaceRow).join('')+'</div>'+arrows;
  }else if(view==='Records'){
  walletContent.classList.add('wallet-card','wallet-panel');
- const grouped=items=>{const groups=new Map();for(const e of items){const k=recordsMode==='By Event'?nameOf(e.item):dateOf(e.item)||'No date';if(!groups.has(k))groups.set(k,[]);groups.get(k).push(e);}let pairs=[...groups];if(recordsMode==='By Date')pairs.sort((a,b)=>b[0].localeCompare(a[0]));return pairs.map(([k,es])=>'<div style="margin-bottom:1em"><strong>'+esc(recordsMode==='By Date'?displayDate(k):k)+'</strong>'+es.map(e=>recordsMode==='By Event'?'<button class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(displayDate(dateOf(e.item)))+'</span><small>'+esc(money(amountOf(e.item)))+'</small></button>':row(e)).join('')+'</div>').join('');};
- walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div class="wallet-actions">'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid invisible-columns">'+panel('Active','green',grouped(entries.filter(e=>!isInactive(e))))+panel('Inactive','pink',grouped(entries.filter(isInactive)))+'</div>';
+ walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div class="wallet-actions">'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid invisible-columns">'+panel('Active','green',recordRows(entries.filter(e=>!isInactive(e)),entries))+panel('Inactive','pink',recordRows(entries.filter(isInactive),entries))+'</div>';
  }else if(view==='Calendar'){renderCalendar(entries);}
 }
 function renderCalendar(entries){
  walletContent.classList.add('wallet-card','wallet-panel');const y=calendarDate.getFullYear(),m=calendarDate.getMonth();
- const controls='<div class="wallet-row">'+title('Calendar')+'<div class="wallet-actions">'+['Month','Week','Day'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row">'+directionButton('left','data-step="-1"','Previous')+'<strong>'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong>'+directionButton('right','data-step="1"','Next')+'</div>';
- const event=e=>'<button class="calendar-event" data-entry="'+e.key+':'+e.index+'">'+esc(e.item.time?e.item.time+' ':'')+esc(nameOf(e.item))+'</button>';
+ const controls='<div class="wallet-row">'+title('Calendar')+'<div class="wallet-actions">'+['Month','Week'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row">'+directionButton('left','data-step="-1"','Previous')+'<strong class="calendar-heading">'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong>'+directionButton('right','data-step="1"','Next')+'</div>';
+ const event=e=>'<button class="calendar-event'+(e.key==='items'?' extra':'')+'" data-entry="'+e.key+':'+e.index+'">'+esc(e.item.time?e.item.time+' ':'')+esc(nameOf(e.item))+(e.key==='items'&&hasAmount(e)?' '+esc(money(amountOf(e.item))):'')+'</button>';
+ const eventsForDate=(d,h=null,month=false)=>{
+  const date=dayKey(d),es=entries.filter(e=>dateOf(e.item).slice(0,10)===date&&!isBalance(e)&&!(e.key==='items'&&!hasAmount(e)));
+  const defaults=es.filter(baseBill);
+  const bill=(month||h===null)&&defaults.length?'<button class="calendar-event" data-main-bill="'+date+'">Main bill</button>':'';
+  return bill+es.filter(e=>!baseBill(e)&&(month||(h===null?!e.item.time:parseInt(e.item.time,10)===h))).map(event).join('');
+ };
  let body='';
  if(calendarMode==='Month'){
  const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());
- body='<div class="calendar-grid">'+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<div class="calendar-cell" style="min-height:0">'+x+'</div>').join('')+Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return '<div class="calendar-cell"><span class="'+(d.getMonth()!==m?'muted':'')+'">'+d.getDate()+'</span>'+entries.filter(e=>dateOf(e.item).slice(0,10)===dayKey(d)).map(event).join('')+'</div>';}).join('')+'</div>';
+ body='<div class="calendar-grid">'+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<div class="calendar-cell" style="min-height:0">'+x+'</div>').join('')+Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return '<div class="calendar-cell"><span class="'+(d.getMonth()!==m?'muted':'')+'">'+d.getDate()+'</span>'+eventsForDate(d,null,true)+'</div>';}).join('')+'</div>';
  }else{
  const start=new Date(calendarDate);if(calendarMode==='Week')start.setDate(start.getDate()-start.getDay());const days=Array.from({length:calendarMode==='Week'?7:1},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
- const eventsFor=(d,h)=>entries.filter(e=>dateOf(e.item).slice(0,10)===dayKey(d)&&(h===null?!e.item.time:parseInt(e.item.time,10)===h)).map(event).join('');
+ const eventsFor=(d,h)=>eventsForDate(d,h);
  body='<div class="calendar-hours" style="--days:'+days.length+'"><div></div>'+days.map(d=>'<div>'+d.toLocaleString('en',{weekday:'short'})+' '+d.getDate()+'</div>').join('')+'<div class="muted">All day</div>'+days.map(d=>'<div>'+eventsFor(d,null)+'</div>').join('')+Array.from({length:24},(_,h)=>'<div class="muted">'+String(h).padStart(2,'0')+':00</div>'+days.map(d=>'<div>'+eventsFor(d,h)+'</div>').join('')).join('')+'</div>';
  }
  walletContent.innerHTML=controls+'<div class="wallet-scroll">'+body+'</div>'+arrows;
 }
-const pickerIcon=n=>n==='date'?'<svg class="wallet-field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>':n==='time'?'<svg class="wallet-field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg>':triangle('down');
+const pickerIcon=n=>['date','startDate','endDate'].includes(n)?'<svg class="wallet-field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>':n==='time'?'<svg class="wallet-field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg>':triangle('down');
 function picker(label,n,v,choices){
  return '<div class="wallet-picker" data-picker-name="'+n+'"><span>'+label+'</span><input type="hidden" name="'+n+'" value="'+esc(v)+'"><button type="button" class="wallet-picker-button" data-picker-toggle aria-expanded="false" aria-label="'+label+'"><span>'+esc(v||'Select '+label.toLowerCase())+'</span>'+pickerIcon(n)+'</button><div class="wallet-picker-options" hidden>'+ (choices?choices.map(c=>'<button type="button" class="wallet-choice" aria-selected="'+(c===v)+'" data-choice="'+esc(c)+'">'+esc(c)+'</button>').join(''):'')+'</div></div>';
 }
@@ -236,26 +297,35 @@ function fillTime(p,value){
 }
 function closePickers(){dialog.querySelectorAll('.wallet-picker-options').forEach(p=>{p.hidden=true;p.parentElement.querySelector('[data-picker-toggle]').setAttribute('aria-expanded','false');});}
 function choosePicker(w,value){w.querySelector('input[type=hidden]').value=value;w.querySelector('.wallet-picker-button span').textContent=value||'Select '+w.dataset.pickerName;w.querySelectorAll('.wallet-choice').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.choice===value)));closePickers();w.querySelector('[data-picker-toggle]').focus();}
+function showMainBill(date){
+ const entries=all().filter(e=>baseBill(e)&&hasAmount(e)&&dateOf(e.item).slice(0,10)===date);
+ dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>Main bill</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div><p class="muted">'+esc(displayDate(date))+'</p>'+entries.map(e=>row(e)).join('')+'</div>';if(!dialog.open)dialog.showModal();
+}
+function showSeries(key,index){
+ const e={key,index,item:list(key)[index]};if(!e.item)return;const info=seriesInfo(e);
+ if(!info.recurring){openEntry(key,index);return;}
+ dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>'+esc(nameOf(e.item))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button></div></div><p>'+esc(tableDate(info.start))+' – '+esc(tableDate(info.end)||'Ongoing')+'</p>'+info.members.slice().reverse().map(x=>'<button type="button" class="entry-row" data-entry="'+x.key+':'+x.index+'"><span>'+esc(tableDate(dateOf(x.item)))+'</span><small>'+esc(money(amountOf(x.item)))+'</small></button>').join('')+'</div>';if(!dialog.open)dialog.showModal();
+}
 function openEntry(key,index,edit=false){
- const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{};
- if(e&&!edit){dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button></div></div><p class="muted">'+esc(displayDate(dateOf(x)))+'</p><p>'+esc(money(amountOf(x)))+'</p><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+ (Array.isArray(x.tasks)?x.tasks.map(t=>'<p>'+esc(typeof t==='string'?t:t.text)+'</p>').join(''):'')+'</div>';if(!dialog.open)dialog.showModal();return;}
+ const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{};const info=e?seriesInfo({key,index,item:e}):{recurring:false,start:'',end:''};
+ if(e&&!edit){dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button></div></div><p class="muted">'+esc(displayDate(dateOf(x)))+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<p>'+esc(money(amountOf(x)))+'</p><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+ (Array.isArray(x.tasks)?x.tasks.map(t=>'<p>'+esc(typeof t==='string'?t:t.text)+'</p>').join(''):'')+'</div>';if(!dialog.open)dialog.showModal();return;}
  const category=x.category|| (key==='projects'?'My Space':key==='savings'?'Savings':key==='iou'?'IOU':'Expense');
  const field=(label,n,v='',type='text')=>'<label>'+label+'<input name="'+n+'" type="'+type+'" value="'+esc(v)+'" '+(n==='name'?'required':'')+(type==='number'?' step="1"':'')+'></label>';
- dialog.innerHTML='<form class="wallet-form" id="walletEntry"><div class="wallet-row"><h2>'+(e?'Edit Item':'Add Item')+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div>'+picker('Category','category',category,[...new Set(['Expense','Income','Savings','IOU','My Space',category])])+field('Group','group',x.group)+field('Item','name',nameOf(x))+'<div class="record-grid">'+field('Amount (RM)','amount',amountOf(x)??'','number')+picker('Date','date',dateOf(x))+picker('Time','time',x.time||'')+picker('Status','status',x.status||'Saved',[...new Set(['Saved','In progress','Completed','Cancelled',x.status||'Saved'])])+'</div><label>Notes<textarea name="notes" rows="3">'+esc(x.notes||'')+'</textarea></label><label>Checklist / Subtasks<textarea name="tasks" rows="2">'+esc((x.tasks||[]).map(t=>typeof t==='string'?t:t.text).join('\n'))+'</textarea></label>'+field('Contact','contact',x.contact)+field('Website','website',x.website)+ '<p class="muted" id="entryStatus" role="status"></p><div class="wallet-actions"><button type="button" data-close>Cancel</button><button type="submit">Save Item</button></div></form>';
- const form=dialog.querySelector('form');form.onsubmit=async event=>{event.preventDefault();if(saving)return;const values=Object.fromEntries(new FormData(form));const taskLines=values.tasks.split('\n').filter(t=>t.trim());const updated={...x,...values,name:values.name.trim(),amount:values.amount===''?null:Number(values.amount),tasks:taskLines.map(text=>({text,done:(x.tasks||[]).some(t=>t.text===text&&t.done)})),id:x.id||crypto.randomUUID()};const dest=key||({ 'My Space':'projects',Savings:'savings',IOU:'iou'}[values.category]||'items');const msg=dialog.querySelector('#entryStatus');saving=true;form.querySelector('button[type=submit]').disabled=true;logout.disabled=true;try{const current=generation,access=token,file=dataId;await navigator.locks.request('wallet-room-data:'+folderId,async()=>{const data=await readData(access,current,file);if(JSON.stringify(data[dest]||[])!==JSON.stringify(walletData[dest]||[]))throw Error('Records changed elsewhere. Please sign in again.');const arr=data[dest]||[];if(e)arr[index]=updated;else arr.push(updated);data[dest]=arr;await drive('upload/drive/v3/files/'+encodeURIComponent(file)+'?uploadType=media&fields=id',access,current,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});walletData=data;});dialog.close();setView(viewName);}catch(err){msg.textContent=err.message;}finally{saving=false;logout.disabled=false;form.querySelector('button[type=submit]').disabled=false;}};
+ dialog.innerHTML='<form class="wallet-form" id="walletEntry"><div class="wallet-row"><h2>'+(e?'Edit Item':'Add Item')+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div>'+picker('Category','category',category,[...new Set(['Expense','Income','Savings','IOU','My Space',category])])+field('Group','group',x.group)+field('Item','name',nameOf(x))+'<div id="subjectField" '+(category==='My Space'?'':'hidden')+'>'+field('Subject','subject',x.subject)+'</div><div class="record-grid">'+field('Amount (RM)','amount',amountOf(x)??'','number')+picker('Date','date',dateOf(x))+picker('Time','time',x.time||'')+picker('Status','status',x.status||'Saved',[...new Set(['Saved','In progress','Completed','Cancelled',x.status||'Saved'])])+'</div><label><span><input type="checkbox" name="recurring" '+(info.recurring?'checked':'')+'> Recurring</span></label><div class="recurrence-fields" '+(info.recurring?'':'hidden')+'>'+picker('Start date','startDate',info.start||dateOf(x))+picker('End date','endDate',info.end)+'</div><label>Notes<textarea name="notes" rows="3">'+esc(x.notes||'')+'</textarea></label><label>Checklist / Subtasks<textarea name="tasks" rows="2">'+esc((x.tasks||[]).map(t=>typeof t==='string'?t:t.text).join('\n'))+'</textarea></label>'+field('Contact','contact',x.contact)+field('Website','website',x.website)+ '<p class="muted" id="entryStatus" role="status"></p><div class="wallet-actions"><button type="button" data-close>Cancel</button><button type="submit">Save Item</button></div></form>';
+ const form=dialog.querySelector('form');form.querySelector('[name=recurring]').onchange=ev=>{form.querySelector('.recurrence-fields').hidden=!ev.target.checked;};form.onsubmit=async event=>{event.preventDefault();if(saving)return;const values=Object.fromEntries(new FormData(form));const taskLines=values.tasks.split('\n').filter(t=>t.trim());values.recurring=!!values.recurring;if(!values.recurring){values.startDate='';values.endDate='';}else{values.startDate=values.startDate||values.date;if(!values.startDate||values.endDate&&values.endDate<values.startDate){dialog.querySelector('#entryStatus').textContent='Check the start and end dates.';return;}}const updated={...x,...values,name:values.name.trim(),amount:values.amount===''?null:Number(values.amount),tasks:taskLines.map(text=>({text,done:(x.tasks||[]).some(t=>t.text===text&&t.done)})),id:x.id||crypto.randomUUID()};const dest=key||({ 'My Space':'projects',Savings:'savings',IOU:'iou'}[values.category]||'items');const msg=dialog.querySelector('#entryStatus');saving=true;form.querySelector('button[type=submit]').disabled=true;logout.disabled=true;try{const current=generation,access=token,file=dataId;await navigator.locks.request('wallet-room-data:'+folderId,async()=>{const data=await readData(access,current,file);if(JSON.stringify(data[dest]||[])!==JSON.stringify(walletData[dest]||[]))throw Error('Records changed elsewhere. Please sign in again.');const arr=data[dest]||[];if(e)arr[index]=updated;else arr.push(updated);data[dest]=arr;await drive('upload/drive/v3/files/'+encodeURIComponent(file)+'?uploadType=media&fields=id',access,current,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});walletData=data;});dialog.close();setView(viewName);}catch(err){msg.textContent=err.message;}finally{saving=false;logout.disabled=false;form.querySelector('button[type=submit]').disabled=false;}};
  if(!dialog.open)dialog.showModal();
 }
-mainPage.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;if(d.view)setView(d.view);else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
+mainPage.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;if(d.view)setView(d.view);else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
 dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
  if(b.hasAttribute('data-close'))dialog.close();
- else if(d.edit){const [k,i]=d.edit.split(':');openEntry(k,Number(i),true);}
+ else if(d.edit){const [k,i]=d.edit.split(':');openEntry(k,Number(i),true);}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}
  else if(w&&b.hasAttribute('data-picker-toggle')){
  const p=w.querySelector('.wallet-picker-options'),was=p.hidden;closePickers();if(!was)return;const v=w.querySelector('input[type=hidden]').value,n=w.dataset.pickerName;
- if(n==='date'){const dt=v?new Date(v.slice(0,10)+'T12:00:00'):new Date();const date=Number.isNaN(dt.getTime())?new Date():dt;fillDate(p,date.getFullYear(),date.getMonth());}
+ if(['date','startDate','endDate'].includes(n)){const dt=v?new Date(v.slice(0,10)+'T12:00:00'):new Date();const date=Number.isNaN(dt.getTime())?new Date():dt;fillDate(p,date.getFullYear(),date.getMonth());}
  else if(n==='time')fillTime(p,v);
  p.hidden=false;b.setAttribute('aria-expanded','true');
- }else if(w&&d.choice!==undefined)choosePicker(w,d.choice);
+ }else if(w&&d.choice!==undefined){choosePicker(w,d.choice);if(w.dataset.pickerName==='category'){const sf=dialog.querySelector('#subjectField');if(sf)sf.hidden=d.choice!=='My Space';}}
  else if(w&&d.pickerMonth){const p=w.querySelector('.wallet-picker-options'),dt=new Date(Number(p.dataset.year),Number(p.dataset.month)+Number(d.pickerMonth),1);fillDate(p,dt.getFullYear(),dt.getMonth());}
  else if(w&&b.hasAttribute('data-time-set')){const h=w.querySelector('[data-hour]'),m=w.querySelector('[data-minute]');if(h.value===''||m.value==='')return;if(!h.reportValidity()||!m.reportValidity())return;choosePicker(w,String(h.value).padStart(2,'0')+':'+String(m.value).padStart(2,'0'));}
 });
