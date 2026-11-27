@@ -131,6 +131,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-form input:not([type=checkbox]),.wallet-form textarea,.wallet-form select,.wallet-form button.wallet-picker-button { border:1px solid #d3e2e5; border-radius:12px; padding:12px; background:var(--paper); font:inherit; color:inherit; width:100%; min-width:0; }
 .wallet-picker { display:flex; flex-direction:column; gap:5px; min-width:0; }
 .wallet-form button.wallet-picker-button { justify-content:space-between; text-align:left; gap:5px; }
+.wallet-form select { appearance:none; padding-right:32px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 22'%3E%3Cpath d='M3 4 L15 18 L27 4 Z' fill='%238ebacb' stroke='%238ebacb' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; background-size:1.4em 1em; }
 .wallet-picker-button svg.wallet-field-icon { width:18px; height:18px; fill:none; stroke-width:2.5; stroke-linecap:round; }
 .wallet-picker-options { background:white; border:1px solid #8ebacb; border-radius:12px; padding:12px; box-shadow:0 5px 15px #194b5910; min-width:0; }
 .wallet-dialog button.wallet-choice { background:transparent; border-radius:7px; display:flex; width:100%; justify-content:flex-start; padding:7px; text-align:left; }
@@ -243,7 +244,7 @@ const itemOrderKey=e=>isSpace(e)?String(e.item.id||seriesKey(e)):seriesKey(e);
 const ordered=es=>es.slice().sort((a,b)=>String(dateOf(a.item)).localeCompare(String(dateOf(b.item))));
 const currentMonth=()=>{const m=walletData?.settings?.budgetMonth;if(/^\d{4}-\d{2}$/.test(m||''))return m;const open=all().filter(e=>dueBill(e)&&!isPaid(e)&&monthKey(dateOf(e.item))&&monthKey(dateOf(e.item))<=actualMonth()).map(e=>monthKey(dateOf(e.item))).sort();return open[0]||actualMonth();};
 const isInactive=e=>e.key==='records'||e.item.active===false||['completed','cancelled','inactive','carried forward'].includes(stateOf(e))||(isPaid(e)&&dateOf(e.item).slice(0,10)<today())||(!isSpace(e)&&!dueBill(e)&&!e.item.recurring&&dateOf(e.item)&&monthKey(dateOf(e.item))<currentMonth());
-const statusLabel=e=>isSpace(e)?(['saved',''].includes(stateOf(e))?'In Progress':e.item.status):excluded(e)?e.item.status:dueBill(e)?isPaid(e)?'Paid':'Unpaid':(e.item.recurring||importedBase(e))?'Ongoing':isInactive(e)?'Completed':'';
+const statusLabel=e=>isSpace(e)?(['saved',''].includes(stateOf(e))?'In Progress':e.item.status):excluded(e)?e.item.status:dueBill(e)?isPaid(e)?'Paid':'Unpaid':(e.item.recurring||importedBase(e))?'In progress':isInactive(e)?'Completed':'';
 function seriesFor(e,entries=all()){
  if(e.item.seriesId)return entries.filter(x=>x.item.seriesId===e.item.seriesId);
  const candidates=entries.filter(x=>seriesKey(x)===seriesKey(e));
@@ -468,14 +469,15 @@ function recordRows(items,entries){
   if(seen.has(id))continue;seen.add(id);
   const members=info.members.filter(x=>isInactive(x)===isInactive(e));
   const chosen=members.find(x=>monthKey(dateOf(x.item))===currentMonth())||members.at(-1)||e;
-  const st=info.recurring&&!isInactive(e)?'Ongoing':statusLabel(chosen);
+  const st=info.recurring&&!isInactive(e)?'In progress':statusLabel(chosen);
   const date=info.recurring?(info.end||info.start):dateOf(chosen.item);
-  const dateGroup=info.recurring&&!info.end?'Ongoing':tableDate(date)||'No date';
-  const group=recordsMode==='By Event'?categoryOf(e):[...new Set([st||'No status',dateGroup])].join(' · ');
-  const html='<button type="button" class="entry-row record-summary"'+(recordsMode==='By Event'?dragAttr(e):'')+' data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(date))+'</small><small>'+esc(st)+'</small>'+accounting(amountOf(chosen.item))+'</button>';
+  const dateGroup=info.recurring?'Recurring':monthKey(date)||'No date';
+  const group=recordsMode==='By Event'?categoryOf(e):dateGroup;
+  const html='<button type="button" class="entry-row record-summary"'+(recordsMode==='By Event'?dragAttr(e):'')+' data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(date)||'No date')+'</small><small>'+esc(st)+'</small>'+accounting(amountOf(chosen.item))+'</button>';
   if(!groups.has(group))groups.set(group,[]);groups.get(group).push(html);
  }
- return [...groups].map(([k,rs])=>'<div class="record-date-group"><strong>'+esc(k)+'</strong>'+rs.join('')+'</div>').join('');
+ const rows=[...groups];if(recordsMode==='By Date'){const rank=k=>k==='No date'?0:k==='Recurring'?1:2;rows.sort((a,b)=>rank(a[0])-rank(b[0])||a[0].localeCompare(b[0]));}
+ return rows.map(([k,rs])=>'<div class="record-date-group"><strong>'+esc(recordsMode==='By Date'&&/^\d{4}-\d{2}$/.test(k)?tableDate(k+'-01'):k)+'</strong>'+rs.join('')+'</div>').join('');
 }
 function setView(view){
  viewName=view;
@@ -550,11 +552,11 @@ function showSeries(key,index){
  if(key==='savings'){showSavings(index);return;}
  if(key==='iou'){showIOU(key,index);return;}
  const x=e.item, frequency=x.frequency||(importedBase(e)?'Monthly':'Recurring');
- openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-edit="'+key+':'+index+'">Edit</button><button data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(e))+' · '+esc(x.group||'')+'</p><p>'+esc(frequency)+' · '+esc(tableDate(info.start))+' – '+esc(tableDate(info.end)||'Ongoing')+'</p><div class="wallet-row"><span>Amount</span>'+accounting(amountOf(x))+'</div>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p><button type="button" data-schedule="'+key+':'+index+'">Payment schedule</button>');
+ openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-edit="'+key+':'+index+'">Edit</button><button data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(e))+' · '+esc(x.group||'')+'</p><p>'+esc(frequency)+' · '+esc(tableDate(info.start)||'No date')+' – '+esc(tableDate(info.end)||'In progress')+'</p><div class="wallet-row"><span>Amount</span>'+accounting(amountOf(x))+'</div>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p><button type="button" data-schedule="'+key+':'+index+'">Payment schedule</button>');
 }
 function showSchedule(key,index){
  const e={key,index,item:list(key)[index]};if(!e.item)return;const info=seriesInfo(e);
- openDialog(dialogHead(nameOf(e.item))+'<p>'+esc(e.item.frequency||'Monthly')+'</p>'+info.members.filter(hasAmount).slice().reverse().map(x=>'<button type="button" class="entry-row" data-entry="'+x.key+':'+x.index+'"><span>'+esc(displayDate(dateOf(x.item)))+'</span><span>'+esc(statusLabel(x))+'</span>'+accounting(amountOf(x.item))+'</button>').join(''));
+ openDialog(dialogHead(nameOf(e.item))+'<p>'+esc(e.item.frequency||'Monthly')+'</p>'+info.members.filter(hasAmount).slice().reverse().map(x=>'<button type="button" class="entry-row" data-entry="'+x.key+':'+x.index+'"><span>'+esc(displayDate(dateOf(x.item))||'No date')+'</span><span>'+esc(statusLabel(x))+'</span>'+accounting(amountOf(x.item))+'</button>').join(''));
 }
 const inputField=(label,n,v='',type='text',attrs='')=>'<label>'+esc(label)+'<input name="'+n+'" type="'+type+'" value="'+esc(v)+'" '+attrs+'></label>';
 const textField=(label,n,v='',rows=3)=>'<label>'+esc(label)+'<textarea name="'+n+'" rows="'+rows+'">'+esc(v)+'</textarea></label>';
@@ -587,7 +589,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   if(key==='projects'){showProject(index);return;}
   if(key==='iou'){showIOU(key,index);return;}
   if(key==='savings'){showSavings(index);return;}
-  openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button><button type="button" data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(ref))+(x.group?' · '+esc(x.group):'')+'</p><p class="muted">'+esc(displayDate(dateOf(x)))+(x.time?' · '+esc(x.time):'')+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<div class="wallet-row"><span>'+esc(ref?statusLabel(ref):'')+'</span>'+accounting(amountOf(x))+'</div><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+(x.contact?'<p>'+esc(x.contact)+'</p>':'')+(x.website?'<p>'+esc(x.website)+'</p>':'')+(x.tasks||[]).map(t=>'<p>'+esc(typeof t==='string'?t:t.text||t.subject||'')+'</p>').join('')+(info.recurring?'<button data-schedule="'+key+':'+index+'">Payment schedule</button>':''));
+  openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button><button type="button" data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(ref))+(x.group?' · '+esc(x.group):'')+'</p><p class="muted">'+esc(displayDate(dateOf(x))||'No date')+(x.time?' · '+esc(x.time):'')+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<div class="wallet-row"><span>'+esc(ref?statusLabel(ref):'')+'</span>'+accounting(amountOf(x))+'</div><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+(x.contact?'<p>'+esc(x.contact)+'</p>':'')+(x.website?'<p>'+esc(x.website)+'</p>':'')+(x.tasks||[]).map(t=>'<p>'+esc(typeof t==='string'?t:t.text||t.subject||'')+'</p>').join('')+(info.recurring?'<button data-schedule="'+key+':'+index+'">Payment schedule</button>':''));
   return;
  }
  const c=ref?categoryOf(ref):'Expense',frequency=x.frequency||(info.recurring?'Monthly':'None');
@@ -621,7 +623,9 @@ function openEntry(key,index,edit=false,presetDate=''){
   const amount=v.amount==null||v.amount===''?null:Number(v.amount);
   const date=v.date||'',week={};
   if(!name)return;
-  if(category!=='My Space'&&(!validDate(date)||amount===null&&!(recurring&&v.frequency==='Weekly')||category==='IOU'&&amount<=0)){showError(Error('Enter a date and amount.'));return;}
+  if(date&&!validDate(date)){showError(Error('Check the date.'));return;}
+  if(category!=='My Space'&&(amount===null&&!(recurring&&v.frequency==='Weekly')||category==='IOU'&&amount<=0)){showError(Error('Enter an amount.'));return;}
+  if(!date&&recurring&&e&&info.recurring&&dateOf(x)&&v.scope==='future'){showError(Error('Set a date for future recurring payments.'));return;}
   if(amount!==null&&!Number.isFinite(amount)){showError(Error('Check the amount.'));return;}
   if(recurring&&v.endDate&&(!validDate(v.endDate)||v.endDate<date)){showError(Error('Check the end date.'));return;}
   if(recurring&&v.frequency==='Weekly'){
@@ -644,7 +648,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   updated.recurring=recurring;updated.frequency=recurring?v.frequency:'None';updated.endDate=recurring?v.endDate||'':'';updated.weekdays=week;
   const match=all().find(a=>a.key==='items'&&categoryOf(a)===category&&(a.item.group||'')===group&&nameOf(a.item)===name&&seriesInfo(a).recurring&&!excluded(a)&&!isPaid(a)&&dateOf(a.item)>=date);
   let replace=null;
-  if(!e&&recurring&&match){
+  if(!e&&recurring&&date&&match){
    const choice=prompt('Recurring bill already exists. Enter 1 to update existing bill, 2 to create a separate recurring bill, or Cancel.');
    if(choice===null)return;if(choice==='1')replace=match;else if(choice!=='2'){showError(Error('Select 1 or 2.'));return;}
   }
@@ -653,19 +657,20 @@ function openEntry(key,index,edit=false,presetDate=''){
    debtMatch=all().find(a=>a.key==='iou'&&!isPaid(a)&&!excluded(a)&&(a.item.group||'')===group&&nameOf(a.item)===name);
    if(debtMatch){const choice=prompt('Existing IOU found. Enter 1 to update the balance, 2 to add to the balance, or Cancel.');if(choice===null)return;if(choice==='1')debtMode='replace';else if(choice!=='2'){showError(Error('Select 1 or 2.'));return;}}
   }
-  if(category==='IOU'&&date<today()&&!e){if(!confirm('Has this payment been cleared?'))return;updated.paid=true;updated.status='Paid';}
+  if(category==='IOU'&&date&&date<today()&&!e){if(!confirm('Has this payment been cleared?'))return;updated.paid=true;updated.status='Paid';}
   try{
    await commitWallet(data=>{
     data[dest]??=[];
     if(debtMatch){adjustDebt(data,debtMatch.item,amount,date,debtMode,updated.paid);return;}
-    if((e&&info.recurring&&key==='items'&&dest==='items'&&v.scope==='future')||replace){
+    if((date&&e&&info.recurring&&key==='items'&&dest==='items'&&v.scope==='future'&&dateOf(x))||replace){
      const original=replace||ref,series=cutRecurring(data,original,date);
      if(recurring)newRule(data,updated,series);else{delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;updated.id=crypto.randomUUID();data.items.push(updated);}
-    }else if(!e&&recurring){
-     newRule(data,updated);
+    }else if(recurring&&date&&(!e||!dateOf(x)&&!x.ruleId||key!=='items')){
+     if(e){if(key==='projects')removeProjectLinks(data,x.id);data[key].splice(index,1);}
+     newRule(data,updated,x.seriesId);
     }else if(e){
      if(dest!==key){if(key==='projects')removeProjectLinks(data,x.id);if(x.ruleId){data.settings??={};data.settings.suppressedOccurrences??=[];data.settings.suppressedOccurrences.push(x.id);}data[key].splice(index,1);delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;data[dest].push(updated);}
-     else{if(info.recurring&&key==='items'){updated.recurring=true;updated.frequency=x.frequency||frequency;updated.endDate=x.endDate||'';updated.weekdays=x.weekdays||{};}data[key][index]=updated;}
+     else{if(info.recurring&&key==='items'&&dateOf(x)){updated.recurring=true;updated.frequency=x.frequency||frequency;updated.endDate=x.endDate||'';updated.weekdays=x.weekdays||{};}data[key][index]=updated;}
     }else data[dest].push(updated);
     if(dest==='projects')syncProjectBudget(data,updated);
    });
@@ -819,16 +824,16 @@ function takePlan(plan,amount,preferred){
 function rescheduleDebt(data,seed,selectedMonth,date,amount,markPaid,openMonth){
  const old=activeDebt(data,seed),plan=debtPlan(old),selected=plan.get(selectedMonth);
  if(!selected)throw Error('Repayment no longer exists.');
- if(!validDate(date)||!Number.isFinite(amount)||amount<=0||amount>debtTotal(old)+.00001)throw Error('Check the repayment date and amount.');
+ if(date&&!validDate(date)||!Number.isFinite(amount)||amount<=0||amount>debtTotal(old)+.00001)throw Error('Check the repayment date and amount.');
  plan.delete(selectedMonth);
  const difference=roundMoney(selected.amount-amount);
- if(difference>0){const next=[shiftMonth(monthKey(date),1),openMonth].sort().at(-1);addPlan(plan,monthDate(next,date.slice(8,10)),difference);}
+ if(difference>0){if(!date)addPlan(plan,'',difference);else{const next=[shiftMonth(monthKey(date),1),openMonth].sort().at(-1);addPlan(plan,monthDate(next,date.slice(8,10)),difference);}}
  else if(difference<0)takePlan(plan,-difference,monthKey(date));
  if(!markPaid)addPlan(plan,date,amount);
  consolidateDebt(data,seed,plan,old,markPaid?{date,amount}:null);
 }
 function adjustDebt(data,seed,amount,date,mode,markPaid=false){
- if(!validDate(date)||!Number.isFinite(amount)||amount<0)throw Error('Check the amount and date.');
+ if(date&&!validDate(date)||!Number.isFinite(amount)||amount<0)throw Error('Check the amount and date.');
  const old=activeDebt(data,seed),plan=debtPlan(old),total=debtTotal(old),difference=mode==='replace'?roundMoney(amount-total):amount;
  if(markPaid)throw Error('Use the repayment schedule to record an earlier payment.');
  if(difference>0)addPlan(plan,date,difference);
@@ -837,17 +842,17 @@ function adjustDebt(data,seed,amount,date,mode,markPaid=false){
 }
 function showIOU(key,index){
  const x=list(key)[index];if(!x)return;const members=list('iou').filter(a=>sameDebt(a,x)),old=members.filter(a=>!rawPaid(a)&&!rawExcluded(a)),plan=debtPlan(old);
- openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-debt-adjust="'+index+'">Edit balance</button><button data-delete="'+key+':'+index+'">Delete</button></div></div><div class="wallet-row"><strong>Outstanding</strong>'+accounting(debtTotal(old))+'</div><h3>Repayment plan</h3>'+([...plan].sort((a,b)=>a[0].localeCompare(b[0])).map(([m,p])=>'<button class="entry-row" data-debt-month="'+index+':'+m+'"><span>'+esc(tableDate(p.date))+'</span>'+accounting(p.amount)+'</button>').join('')||'<p class="muted">No outstanding repayments.</p>')+'<h3>Paid</h3>'+members.filter(rawPaid).sort((a,b)=>dateOf(b).localeCompare(dateOf(a))).map(a=>'<div class="wallet-row"><span>'+esc(tableDate(dateOf(a)))+'</span>'+accounting(amountOf(a))+'</div>').join('')+'<p>'+esc(x.notes||'')+'</p>');
+ openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-debt-adjust="'+index+'">Edit balance</button><button data-delete="'+key+':'+index+'">Delete</button></div></div><div class="wallet-row"><strong>Outstanding</strong>'+accounting(debtTotal(old))+'</div><h3>Repayment plan</h3>'+([...plan].sort((a,b)=>a[0].localeCompare(b[0])).map(([m,p])=>'<button class="entry-row" data-debt-month="'+index+':'+m+'"><span>'+esc(tableDate(p.date)||'No date')+'</span>'+accounting(p.amount)+'</button>').join('')||'<p class="muted">No outstanding repayments.</p>')+'<h3>Paid</h3>'+members.filter(rawPaid).sort((a,b)=>dateOf(b).localeCompare(dateOf(a))).map(a=>'<div class="wallet-row"><span>'+esc(tableDate(dateOf(a)))+'</span>'+accounting(amountOf(a))+'</div>').join('')+'<p>'+esc(x.notes||'')+'</p>');
 }
 function editDebtMonth(index,ym){
  const seed=list('iou')[index];if(!seed)return;const p=debtPlan(activeDebt(walletData,seed)).get(ym);if(!p)return;
  openDialog(dialogHead('Repayment')+'<form class="wallet-form">'+inputField('Amount (RM)','amount',p.amount,'number','required min="0.01" step="any"')+picker('Date','date',p.date)+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="submit">Save</button></div></form>');
- const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form)),date=v.date,amount=Number(v.amount);const past=date<today();if(past&&!confirm('Has this payment been cleared?'))return;try{await commitWallet(data=>rescheduleDebt(data,seed,ym,date,amount,past,currentMonth()));closeRefresh();}catch(err){showError(err);}};
+ const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form)),date=v.date,amount=Number(v.amount);const past=!!date&&date<today();if(past&&!confirm('Has this payment been cleared?'))return;try{await commitWallet(data=>rescheduleDebt(data,seed,ym,date,amount,past,currentMonth()));closeRefresh();}catch(err){showError(err);}};
 }
 function editDebtBalance(index){
  const seed=list('iou')[index];if(!seed)return;const total=debtTotal(activeDebt(walletData,seed));
  openDialog(dialogHead('IOU balance')+'<div class="wallet-row"><span>Outstanding</span>'+accounting(total)+'</div><form class="wallet-form">'+selectField('Action','mode',[['replace','Update existing balance'],['add','Add to existing balance']],'replace')+inputField('Amount (RM)','amount',total,'number','required min="0" step="any"')+picker('Repayment date','date',monthDate(currentMonth(),28))+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="submit">Save</button></div></form>');
- const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form));if(!v.date||monthKey(v.date)<currentMonth()){showError(Error('Select an open or future budget month.'));return;}try{await commitWallet(data=>adjustDebt(data,seed,Number(v.amount),v.date,v.mode));closeRefresh();}catch(err){showError(err);}};
+ const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form));if(v.date&&monthKey(v.date)<currentMonth()){showError(Error('Select an open or future budget month.'));return;}try{await commitWallet(data=>adjustDebt(data,seed,Number(v.amount),v.date,v.mode));closeRefresh();}catch(err){showError(err);}};
 }
 function showSavings(index,ym=currentMonth()){
  const x=list('savings')[index];if(!x)return;
