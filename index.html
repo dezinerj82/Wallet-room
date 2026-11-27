@@ -168,8 +168,11 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-form .record-grid { flex:none; }
 .calendar-event.extra { background:var(--extra-bill); }
 .wallet-form .recurrence-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--gap); align-content:start; }
-.wallet-form #weeklyField { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); }
+.wallet-form #weeklyField { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:var(--gap); }
 .wallet-form #weeklyField input[type=checkbox] { accent-color:var(--orange); }
+.wallet-form #weeklyField input[type=number] { padding-inline:calc(10 * var(--unit)); }
+.wallet-form input[type=number] { appearance:textfield; -moz-appearance:textfield; }
+.wallet-form input[type=number]::-webkit-inner-spin-button,.wallet-form input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
 .wallet-form [data-contract-row] > .wallet-row { align-items:flex-end; }
 .wallet-form button[data-contract-remove] { background:transparent; align-self:flex-end; margin-bottom:8px; padding:5px; }
 .wallet-form button[data-contract-remove] svg { width:1.4em; height:1.4em; stroke:#8ebacb; stroke-width:5; stroke-linecap:round; fill:none; }
@@ -194,7 +197,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 @keyframes walletSaving { from { transform:translateX(-100%); } to { transform:translateX(285%); } }
 @media(prefers-reduced-motion:reduce){.wallet-form .save-progress > span{animation:none;width:100%;}}
 .wallet-form .wallet-choice[data-add-option] { background:var(--orange); justify-content:center; border-radius:9999px; }
-@media(max-width:600px){.wallet-form .recurrence-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }.wallet-form #weeklyField { grid-template-columns:repeat(3,minmax(0,1fr)); }.wallet-dialog:has(#walletEntry) { width:94vw; }} 
+@media(max-width:600px){.wallet-form .recurrence-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }.wallet-form #weeklyField { grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; }.wallet-dialog:has(#walletEntry) { width:94vw; }} 
 @media (max-width:768px) {
  #loginCard { --unit:min(100vw / 412, 100dvh / 891, 1px); width:min(100%,calc(530 * var(--unit))); min-height:calc(390 * var(--unit)); }
  #mainPage { height:calc(891 * var(--unit) - 2 * var(--page)); max-width:100%; align-self:center; }
