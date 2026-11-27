@@ -247,7 +247,7 @@ const shiftMonth=(ym,n)=>dayKey(new Date(Number(ym.slice(0,4)),Number(ym.slice(5
 const lastDay=ym=>dayKey(new Date(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0));
 const isBalance=e=>e.key==='savings'&&e.item.kind==='balance';
 const importedBase=e=>e.key==='items'&&e.item.source?.file==='EXPENSE.xlsx'&&e.item.source?.column!==29&&e.item.recurring!==false&&!e.item.carryOf;
-const baseBill=e=>categoryOf(e)==='Expense'&&!isSpace(e)&&!e.item.serviceEvent&&!e.item.serviceSchedule&&!e.item.carryOf&&(importedBase(e)||e.item.recurring===true);
+const baseBill=e=>categoryOf(e)==='Expense'&&!isSpace(e)&&!e.item.serviceEvent&&!e.item.carryOf&&(typeof e.item.mainBill==='boolean'?e.item.mainBill:!e.item.serviceSchedule&&(importedBase(e)||e.item.recurring===true));
 const hasAmount=e=>amountOf(e.item)!=null&&amountOf(e.item)!==''&&Number.isFinite(Number(amountOf(e.item)))&&Number(amountOf(e.item))!==0;
 const scheduledBill=e=>!isSpace(e)&&e.key!=='records'&&['Expense','IOU'].includes(categoryOf(e))&&!excluded(e)&&!(importedBase(e)&&Number(amountOf(e.item))===0&&amountOf(e.item)!=null);
 const dueBill=e=>scheduledBill(e)&&hasAmount(e);
@@ -630,7 +630,7 @@ function showSeries(key,index){
  if(key==='savings'){showSavings(index);return;}
  if(key==='iou'){showIOU(key,index);return;}
  const x=e.item, frequency=recurrenceLabel(x,importedBase(e)?'Monthly':'Recurring');
- openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-edit="'+key+':'+index+'">Edit</button><button data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(e))+' · '+esc(x.group||'')+'</p><p>'+esc(frequency)+' · '+esc(tableDate(info.start)||'No date')+' – '+esc(tableDate(info.end)||'In progress')+'</p><div class="wallet-row"><span>Amount</span>'+accounting(amountOf(x))+'</div>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p><button type="button" data-schedule="'+key+':'+index+'">Payment schedule</button>');
+ openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-edit="'+key+':'+index+'">Edit</button><button data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(e))+(x.group?' · '+esc(x.group):'')+(categoryOf(e)==='Expense'?(baseBill(e)?' · Main bill':' · Extra bill'):'')+'</p><p>'+esc(frequency)+' · '+esc(tableDate(info.start)||'No date')+' – '+esc(tableDate(info.end)||'In progress')+'</p><div class="wallet-row"><span>Amount</span>'+accounting(amountOf(x))+'</div>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p><button type="button" data-schedule="'+key+':'+index+'">Payment schedule</button>');
 }
 function showSchedule(key,index){
  const e={key,index,item:list(key)[index]};if(!e.item)return;const info=seriesInfo(e);
@@ -676,7 +676,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   if(key==='projects'){showProject(index);return;}
   if(key==='iou'){showIOU(key,index);return;}
   if(key==='savings'){showSavings(index);return;}
-  openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button><button type="button" data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(ref))+(x.group?' · '+esc(x.group):'')+'</p><p class="muted">'+esc(displayDate(dateOf(x))||'No date')+(x.time?' · '+esc(x.time):'')+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<div class="wallet-row"><span>'+esc(ref?statusLabel(ref):'')+'</span>'+accounting(amountOf(x))+'</div><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+(x.contact?'<p>'+esc(x.contact)+'</p>':'')+(x.website?'<p>'+esc(x.website)+'</p>':'')+(x.tasks||[]).map(t=>'<p>'+esc(typeof t==='string'?t:t.text||t.subject||'')+'</p>').join('')+(info.recurring?'<button data-schedule="'+key+':'+index+'">Payment schedule</button>':''));
+  openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button><button type="button" data-delete="'+key+':'+index+'">Delete</button></div></div><p>'+esc(categoryOf(ref))+(x.group?' · '+esc(x.group):'')+(categoryOf(ref)==='Expense'?(baseBill(ref)?' · Main bill':' · Extra bill'):'')+'</p><p class="muted">'+esc(displayDate(dateOf(x))||'No date')+(x.time?' · '+esc(x.time):'')+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<div class="wallet-row"><span>'+esc(ref?statusLabel(ref):'')+'</span>'+accounting(amountOf(x))+'</div><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+(x.contact?'<p>'+esc(x.contact)+'</p>':'')+(x.website?'<p>'+esc(x.website)+'</p>':'')+(x.tasks||[]).map(t=>'<p>'+esc(typeof t==='string'?t:t.text||t.subject||'')+'</p>').join('')+(info.recurring?'<button data-schedule="'+key+':'+index+'">Payment schedule</button>':''));
   return;
  }
  const c=ref?categoryOf(ref):'Expense',frequency=x.frequency||(info.recurring?'Monthly':'None');
@@ -692,7 +692,7 @@ function openEntry(key,index,edit=false,presetDate=''){
  '<div id="weeklyField" class="wallet-form">'+weekdays.map((d,i)=>'<div class="wallet-row"><label><span><input type="checkbox" name="week'+i+'" '+(Object.hasOwn(x.weekdays||{},i)?'checked':'')+'> '+d+'</span></label>'+inputField('Price (RM)','price'+i,x.weekdays?.[i]??'','number','min="0" step="any"')+'</div>').join('')+'</div>'+
  '<div id="endField">'+picker('End date','endDate',info.end||x.endDate||'')+'</div>'+
  '<div id="scopeField">'+selectField('Apply change','scope',[['one','This payment only'],['future','This and future payments']],'one')+'</div>'+
- '<div id="expenseFields" class="wallet-form">'+selectField('Savings','savingsAccount',[['','—'],...accounts.map(a=>[a,a])],x.savingsAccount||'')+
+ '<div id="expenseFields" class="wallet-form"><label><span><input type="checkbox" name="mainBill" '+(ref&&baseBill(ref)?'checked':'')+'> Main bill</span></label>'+selectField('Savings','savingsAccount',[['','—'],...accounts.map(a=>[a,a])],x.savingsAccount||'')+
  '<div class="record-grid">'+picker('Last service date','serviceDate',x.serviceDate||'')+inputField('Service every (months)','serviceMonths',x.serviceMonths||'','number','min="1" max="1200" step="1"')+'</div>'+'<div class="record-grid">'+inputField('Reminder (before)','reminderValue',x.reminderValue??x.reminderDays??'','number','min="0" step="1"')+selectField('Unit','reminderUnit',[['Days','Days'],['Months','Months']],x.reminderUnit||'Days')+'</div>'+'</div>'+
  '<div id="notesField">'+textField('Notes','notes',x.notes||'')+'</div>'+
  '<div id="spaceFields" class="wallet-form">'+inputField('Contact','contact',x.contact||'')+inputField('Website','website',x.website||'')+(e?'':'<div id="projectSuggestions"></div>'+textField('Subtask — Note','spaceNotes',''))+'</div>'+
@@ -724,7 +724,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   }
   const updated={...x,id:x.id||crypto.randomUUID(),category,group,name,date,amount};
   if(['Expense','My Space'].includes(category)){updated.subject=v.subject||'';updated.time=v.time||'';}
-  if(category==='Expense'){updated.status=v.expenseStatus;updated.paid=v.expenseStatus==='Paid';updated.notes=v.notes||'';updated.savingsAccount=v.savingsAccount||'';updated.serviceDate=v.serviceDate||'';updated.serviceMonths=v.serviceMonths?Number(v.serviceMonths):null;updated.serviceSchedule=!!(x.serviceSchedule||form.dataset.serviceChanged==='true')&&!!serviceNext(updated.serviceDate,updated.serviceMonths);updated.reminderValue=v.reminderValue===''?null:Number(v.reminderValue);updated.reminderUnit=v.reminderUnit||'Days';updated.reminderDays=updated.reminderUnit==='Days'?updated.reminderValue:null;}
+  if(category==='Expense'){updated.mainBill=!!v.mainBill;updated.status=v.expenseStatus;updated.paid=v.expenseStatus==='Paid';updated.notes=v.notes||'';updated.savingsAccount=v.savingsAccount||'';updated.serviceDate=v.serviceDate||'';updated.serviceMonths=v.serviceMonths?Number(v.serviceMonths):null;updated.serviceSchedule=!!(x.serviceSchedule||form.dataset.serviceChanged==='true')&&!!serviceNext(updated.serviceDate,updated.serviceMonths);updated.reminderValue=v.reminderValue===''?null:Number(v.reminderValue);updated.reminderUnit=v.reminderUnit||'Days';updated.reminderDays=updated.reminderUnit==='Days'?updated.reminderValue:null;}
   else if(category==='My Space'){
    updated.status=e&&key==='projects'&&['Completed','Cancelled'].includes(x.status)?x.status:v.spaceStatus||'In Progress';updated.createdAt=x.createdAt||(!e?today():'');
    updated.tasks=normalizedTasks(x);
@@ -735,6 +735,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   }else if(category==='Savings'){updated.notes=v.notes||'';if(!e)updated.kind='contribution';delete updated.status;delete updated.paid;}
   else if(category==='IOU'){updated.notes=v.notes||'';updated.status=isPaid(ref||{item:{}})?'Paid':'Unpaid';updated.paid=updated.status==='Paid';updated.debtId=x.debtId||crypto.randomUUID();}
   else{delete updated.status;delete updated.paid;}
+  if(category!=='Expense')delete updated.mainBill;
   updated.recurring=recurring;updated.interval=interval;updated.frequency=recurring?v.frequency:'None';updated.endDate=recurring?v.endDate||'':'';updated.weekdays=week;
   const match=all().find(a=>a.key==='items'&&categoryOf(a)===category&&(a.item.group||'')===group&&nameOf(a.item)===name&&seriesInfo(a).recurring&&!excluded(a)&&!isPaid(a)&&dateOf(a.item)>=date);
   let replace=null;
