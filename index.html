@@ -120,10 +120,13 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .calendar-cell[data-add-date] { cursor:pointer; }
 .calendar-hours { display:grid; grid-template-columns:3.5em repeat(var(--days),minmax(0,1fr)); gap:1px; background:#e8eeee; }
 .calendar-hours > div { background:white; min-width:0; padding:.3em; min-height:3em; }
-.wallet-dialog { position:fixed; border:1px solid #ab96c6; border-radius:var(--radius); color:var(--teal); background:#fff; width:min(90vw,42em); max-height:85dvh; padding:var(--card); font:inherit; }
+.wallet-dialog { position:fixed; inset:0; z-index:100; border:1px solid #ab96c6; border-radius:var(--radius); color:var(--teal); background:#fff; width:min(90vw,30em); max-height:85dvh; padding:var(--card); font:inherit; box-shadow:0 6px 24px #194b5920; overflow:auto; }
+.wallet-dialog:has(form) { width:min(90vw,42em); }
+.wallet-dialog > .wallet-form > .wallet-row:first-child { flex-wrap:wrap; }
+.wallet-dialog .wallet-actions { flex-wrap:wrap; }
 .wallet-dialog > .wallet-form > .wallet-row:first-child { cursor:move; touch-action:none; }
 .wallet-dialog > .wallet-form > .wallet-row:first-child h2 { user-select:none; }
-.wallet-dialog::backdrop { background:#194b5940; }
+.wallet-dialog::backdrop { background:transparent; }
 [data-sort-id],[data-task-sort] { cursor:grab; }
 .drag-source { opacity:.4; }
 .drag-before { box-shadow:inset 0 3px var(--orange)!important; }
@@ -136,14 +139,19 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-form button.wallet-picker-button { justify-content:space-between; text-align:left; gap:5px; }
 .wallet-form select { appearance:none; padding-right:32px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 22'%3E%3Cpath d='M3 4 L15 18 L27 4 Z' fill='%238ebacb' stroke='%238ebacb' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; background-size:1.4em 1em; }
 .wallet-picker-button svg.wallet-field-icon { width:18px; height:18px; fill:none; stroke-width:2.5; stroke-linecap:round; }
-.wallet-picker-options { background:white; border:1px solid #8ebacb; border-radius:12px; padding:12px; box-shadow:0 5px 15px #194b5910; min-width:0; }
+.wallet-picker-options { position:fixed; inset:auto; margin:0; z-index:110; background:white; color:var(--teal); font:inherit; border:1px solid #8ebacb; border-radius:12px; padding:12px; box-shadow:0 5px 15px #194b5920; min-width:0; overflow:auto; max-height:70dvh; }
 .wallet-dialog button.wallet-choice { background:transparent; border-radius:7px; display:flex; width:100%; justify-content:flex-start; padding:7px; text-align:left; }
 .wallet-dialog button.wallet-choice:hover,.wallet-dialog button.wallet-choice[aria-selected="true"] { background:var(--cream); }
 .wallet-date-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:10px; text-align:center; }
 .wallet-dialog .wallet-date-grid button { padding:0; min-width:0; width:fit-content; justify-self:center; font-size:11px; background:transparent; }
 .wallet-dialog .wallet-date-grid button[aria-current="date"] { font-weight:700; text-decoration:underline; }
 .wallet-dialog .wallet-date-grid button:is(:hover,:active,:focus-visible) { box-shadow:none; text-decoration:underline; }
-.wallet-picker-options .wallet-row input[data-manual-month] { padding:4px 2px; text-align:center; width:8em; font-size:11px; }
+.wallet-picker-options .wallet-row input[data-manual-month] { padding:4px 2px; text-align:center; width:10em; font-size:inherit; background:transparent; border:0; font-weight:500; }
+.wallet-date-input { display:flex; align-items:center; gap:5px; border:1px solid #d3e2e5; border-radius:12px; background:var(--paper); }
+.wallet-form .wallet-date-input input { border:0; background:transparent; }
+.wallet-form .wallet-date-input button { background:transparent; flex:none; }
+.wallet-date-input svg { width:18px; height:18px; fill:none; stroke:#8ebacb; stroke-width:2.5; stroke-linecap:round; }
+.wallet-dialog .wallet-picker-options .wallet-choice { min-height:2em; }
 .wallet-form .reconnect-notice { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
 .wallet-form .reconnect-notice span { font-size:10px; opacity:.5; }
 .wallet-time-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
@@ -377,7 +385,15 @@ async function commitWallet(change){
   });
  }finally{saving=false;logout.disabled=reconnecting;refreshReconnect();}
 }
-const openDialog=html=>{dialog.innerHTML='<div class="wallet-form">'+html+'</div>';if(!dialog.open)dialog.showModal();};
+function openWindow(){
+ closePickers();
+ for(const input of dialog.querySelectorAll('input[list]')){
+  input.dataset.suggestions=input.getAttribute('list');input.removeAttribute('list');input.setAttribute('autocomplete','off');
+ }
+ if(!dialog.open)dialog.show();
+ if(dialog.style.left){const r=dialog.getBoundingClientRect();clampPopup(r.left,r.top);}
+}
+const openDialog=html=>{dialog.innerHTML='<div class="wallet-form">'+html+'</div>';openWindow();};
 const dialogHead=heading=>'<div class="wallet-row"><h2>'+esc(heading)+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div>';
 const showError=err=>{if(err.code==='SESSION_EXPIRED'){refreshReconnect();return;}const n=dialog.querySelector('[role=status]:not(.reconnect-notice span)');if(n)n.textContent=err.message;else alert(err.message);};
 const closeRefresh=()=>{dialog.close();setView(viewName);};
@@ -548,27 +564,64 @@ function renderCalendar(entries){
 }
 const pickerIcon=n=>['date','startDate','endDate','serviceDate'].includes(n)?'<svg class="wallet-field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>':n==='time'?'<svg class="wallet-field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg>':triangle('down');
 function picker(label,n,v,choices){
+ if(['date','startDate','endDate','serviceDate'].includes(n))return '<div class="wallet-picker" data-picker-name="'+n+'"><span>'+label+'</span><div class="wallet-date-input"><input type="text" name="'+n+'" value="'+esc(v)+'" placeholder="YYYY-MM-DD" aria-label="'+label+'" data-direct-date pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" autocomplete="off"><button type="button" data-picker-toggle aria-expanded="false" aria-label="Open '+label.toLowerCase()+' calendar">'+pickerIcon(n)+'</button></div><div class="wallet-picker-options" hidden></div></div>';
  return '<div class="wallet-picker" data-picker-name="'+n+'"><span>'+label+'</span><input type="hidden" name="'+n+'" value="'+esc(v)+'"><button type="button" class="wallet-picker-button" data-picker-toggle aria-expanded="false" aria-label="'+label+'"><span>'+esc(v||'Select '+label.toLowerCase())+'</span>'+pickerIcon(n)+'</button><div class="wallet-picker-options" hidden>'+ (choices?choices.map(c=>'<button type="button" class="wallet-choice" aria-selected="'+(c===v)+'" data-choice="'+esc(c)+'">'+esc(c)+'</button>').join(''):'')+'</div></div>';
 }
 function fillDate(p,y,m){
  p.dataset.year=y;p.dataset.month=m;const first=new Date(y,m,1),count=new Date(y,m+1,0).getDate();
- const selected=p.closest('.wallet-picker').querySelector('input[type=hidden]').value;
- p.innerHTML='<div class="wallet-row">'+directionButton('left','data-picker-month="-1"','Previous month')+'<input type="text" data-manual-month aria-label="Year and month (YYYY-MM)" placeholder="YYYY-MM" value="'+dayKey(first).slice(0,7)+'" maxlength="7">'+directionButton('right','data-picker-month="1"','Next month')+'</div><div class="wallet-date-grid">'+['S','M','T','W','T','F','S'].map(d=>'<small>'+d+'</small>').join('')+Array.from({length:first.getDay()},()=>'<span></span>').join('')+Array.from({length:count},(_,i)=>{const d=dayKey(new Date(y,m,i+1));return '<button type="button" data-choice="'+d+'"'+(d===selected?' aria-current="date"':'')+'>'+(i+1)+'</button>';}).join('')+'</div><div class="wallet-actions"><button type="button" data-go-month>Go</button><button type="button" data-choice="">Clear</button></div>';
+ const selected=pickerInput(p.closest('.wallet-picker')).value;
+ p.innerHTML='<div class="wallet-row">'+directionButton('left','data-picker-month="-1"','Previous month')+'<input type="text" data-manual-month aria-label="Year and month" placeholder="2028 July" value="'+esc(monthLabel(first))+'" maxlength="24">'+directionButton('right','data-picker-month="1"','Next month')+'</div><div class="wallet-date-grid">'+['S','M','T','W','T','F','S'].map(d=>'<small>'+d+'</small>').join('')+Array.from({length:first.getDay()},()=>'<span></span>').join('')+Array.from({length:count},(_,i)=>{const d=dayKey(new Date(y,m,i+1));return '<button type="button" data-choice="'+d+'"'+(d===selected?' aria-current="date"':'')+'>'+(i+1)+'</button>';}).join('')+'</div><div class="wallet-actions"><button type="button" data-go-month>Go</button><button type="button" data-choice="">Clear</button></div>';
 }
 function goPickerMonth(p){
- const input=p.querySelector('[data-manual-month]'),v=input.value.trim();
- if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(v)||Number(v.slice(0,4))<1000){input.setCustomValidity('Enter year and month, e.g. 2028-11.');input.reportValidity();input.setCustomValidity('');return;}
- fillDate(p,Number(v.slice(0,4)),Number(v.slice(5,7))-1);
+ const input=p.querySelector('[data-manual-month]'),v=input.value.trim(),parts=v.match(/^(\d{4})[-\s]+([a-z]+|\d{1,2})$/i);
+ const months=['january','february','march','april','may','june','july','august','september','october','november','december'];
+ const y=Number(parts?.[1]),m=parts?(/^\d+$/.test(parts[2])?Number(parts[2])-1:months.findIndex(n=>n===parts[2].toLowerCase()||n.slice(0,3)===parts[2].toLowerCase())):-1;
+ if(!parts||y<1000||m<0||m>11){input.setCustomValidity('Enter year and month, e.g. 2028 July.');input.reportValidity();input.setCustomValidity('');return;}
+ fillDate(p,y,m);
 }
 function fillTime(p,value){
  const parts=(value||'08:00').split(':');
  p.innerHTML='<div class="wallet-time-grid"><label>Hour<input type="number" min="0" max="23" step="1" value="'+esc(parts[0])+'" data-hour></label><label>Minute<input type="number" min="0" max="59" step="1" value="'+esc(parts[1])+'" data-minute></label></div><div class="wallet-actions"><button type="button" data-choice="">Clear</button><button type="button" data-time-set>Set</button></div>';
 }
-function closePickers(){dialog.querySelectorAll('.wallet-picker-options').forEach(p=>{p.hidden=true;p.parentElement.querySelector('[data-picker-toggle]').setAttribute('aria-expanded','false');});}
-function choosePicker(w,value){w.querySelector('input[type=hidden]').value=value;w.querySelector('.wallet-picker-button span').textContent=value||'Select '+w.dataset.pickerName;w.querySelectorAll('.wallet-choice').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.choice===value)));closePickers();w.querySelector('[data-picker-toggle]').focus();}
+function pickerInput(w){return w.querySelector('input[type=hidden],input[data-direct-date]');}
+function hideFloating(p){if(p.matches(':popover-open'))p.hidePopover();p.hidden=true;}
+function positionFloating(p,anchor){
+ const r=anchor.getBoundingClientRect(),w=document.documentElement.clientWidth,h=document.documentElement.clientHeight;
+ p.style.width=Math.min(Math.max(r.width,180),w-16)+'px';p.style.maxHeight=Math.min(360,h-16)+'px';
+ const ph=p.getBoundingClientRect().height,below=h-r.bottom-8,above=r.top-8;
+ p.style.top=Math.max(8,below>=ph||below>=above?r.bottom+6:r.top-ph-6)+'px';p.style.left=Math.max(8,Math.min(r.left,w-p.getBoundingClientRect().width-8))+'px';
+ if(below<ph&&above<ph)p.style.maxHeight=Math.max(80,Math.max(below,above))+'px';
+}
+function showFloating(p,anchor){
+ p.hidden=false;p.setAttribute('popover','manual');
+ if(typeof p.showPopover==='function'&&!p.matches(':popover-open'))p.showPopover();
+ positionFloating(p,anchor);
+}
+function closePickers(){dialog.querySelectorAll('.wallet-picker-options').forEach(p=>{hideFloating(p);p.parentElement.querySelector('[data-picker-toggle]')?.setAttribute('aria-expanded','false');});}
+function choosePicker(w,value){pickerInput(w).value=value;const span=w.querySelector('.wallet-picker-button span');if(span)span.textContent=value||'Select '+w.dataset.pickerName;w.querySelectorAll('.wallet-choice').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.choice===value)));closePickers();w.querySelector('[data-picker-toggle]').focus();}
+function suggestInput(input){
+ const values=[...document.getElementById(input.dataset.suggestions)?.options||[]].map(o=>o.value);
+ const found=values.filter(v=>v.toLowerCase().includes(input.value.toLowerCase())&&v!==input.value);
+ closePickers();if(!found.length)return;
+ let p=input.parentElement.querySelector('[data-suggestion-popup]');
+ if(!p){p=document.createElement('div');p.className='wallet-picker-options';p.dataset.suggestionPopup='';input.after(p);}
+ p.innerHTML=found.map(v=>'<button type="button" class="wallet-choice" data-suggest-value="'+esc(v)+'">'+esc(v)+'</button>').join('');
+ showFloating(p,input);
+}
+dialog.addEventListener('focusin',e=>{if(e.target.matches('input[data-suggestions]'))suggestInput(e.target);});
+dialog.addEventListener('input',e=>{if(e.target.matches('input[data-suggestions]'))suggestInput(e.target);});
+dialog.addEventListener('change',e=>{
+ if(e.target.matches('[data-direct-date]')){
+  const input=e.target;input.setCustomValidity(input.value&&!validDate(input.value)?'Enter a valid date (YYYY-MM-DD).':'');
+  if(input.name==='serviceDate'&&input.form?.id==='walletEntry'&&!input.validationMessage)syncService(input.form);
+ }
+});
+dialog.addEventListener('input',e=>{if(e.target.matches('[data-direct-date]'))e.target.setCustomValidity('');});
+document.addEventListener('pointerdown',e=>{if(dialog.open&&!e.target.closest('.wallet-picker,.wallet-picker-options,input[data-suggestions]'))closePickers();},true);
+dialog.addEventListener('scroll',()=>closePickers(),true);
 function showMainBill(date){
  const entries=all().filter(e=>baseBill(e)&&scheduledBill(e)&&dateOf(e.item).slice(0,10)===date);
- dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>Main bill</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div><p class="muted">'+esc(displayDate(date))+'</p>'+entries.map(e=>row(e,money(amountOf(e.item))+' · '+statusLabel(e))).join('')+'</div>';if(!dialog.open)dialog.showModal();
+ dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>Main bill</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div><p class="muted">'+esc(displayDate(date))+'</p>'+entries.map(e=>row(e,money(amountOf(e.item))+' · '+statusLabel(e))).join('')+'</div>';openWindow();
 }
 function recurrenceLabel(x,fallback='None'){const f=x.frequency||fallback,n=Number(x.interval)||1;return ['Weekly','Monthly','Yearly'].includes(f)?'Every '+n+' '+({Weekly:'week',Monthly:'month',Yearly:'year'}[f])+(n===1?'':'s'):f;}
 function showSeries(key,index){
@@ -613,11 +666,12 @@ function serviceNext(date,months){const n=Number(months);return validDate(date)&
 function syncService(form){
  if(form.elements.category.value!=='Expense')return;
  const d=serviceNext(form.elements.serviceDate.value,form.elements.serviceMonths.value);if(!d)return;
- form.elements.date.value=d;form.querySelector('[data-picker-name="date"] .wallet-picker-button span').textContent=d;
+ form.elements.date.value=d;form.elements.date.setCustomValidity('');
  form.elements.frequency.value='Monthly';form.elements.interval.value=form.elements.serviceMonths.value;form.elements.scope.value='future';form.dataset.serviceChanged='true';syncEntryForm(form);
 }
 function openEntry(key,index,edit=false,presetDate=''){
  const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{date:presetDate},ref=e?{key,index,item:e}:null,info=ref?seriesInfo(ref):{recurring:false,start:'',end:''};
+ if(e&&edit&&key==='savings'){editSavingsBalance(index);return;}
  if(e&&!edit){
   if(key==='projects'){showProject(index);return;}
   if(key==='iou'){showIOU(key,index);return;}
@@ -715,7 +769,7 @@ function openEntry(key,index,edit=false,presetDate=''){
    closeRefresh();
   }catch(err){showError(err);}
  };
- if(!dialog.open)dialog.showModal();
+ openWindow();
 }
 function normalizedTasks(project){
  if(!project)return [];
@@ -768,7 +822,7 @@ function showProject(index){
  const tasks=normalizedTasks(p),closed=['Completed','Cancelled'].includes(p.status);
  const controls='<button data-close>Close</button>'+(p.status==='Cancelled'?'<button data-reactivate="'+index+'">Reactivate</button>':p.status==='Completed'?'':'<button data-edit="projects:'+index+'">Edit</button><button data-task-add="'+index+'">+ Subtask</button>')+'<button data-delete="projects:'+index+'">Delete</button>';
  openDialog('<div class="wallet-row"><h2>'+esc(nameOf(p))+'</h2><div class="wallet-actions">'+controls+'</div></div><p class="muted">'+esc(p.createdAt?'Created '+displayDate(p.createdAt):'')+(dateOf(p)?' · Deadline '+esc(displayDate(dateOf(p))):'')+'</p><p>'+esc(p.status==='Saved'?'In Progress':p.status||'In Progress')+'</p>'+(p.subject?'<p>'+esc(p.subject)+'</p>':'')+(p.contact?'<p>'+esc(p.contact)+'</p>':'')+(p.website?'<p>'+esc(p.website)+'</p>':'')+(p.notes?'<div style="white-space:pre-wrap">'+esc(p.notes)+'</div>':'')+(p.history||[]).map(h=>'<p class="muted">'+esc(h.type+' — '+tableDate(h.date))+'</p>').join('')+
- '<h3>Subtasks</h3>'+tasks.map((t,i)=>'<div class="wallet-row" '+(!closed?'draggable="true" data-task-sort="'+i+'" data-project-index="'+index+'"':'')+'><label style="flex:1"><span>'+(t.kind==='Checklist'?'<input type="checkbox" data-task-check="'+index+':'+i+'" '+(t.done?'checked ':'')+(closed?'disabled':'')+'> ':'')+esc(taskName(t))+'</span><small class="muted">'+esc(t.deadline?displayDate(t.deadline):'')+'</small>'+(budgetReady(t.budget)?'<small>'+esc(money(t.budget.amount)+' · '+tableDate(t.budget.month+'-01'))+'</small>':'')+'</label><button data-task-edit="'+index+':'+i+'">'+(closed?'View':'Edit')+'</button></div>').join(''));
+ (tasks.length?'<h3>Subtasks</h3>':'')+tasks.map((t,i)=>'<div class="wallet-row" '+(!closed?'draggable="true" data-task-sort="'+i+'" data-project-index="'+index+'"':'')+'><label style="flex:1"><span>'+(t.kind==='Checklist'?'<input type="checkbox" data-task-check="'+index+':'+i+'" '+(t.done?'checked ':'')+(closed?'disabled':'')+'> ':'')+esc(taskName(t))+'</span><small class="muted">'+esc(t.deadline?displayDate(t.deadline):'')+'</small>'+(budgetReady(t.budget)?'<small>'+esc(money(t.budget.amount)+' · '+tableDate(t.budget.month+'-01'))+'</small>':'')+'</label><button data-task-edit="'+index+':'+i+'">'+(closed?'View':'Edit')+'</button></div>').join(''));
 }
 function taskEditor(index,taskIndex=null){
  const p=list('projects')[index];if(!p)return;const tasks=normalizedTasks(p),t=taskIndex===null?{id:crypto.randomUUID(),kind:'Checklist'}:tasks[taskIndex];if(!t)return;
@@ -895,18 +949,23 @@ function editDebtBalance(index){
 function showSavings(index,ym=currentMonth()){
  const x=list('savings')[index];if(!x)return;
  const account=nameOf(x),balance=savingsBalance(all(),ym,account);
- openDialog('<div class="wallet-row"><h2>'+esc(account)+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-savings-adjust="'+index+'">Edit balance</button><button data-edit="savings:'+index+'">Edit item</button><button data-delete="savings:'+index+'">Delete</button></div></div><div class="wallet-row"><strong>Balance</strong>'+accounting(balance)+'</div><p class="muted">'+esc(tableDate(ym+'-01'))+'</p>'+'<h3>History</h3>'+ordered(all().filter(e=>e.key==='savings'&&nameOf(e.item)===account)).reverse().map(e=>'<div class="wallet-row"><span>'+esc((tableDate(dateOf(e.item))||'No date')+' '+(e.item.kind==='adjustment'?'Adjustment':e.item.kind==='balance'?(monthKey(dateOf(e.item))>ym?'Projected balance':'Balance'):'Added'))+'</span>'+accounting(amountOf(e.item))+'</div>'+(e.item.notes?'<p class="muted">'+esc(e.item.notes)+'</p>':'')).join(''));
+ openDialog('<div class="wallet-row"><h2>'+esc(account)+'</h2><div class="wallet-actions"><button data-close>Close</button><button data-savings-adjust="'+index+'">Edit</button><button data-delete="savings:'+index+'">Delete</button></div></div><div class="wallet-row"><strong>Balance</strong>'+accounting(balance)+'</div><details><summary>History</summary>'+ordered(all().filter(e=>e.key==='savings'&&nameOf(e.item)===account)).reverse().map(e=>'<div class="wallet-row"><span>'+esc((tableDate(dateOf(e.item))||'No date')+' '+(e.item.kind==='adjustment'?'Adjustment':e.item.kind==='balance'?(monthKey(dateOf(e.item))>ym?'Projected balance':'Balance'):'Added'))+'</span>'+accounting(amountOf(e.item))+'</div>'+(e.item.notes?'<p class="muted">'+esc(e.item.notes)+'</p>':'')).join('')+'</details>');
 }
 function editSavingsBalance(index){
- const seed=list('savings')[index];if(!seed)return;const account=nameOf(seed),ym=currentMonth(),old=savingsBalance(all(),ym,account);
- openDialog(dialogHead('Edit balance — '+account)+'<div class="wallet-row"><span>Current balance</span>'+accounting(old)+'</div><form class="wallet-form">'+inputField('Updated balance (RM)','balance',old,'number','required step="any"')+textField('Notes','notes','','3')+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="submit">Save</button></div></form>');
- const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form)),n=Number(v.balance);if(!Number.isFinite(n)||!String(v.notes||'').trim()){showError(Error('Enter the balance and a note.'));return;}try{await commitWallet(data=>{const delta=roundMoney(n-old);if(delta)data.savings.push({id:crypto.randomUUID(),name:account,accountId:seed.accountId,group:seed.group||list('savings').find(a=>nameOf(a)===account&&String(a.group||'').trim())?.group||'',category:'Savings',kind:'adjustment',date:monthDate(ym,Number(today().slice(8,10))),amount:delta,notes:v.notes,status:'Completed'});});closeRefresh();}catch(err){showError(err);}};
+ const seed=list('savings')[index];if(!seed)return;const account=nameOf(seed),ym=currentMonth(),old=savingsBalance(all(),ym,account),group=seed.group||list('savings').find(a=>nameOf(a)===account&&String(a.group||'').trim())?.group||'';
+ openDialog(dialogHead('Edit savings')+'<form class="wallet-form"><p>Savings</p>'+inputField('Group','group',group,'text','required')+inputField('Item','name',account,'text','required')+inputField('Balance (RM)','balance',old,'number','step="any"')+textField('Notes','notes','','3')+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="button" data-close>Cancel</button><button type="submit">Save</button></div></form>');
+ const form=dialog.querySelector('form');form.onsubmit=async ev=>{
+  ev.preventDefault();if(saving)return;const v=Object.fromEntries(new FormData(form)),name=String(v.name||'').trim(),group=String(v.group||'').trim(),n=v.balance===''?null:Number(v.balance);
+  if(!name||!group||n!==null&&!Number.isFinite(n)){showError(Error('Check the group, item name and balance.'));return;}
+  try{await commitWallet(data=>{const accountId=renameSavings(data,seed,{...seed,name,group}),delta=n===null?0:roundMoney(n-old);if(delta)data.savings.push({id:crypto.randomUUID(),name,accountId,group,category:'Savings',kind:'adjustment',date:monthDate(ym,Number(today().slice(8,10))),amount:delta,notes:v.notes||'',status:'Completed'});});closeRefresh();}catch(err){showError(err);}
+ };
 }
 
-mainPage.addEventListener('click',e=>{const b=e.target.closest('button');if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.restoreTrash!==undefined){restoreTrash(Number(d.restoreTrash));return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
+mainPage.addEventListener('click',e=>{const b=e.target.closest('button');const replacing=b?(b.id==='addItem'||b.id==='clearBill'||b.dataset.monthGroup||b.dataset.entry||b.dataset.series||b.dataset.mainBill||b.hasAttribute('data-empty-trash')||b.dataset.restoreTrash!==undefined):e.target.closest('[data-add-date]');if(replacing&&dialog.open&&dialog.querySelector('form')){if(!confirm('Close the current form without saving?'))return;dialog.close();}if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.restoreTrash!==undefined){restoreTrash(Number(d.restoreTrash));return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
 dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
- if(b.hasAttribute('data-close'))dialog.close();
+ if(b.hasAttribute('data-suggest-value')){const p=b.closest('[data-suggestion-popup]'),input=p.previousElementSibling;input.value=b.dataset.suggestValue;closePickers();input.dispatchEvent(new Event('input',{bubbles:true}));closePickers();}
+ else if(b.hasAttribute('data-close')){closePickers();dialog.close();}
  else if(d.delete){const [k,i]=d.delete.split(':');trashEntry(k,Number(i));}
  else if(d.taskAdd!==undefined)taskEditor(Number(d.taskAdd));
  else if(d.taskEdit){const [p,i]=d.taskEdit.split(':');taskEditor(Number(p),Number(i));}
@@ -917,10 +976,10 @@ dialog.addEventListener('click',e=>{
  else if(d.savingsAdjust!==undefined)editSavingsBalance(Number(d.savingsAdjust));
  else if(d.schedule){const [k,i]=d.schedule.split(':');showSchedule(k,Number(i));}else if(d.edit){const [k,i]=d.edit.split(':');openEntry(k,Number(i),true);}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}
  else if(w&&b.hasAttribute('data-picker-toggle')){
- const p=w.querySelector('.wallet-picker-options'),was=p.hidden;closePickers();if(!was)return;const v=w.querySelector('input[type=hidden]').value,n=w.dataset.pickerName;
+ const p=w.querySelector('.wallet-picker-options'),was=p.hidden;closePickers();if(!was)return;const v=pickerInput(w).value,n=w.dataset.pickerName;
  if(['date','startDate','endDate','serviceDate'].includes(n)){const dt=v?new Date(v.slice(0,10)+'T12:00:00'):new Date();const date=Number.isNaN(dt.getTime())?new Date():dt;fillDate(p,date.getFullYear(),date.getMonth());}
  else if(n==='time')fillTime(p,v);
- p.hidden=false;b.setAttribute('aria-expanded','true');
+ showFloating(p,w.querySelector('.wallet-date-input')||b);b.setAttribute('aria-expanded','true');
  }else if(w&&d.choice!==undefined){choosePicker(w,d.choice);if(['category','serviceDate'].includes(w.dataset.pickerName)){const form=dialog.querySelector('#walletEntry');if(form){if(w.dataset.pickerName==='serviceDate')syncService(form);else{syncEntryForm(form);refreshSuggestions(form);}}}}
  else if(w&&b.hasAttribute('data-go-month'))goPickerMonth(w.querySelector('.wallet-picker-options'));
  else if(w&&d.pickerMonth){const p=w.querySelector('.wallet-picker-options'),dt=new Date(Number(p.dataset.year),Number(p.dataset.month)+Number(d.pickerMonth),1);fillDate(p,dt.getFullYear(),dt.getMonth());}
@@ -942,8 +1001,8 @@ dialog.addEventListener('pointerdown',e=>{
 dialog.addEventListener('pointermove',e=>{if(popupDrag&&e.pointerId===popupDrag.id)clampPopup(e.clientX-popupDrag.x,e.clientY-popupDrag.y);});
 const stopPopupDrag=()=>{popupDrag=null;};
 dialog.addEventListener('pointerup',stopPopupDrag);dialog.addEventListener('pointercancel',stopPopupDrag);dialog.addEventListener('lostpointercapture',stopPopupDrag);
-dialog.addEventListener('close',()=>{stopPopupDrag();dialog.style.removeProperty('left');dialog.style.removeProperty('top');dialog.style.removeProperty('right');dialog.style.removeProperty('bottom');dialog.style.removeProperty('margin');});
-window.addEventListener('resize',()=>{if(dialog.open&&dialog.style.left){const r=dialog.getBoundingClientRect();clampPopup(r.left,r.top);}});
+dialog.addEventListener('close',()=>{closePickers();stopPopupDrag();dialog.style.removeProperty('left');dialog.style.removeProperty('top');dialog.style.removeProperty('right');dialog.style.removeProperty('bottom');dialog.style.removeProperty('margin');});
+window.addEventListener('resize',()=>{closePickers();if(dialog.open&&dialog.style.left){const r=dialog.getBoundingClientRect();clampPopup(r.left,r.top);}});
 let dragSource=null,dropTarget=null,dragPreview=null,dropAfter=false;
 function clearDropMark(){if(dropTarget)dropTarget.classList.remove('drag-before','drag-after');dropTarget=null;}
 function clearDragVisual(){clearDropMark();if(dragSource)dragSource.classList.remove('drag-source');dragSource=null;if(dragPreview)dragPreview.remove();dragPreview=null;}
@@ -1144,7 +1203,7 @@ function initialize(){
  login.disabled=false;
 }
 login.addEventListener('click',()=>{login.disabled=true;status.textContent='';setProgress(10);client.requestAccessToken({prompt:'select_account'});});
-logout.addEventListener('click',()=>{if(saving||reconnecting)return;if(ready&&note.value!==savedNote&&!confirm('Unsaved changes will be lost. Sign out?'))return;clearTimeout(expiryTimer);tokenExpiresAt=0;accountIdentity=null;accountHint='';reconnectNotice='';const previous=token;ready=false;walletData=null;token=null;folderId=null;dataId=null;generation++;savedNote='';note.value='';note.disabled=true;test.hidden=true;login.hidden=false;login.disabled=false;logout.hidden=true;card.hidden=false;mainPage.hidden=true;refreshReconnect();resetProgress();status.textContent='';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
+logout.addEventListener('click',()=>{if(saving||reconnecting)return;if(dialog.open&&dialog.querySelector('form')&&!confirm('Close the current form without saving?'))return;if(dialog.open)dialog.close();if(ready&&note.value!==savedNote&&!confirm('Unsaved changes will be lost. Sign out?'))return;clearTimeout(expiryTimer);tokenExpiresAt=0;accountIdentity=null;accountHint='';reconnectNotice='';const previous=token;ready=false;walletData=null;token=null;folderId=null;dataId=null;generation++;savedNote='';note.value='';note.disabled=true;test.hidden=true;login.hidden=false;login.disabled=false;logout.hidden=true;card.hidden=false;mainPage.hidden=true;refreshReconnect();resetProgress();status.textContent='';if(previous)google.accounts.oauth2.revoke(previous,()=>{});});
 window.addEventListener('load',initialize);
 </script>
 </body>
