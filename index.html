@@ -403,17 +403,19 @@ function trashEntry(key,index){
    data.trash.push({id:crypto.randomUUID(),key,item:e,items:removed,rules:oldRules,deletedAt:new Date().toISOString()});
   }else{
    if(e.ruleId)data.settings.suppressedOccurrences.push(e.id);
-   data.trash.push({id:crypto.randomUUID(),key,item:data[key][index],deletedAt:new Date().toISOString()});data[key].splice(index,1);
+   const linked=key==='projects'?removeProjectLinks(data,e.id):[];
+   data.trash.push({id:crypto.randomUUID(),key,item:data[key][index],linked,deletedAt:new Date().toISOString()});data[key].splice(index,1);
   }
  }).then(closeRefresh).catch(showError);};
  if(info.recurring){openDialog(dialogHead('Remove recurring payment')+'<p>'+esc(nameOf(e))+' — '+esc(displayDate(dateOf(e)))+'</p><div class="wallet-actions"><button data-remove-scope="one">This payment only</button><button data-remove-scope="future">This and future payments</button></div>');dialog.querySelectorAll('[data-remove-scope]').forEach(b=>b.onclick=()=>perform(b.dataset.removeScope));}
  else perform('one');
 }
 function restoreTrash(index){
- const t=list('trash')[index];if(!t||!['items','projects','records','savings','iou'].includes(t.key))return;
- commitWallet(data=>{data[t.key]??=[];const restore=t.items||[t.item];if(restore.some(x=>x.id&&data[t.key].some(y=>y.id===x.id)))throw Error('This item already exists. Restore cancelled.');
+ const t=list('trash')[index];if(!t||!['items','projects','records','savings','iou','task'].includes(t.key))return;
+ commitWallet(data=>{
+ if(t.key==='task'){const p=data.projects.find(x=>x.id===t.projectId);if(!p)throw Error('Restore the project first.');p.tasks=normalizedTasks(p);if(p.tasks.some(x=>x.id===t.item.id))throw Error('Subtask already exists.');const task={...t.item};delete task.name;delete task.date;p.tasks.push(task);if(p.status!=='Cancelled')syncProjectBudget(data,p);data.trash.splice(index,1);return;}data[t.key]??=[];const restore=t.items||[t.item];if(restore.some(x=>x.id&&data[t.key].some(y=>y.id===x.id)))throw Error('This item already exists. Restore cancelled.');
  if(t.rules?.length){data.settings??={};const series=t.rules[0].seriesId,known=new Set(t.rules.map(r=>r.id));if((data.settings.recurringRules||[]).some(r=>r.seriesId===series&&!known.has(r.id)))throw Error('Recurring schedule changed. Review it before restoring.');data.settings.recurringRules=(data.settings.recurringRules||[]).filter(r=>r.seriesId!==series).concat(t.rules);}
- data[t.key].push(...restore);if(data.settings?.suppressedOccurrences){const ids=new Set(restore.map(x=>x.id));data.settings.suppressedOccurrences=data.settings.suppressedOccurrences.filter(id=>!ids.has(id));}data.trash.splice(index,1);}).then(()=>setView('Trash')).catch(showError);
+ data[t.key].push(...restore);if(t.key==='projects'&&t.item.status!=='Cancelled')syncProjectBudget(data,data.projects.at(-1));if(data.settings?.suppressedOccurrences){const ids=new Set(restore.map(x=>x.id));data.settings.suppressedOccurrences=data.settings.suppressedOccurrences.filter(id=>!ids.has(id));}data.trash.splice(index,1);}).then(()=>setView('Trash')).catch(showError);
 }
 
 function serviceEvents(entries,from,to){
@@ -437,7 +439,7 @@ const directionButton=(dir,attr,label)=>'<button type="button" class="wallet-arr
 const arrows='<div class="scroll-buttons">'+[-1,1].map(n=>'<button type="button" data-scroll="'+n+'" aria-label="'+(n<0?'Scroll up':'Scroll down')+'"><svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+(n<0?'M3 18 L15 4 L27 18 Z':'M3 4 L15 18 L27 4 Z')+'"/></svg></button>').join('')+'</div>';
 const panel=(heading,color,body)=>'<section class="wallet-card wallet-panel '+color+'">'+title(heading)+'<div class="wallet-scroll">'+body+'</div>'+arrows+'</section>';
 const row=(e,second,extra=false)=>'<button type="button" class="entry-row" data-entry="'+e.key+':'+e.index+'"><span'+(extra?' class="marker extra-bill"':'')+'>'+esc(nameOf(e.item))+'</span>'+(second!=null?'<small>'+esc(second)+'</small>':accounting(amountOf(e.item)))+'</button>';
-const spaceRow=e=>'<button type="button" class="entry-row"'+dragAttr(e)+' data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span><span>'+esc(e.item.subject||'')+'</span><small>'+esc(tableDate(dateOf(e.item)))+'</small></button>';
+const spaceRow=e=>'<button type="button" class="entry-row"'+dragAttr(e)+' data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span><span>'+esc(e.item.subject||'')+'</span><small>'+esc(tableDate(dateOf(e.item)||e.item.createdAt))+'</small></button>';
 function recordRows(items,entries){
  const seen=new Set(),groups=new Map();
  for(const e of sortItems(items)){
@@ -547,10 +549,12 @@ function syncEntryForm(form){
  const group=form.elements.group.value,es=all().filter(e=>categoryOf(e)===c);
  form.querySelector('#usedGroups').innerHTML=listOptions(es.map(e=>e.item.group));
  form.querySelector('#usedNames').innerHTML=listOptions(es.filter(e=>(e.item.group||'')===group).map(e=>nameOf(e.item)));
+ refreshSuggestions(form);
 }
 function openEntry(key,index,edit=false,presetDate=''){
  const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{date:presetDate},ref=e?{key,index,item:e}:null,info=ref?seriesInfo(ref):{recurring:false,start:'',end:''};
  if(e&&!edit){
+  if(key==='projects'){showProject(index);return;}
   if(key==='iou'){showIOU(key,index);return;}
   if(key==='savings'){showSavings(index);return;}
   openDialog('<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button><button type="button" data-delete="'+key+':'+index+'">Delete</button></div></div><p class="muted">'+esc(displayDate(dateOf(x)))+'</p>'+(x.subject?'<p>'+esc(x.subject)+'</p>':'')+'<div class="wallet-row"><span>'+esc(ref?statusLabel(ref):'')+'</span>'+accounting(amountOf(x))+'</div><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+(x.contact?'<p>'+esc(x.contact)+'</p>':'')+(x.website?'<p>'+esc(x.website)+'</p>':'')+(x.tasks||[]).map(t=>'<p>'+esc(typeof t==='string'?t:t.text||t.subject||'')+'</p>').join('')+(info.recurring?'<button data-schedule="'+key+':'+index+'">Payment schedule</button>':''));
@@ -572,12 +576,14 @@ function openEntry(key,index,edit=false,presetDate=''){
  '<div id="expenseFields" class="wallet-form">'+selectField('Savings','savingsAccount',[['','—'],...accounts.map(a=>[a,a])],x.savingsAccount||'')+
  '<div class="record-grid">'+picker('Last service date','serviceDate',x.serviceDate||'')+inputField('Service every (months)','serviceMonths',x.serviceMonths||'','number','min="1" max="1200" step="1"')+'</div>'+inputField('Reminder (days before)','reminderDays',x.reminderDays??'','number','min="0" step="1"')+'</div>'+
  '<div id="notesField">'+textField('Notes','notes',x.notes||'')+'</div>'+
- '<div id="spaceFields" class="wallet-form">'+textField('Subtask — Note','spaceNotes',x.notes||'')+textField('Subtask — Checklist','tasks',(x.tasks||[]).map(t=>typeof t==='string'?t:t.text||t.subject||'').join('\n'),3)+inputField('Contact','contact',x.contact||'')+inputField('Website','website',x.website||'')+'</div>'+
+ '<div id="spaceFields" class="wallet-form">'+inputField('Contact','contact',x.contact||'')+inputField('Website','website',x.website||'')+(e?'':'<div id="projectSuggestions"></div>'+textField('Subtask — Note','spaceNotes',''))+'</div>'+
  '<p class="muted" role="status"></p><div class="wallet-actions"><button type="button" data-close>Cancel</button><button type="submit">Save Item</button></div></form>';
  const form=dialog.querySelector('form');
  form.elements.frequency.onchange=()=>syncEntryForm(form);
  form.elements.group.oninput=()=>syncEntryForm(form);
- syncEntryForm(form);
+ form.elements.name.oninput=()=>refreshSuggestions(form);form.elements.subject.oninput=()=>refreshSuggestions(form);
+ syncEntryForm(form);refreshSuggestions(form);
+ if(e&&key==='projects'&&['Completed','Cancelled'].includes(x.status))form.elements.spaceStatus.disabled=true;
  form.onsubmit=async ev=>{
   ev.preventDefault();if(saving)return;
   const v=Object.fromEntries(new FormData(form)),category=v.category, dest=categoryDest(category),name=String(v.name||'').trim(),group=String(v.group||'').trim();
@@ -596,8 +602,11 @@ function openEntry(key,index,edit=false,presetDate=''){
   if(['Expense','My Space'].includes(category)){updated.subject=v.subject||'';updated.time=v.time||'';}
   if(category==='Expense'){updated.status=v.expenseStatus;updated.paid=v.expenseStatus==='Paid';updated.notes=v.notes||'';updated.savingsAccount=v.savingsAccount||'';updated.serviceDate=v.serviceDate||'';updated.serviceMonths=v.serviceMonths?Number(v.serviceMonths):null;updated.reminderDays=v.reminderDays===''?null:Number(v.reminderDays);}
   else if(category==='My Space'){
-   updated.status=v.spaceStatus;updated.createdAt=x.createdAt||today();updated.notes=v.spaceNotes||'';
-   updated.tasks=(v.tasks||'').split('\n').filter(t=>t.trim()).map(t=>{const old=(x.tasks||[]).find(a=>(typeof a==='string'?a:a.text||a.subject)===t);return typeof old==='object'?old:{id:crypto.randomUUID(),text:t,done:false};});updated.contact=v.contact||'';updated.website=v.website||'';
+   updated.status=e&&key==='projects'&&['Completed','Cancelled'].includes(x.status)?x.status:v.spaceStatus||'In Progress';updated.createdAt=x.createdAt||(!e?today():'');
+   updated.tasks=normalizedTasks(x);
+   if(!e&&String(v.spaceNotes||'').trim())updated.tasks.push({id:crypto.randomUUID(),kind:'Note',text:v.spaceNotes,done:false});
+   if(!e)for(const choice of form.querySelectorAll('[data-copy-task]:checked')){const [p,t]=choice.value.split(':').map(Number),source=list('projects')[p],task=normalizedTasks(source)[t];if(task){const copy={...task,id:crypto.randomUUID(),done:false,deadline:'',time:'',budget:null};updated.tasks.push(copy);}}
+   updated.contact=v.contact||'';updated.website=v.website||'';
    delete updated.amount;delete updated.paid;
   }else if(category==='Savings'){updated.notes=v.notes||'';if(!e)updated.kind='contribution';delete updated.status;delete updated.paid;}
   else if(category==='IOU'){updated.notes=v.notes||'';updated.status=isPaid(ref||{item:{}})?'Paid':'Unpaid';updated.paid=updated.status==='Paid';updated.debtId=x.debtId||crypto.randomUUID();}
@@ -625,14 +634,117 @@ function openEntry(key,index,edit=false,presetDate=''){
     }else if(!e&&recurring){
      newRule(data,updated);
     }else if(e){
-     if(dest!==key){data[key].splice(index,1);delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;data[dest].push(updated);}
+     if(dest!==key){if(key==='projects')removeProjectLinks(data,x.id);if(x.ruleId){data.settings??={};data.settings.suppressedOccurrences??=[];data.settings.suppressedOccurrences.push(x.id);}data[key].splice(index,1);delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;data[dest].push(updated);}
      else{if(info.recurring&&key==='items'){updated.recurring=true;updated.frequency=x.frequency||frequency;updated.endDate=x.endDate||'';updated.weekdays=x.weekdays||{};}data[key][index]=updated;}
     }else data[dest].push(updated);
+    if(dest==='projects')syncProjectBudget(data,updated);
    });
    closeRefresh();
   }catch(err){showError(err);}
  };
  if(!dialog.open)dialog.showModal();
+}
+function normalizedTasks(project){
+ if(!project)return [];
+ return (project.tasks||[]).map((t,i)=>typeof t==='string'?{id:'legacy:'+project.id+':'+i,kind:'Checklist',subject:t,text:t,done:false}:({...t,id:t.id||'legacy:'+project.id+':'+i,kind:t.kind||'Checklist',subject:t.subject||t.text||'',done:!!t.done}));
+}
+function taskName(t){return t.kind==='Note'?t.subject||String(t.text||'Note').split('\n')[0]:t.subject||t.text||'Checklist';}
+function refreshSuggestions(form){
+ const box=form.querySelector('#projectSuggestions');if(!box||form.elements.category.value!=='My Space')return;
+ const words=(form.elements.name.value+' '+form.elements.subject.value).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(w=>w.length>=3);
+ const selected=new Set([...box.querySelectorAll('[data-copy-task]:checked')].map(el=>el.value));
+ const suggestions=list('projects').map((p,i)=>({p,i})).filter(({p})=>['Completed','Cancelled'].includes(p.status)&&words.some(w=>(nameOf(p)+' '+(p.subject||'')).toLowerCase().includes(w)));
+ box.innerHTML=suggestions.length?'<h3>From past projects</h3>'+suggestions.map(({p,i})=>'<p class="muted">'+esc(nameOf(p))+'</p>'+normalizedTasks(p).map((t,j)=>'<label><span><input type="checkbox" data-copy-task value="'+i+':'+j+'" '+(selected.has(i+':'+j)?'checked':'')+'> '+esc(taskName(t))+'</span></label>').join('')).join(''):'';
+}
+const linkKeys=['items','savings','iou'];
+const projectLinks=(data,id)=>linkKeys.flatMap(key=>(data[key]||[]).filter(x=>x.projectId===id).map(item=>({key,item})));
+const settledLink=(x,open)=>rawPaid(x)||rawExcluded(x)||(['Income','Savings'].includes(x.category)&&monthKey(dateOf(x))<open);
+function removeProjectLinks(data,id,taskId=null){
+ const removed=[];
+ for(const key of linkKeys){
+  const rows=data[key]||[];data[key]=rows.filter(x=>{
+   const match=x.projectId===id&&(!taskId||x.projectTaskId===taskId)&&!settledLink(x,currentMonth());
+   if(match)removed.push({key,item:x});return !match;
+  });
+ }
+ return removed;
+}
+function budgetReady(b){return b&&['Expense','Income','Savings','IOU'].includes(b.category)&&String(b.group||'').trim()&&String(b.name||'').trim()&&/^\d{4}-(0[1-9]|1[0-2])$/.test(b.month||'')&&b.amount!==''&&b.amount!=null&&Number.isFinite(Number(b.amount));}
+function syncProjectBudget(data,project){
+ if(!project.id)return;
+ if(project.status==='Cancelled'){const removed=removeProjectLinks(data,project.id);if(removed.length){project.history??=[];project.history.push({type:'Cancelled budget links',date:today(),items:removed});}return;}
+ const tasks=normalizedTasks(project),desired=new Set(tasks.filter(t=>budgetReady(t.budget)).map(t=>t.id));
+ for(const {item} of projectLinks(data,project.id))if(!desired.has(item.projectTaskId)&&!settledLink(item,currentMonth()))removeProjectLinks(data,project.id,item.projectTaskId);
+ for(const t of tasks){
+  const b=t.budget;if(!budgetReady(b))continue;
+  const links=projectLinks(data,project.id).filter(l=>l.item.projectTaskId===t.id);
+  if(links.some(l=>settledLink(l.item,currentMonth())&&rawPaid(l.item)))continue;
+  const active=links.filter(l=>!settledLink(l.item,currentMonth()));
+  if(active.length>1)throw Error('More than one linked budget item found. Review the project.');
+  const old=active[0],dest=categoryDest(b.category);
+  const item={...(old?.item||{}),id:old?.item.id||crypto.randomUUID(),projectId:project.id,projectTaskId:t.id,category:b.category,group:b.group.trim(),name:b.name.trim(),date:lastDay(b.month),amount:Number(b.amount),recurring:false,subject:t.subject||'',notes:'From '+nameOf(project)};
+  if(b.category==='Expense'||b.category==='IOU'){item.status='Unpaid';item.paid=false;if(b.category==='IOU')item.debtId=item.debtId||crypto.randomUUID();}
+  else{delete item.status;delete item.paid;if(b.category==='Savings')item.kind='contribution';}
+  if(old){const arr=data[old.key],i=arr.findIndex(x=>x.id===old.item.id);if(dest===old.key)arr[i]=item;else{arr.splice(i,1);data[dest]??=[];data[dest].push(item);}}
+  else if(!links.some(l=>settledLink(l.item,currentMonth())&&!rawExcluded(l.item))){data[dest]??=[];data[dest].push(item);}
+ }
+}
+function showProject(index){
+ const p=list('projects')[index];if(!p)return;
+ const tasks=normalizedTasks(p),closed=['Completed','Cancelled'].includes(p.status);
+ const controls='<button data-close>Close</button>'+(p.status==='Cancelled'?'<button data-reactivate="'+index+'">Reactivate</button>':p.status==='Completed'?'':'<button data-edit="projects:'+index+'">Edit</button><button data-task-add="'+index+'">+ Subtask</button>')+'<button data-delete="projects:'+index+'">Delete</button>';
+ openDialog('<div class="wallet-row"><h2>'+esc(nameOf(p))+'</h2><div class="wallet-actions">'+controls+'</div></div><p class="muted">'+esc(p.createdAt?'Created '+displayDate(p.createdAt):'')+(dateOf(p)?' · Deadline '+esc(displayDate(dateOf(p))):'')+'</p><p>'+esc(p.status==='Saved'?'In Progress':p.status||'In Progress')+'</p>'+(p.subject?'<p>'+esc(p.subject)+'</p>':'')+(p.contact?'<p>'+esc(p.contact)+'</p>':'')+(p.website?'<p>'+esc(p.website)+'</p>':'')+(p.notes?'<div style="white-space:pre-wrap">'+esc(p.notes)+'</div>':'')+(p.history||[]).map(h=>'<p class="muted">'+esc(h.type+' — '+tableDate(h.date))+'</p>').join('')+
+ '<h3>Subtasks</h3>'+tasks.map((t,i)=>'<div class="wallet-row" '+(!closed?'draggable="true" data-task-sort="'+i+'" data-project-index="'+index+'"':'')+'><label style="flex:1"><span>'+(t.kind==='Checklist'?'<input type="checkbox" data-task-check="'+index+':'+i+'" '+(t.done?'checked ':'')+(closed?'disabled':'')+'> ':'')+esc(taskName(t))+'</span><small class="muted">'+esc(t.deadline?displayDate(t.deadline):'')+'</small>'+(budgetReady(t.budget)?'<small>'+esc(money(t.budget.amount)+' · '+tableDate(t.budget.month+'-01'))+'</small>':'')+'</label><button data-task-edit="'+index+':'+i+'">'+(closed?'View':'Edit')+'</button></div>').join(''));
+}
+function taskEditor(index,taskIndex=null){
+ const p=list('projects')[index];if(!p)return;const tasks=normalizedTasks(p),t=taskIndex===null?{id:crypto.randomUUID(),kind:'Checklist'}:tasks[taskIndex];if(!t)return;
+ const closed=['Completed','Cancelled'].includes(p.status);
+ const links=projectLinks(walletData,p.id).filter(l=>l.item.projectTaskId===t.id),paid=links.some(l=>rawPaid(l.item));
+ if(closed){openDialog(dialogHead(taskName(t))+'<p style="white-space:pre-wrap">'+esc(t.text||'')+'</p><p>'+esc(t.deadline?displayDate(t.deadline):'')+'</p>'+(t.contact?'<p>'+esc(t.contact)+'</p>':'')+(t.website?'<p>'+esc(t.website)+'</p>':'')+(t.image?'<img alt="Project picture" style="max-width:100%;border-radius:12px" src="'+esc(t.image.startsWith('data:image/jpeg;base64,')?t.image:'')+'">':'')+(budgetReady(t.budget)?'<p>'+esc(money(t.budget.amount)+' · '+t.budget.month)+'</p>':''));return;}
+ const b=t.budget||{};
+ openDialog(dialogHead(taskIndex===null?'Add Subtask':'Edit Subtask')+'<form class="wallet-form">'+selectField('Type','kind',[['Note','Note'],['Checklist','Checklist']],t.kind)+
+ '<div id="taskChecklist" class="wallet-form">'+inputField('Subject','subject',t.subject||'')+'<label><span><input type="checkbox" name="done" '+(t.done?'checked':'')+'> Completed</span></label>'+picker('Deadline','date',t.deadline||'')+picker('Time','time',t.time||'')+'</div>'+
+ textField('Note','text',t.text||'')+inputField('Contact','contact',t.contact||'')+inputField('Website','website',t.website||'')+
+ '<label>Picture<input name="picture" type="file" accept="image/*"></label>'+(t.image?'<img alt="Saved picture" style="max-width:100%;border-radius:12px" src="'+esc(t.image.startsWith('data:image/jpeg;base64,')?t.image:'')+'"><label><span><input name="removePicture" type="checkbox"> Remove picture</span></label>':'')+
+ '<label><span><input type="checkbox" name="linkBudget" '+(budgetReady(b)?'checked ':'')+(paid?'disabled':'')+'> Add to budget</span></label><div id="taskBudget" class="wallet-form">'+selectField('Category','budgetCategory',['Expense','Income','Savings','IOU'].map(c=>[c,c]),b.category||'Expense')+inputField('Group','budgetGroup',b.group||'','text','list="taskGroups"')+'<datalist id="taskGroups"></datalist>'+inputField('Item','budgetName',b.name||'','text','list="taskNames"')+'<datalist id="taskNames"></datalist>'+inputField('Amount (RM)','budgetAmount',b.amount??'','number','step="any"')+inputField('Payment month','budgetMonth',b.month||'','month')+(paid?'<p class="muted">Already paid. Budget record is protected.</p>':'')+'</div>'+
+ '<p class="muted" role="status"></p><div class="wallet-actions">'+(taskIndex!==null?'<button type="button" data-task-delete="'+index+':'+taskIndex+'">Delete</button>':'')+'<button type="submit">Save</button></div></form>');
+ const form=dialog.querySelector('form'),sync=()=>{
+  const checklist=form.querySelector('#taskChecklist'),budget=form.querySelector('#taskBudget');
+  checklist.hidden=form.elements.kind.value!=='Checklist';checklist.querySelectorAll('input').forEach(el=>el.disabled=checklist.hidden);
+  budget.hidden=!form.elements.linkBudget.checked&&!paid;budget.querySelectorAll('input,select').forEach(el=>el.disabled=budget.hidden||paid);
+  const es=all().filter(e=>categoryOf(e)===form.elements.budgetCategory.value);form.querySelector('#taskGroups').innerHTML=listOptions(es.map(e=>e.item.group));form.querySelector('#taskNames').innerHTML=listOptions(es.filter(e=>(e.item.group||'')===form.elements.budgetGroup.value).map(e=>nameOf(e.item)));
+ };
+ form.elements.kind.onchange=sync;form.elements.linkBudget.onchange=sync;form.elements.budgetCategory.onchange=sync;form.elements.budgetGroup.oninput=sync;sync();
+ form.onsubmit=async ev=>{
+  ev.preventDefault();if(saving)return;const v=Object.fromEntries(new FormData(form));const updated={...t,kind:v.kind,subject:v.kind==='Checklist'?String(v.subject||'').trim():'',text:v.text||'',done:v.kind==='Checklist'&&!!v.done,deadline:v.kind==='Checklist'?v.date||'':'',time:v.kind==='Checklist'?v.time||'':'',contact:v.contact||'',website:v.website||''};
+  if(updated.kind==='Checklist'&&!updated.subject||updated.kind==='Note'&&!updated.text.trim()&&!v.picture?.size){showError(Error('Enter a subject or note.'));return;}
+  if(!paid){updated.budget=v.linkBudget?{category:v.budgetCategory,group:v.budgetGroup,name:v.budgetName,amount:v.budgetAmount===''?'':Number(v.budgetAmount),month:v.budgetMonth}:null;
+   if(v.linkBudget&&!budgetReady(updated.budget)){showError(Error('Complete the budget details.'));return;}
+   if(updated.budget&&updated.budget.month<currentMonth()){showError(Error('Choose an open or future budget month.'));return;}
+  }
+  try{
+   if(v.removePicture)delete updated.image;
+   if(v.picture?.size){updated.image=await compressPicture(v.picture);}
+   await commitWallet(data=>{const q=data.projects[index];q.tasks=normalizedTasks(q);if(taskIndex===null)q.tasks.push(updated);else q.tasks[taskIndex]=updated;syncProjectBudget(data,q);});setView(viewName);showProject(index);
+  }catch(err){showError(err);}
+ };
+}
+async function compressPicture(file){
+ if(!file.type.startsWith('image/')||file.size>20000000)throw Error('Choose an image under 20 MB.');
+ const img=await createImageBitmap(file),scale=Math.min(1,1200/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);img.close();return canvas.toDataURL('image/jpeg',.82);
+}
+function deleteTask(index,i){
+ const p=list('projects')[index],t=normalizedTasks(p)[i];if(!t||!confirm('Move subtask to Trash?'))return;
+ commitWallet(data=>{const q=data.projects[index];q.tasks=normalizedTasks(q);const removed=removeProjectLinks(data,q.id,t.id);data.trash??=[];data.trash.push({id:crypto.randomUUID(),key:'task',projectId:q.id,item:{...t,name:taskName(t),date:t.deadline},linked:removed,deletedAt:new Date().toISOString()});q.tasks.splice(i,1);}).then(()=>{setView(viewName);showProject(index);}).catch(showError);
+}
+function reactivateProject(index){
+ const p=list('projects')[index];if(!p||p.status!=='Cancelled')return;const tasks=normalizedTasks(p);
+ const pending=tasks.map((t,i)=>({t,i,paid:projectLinks(walletData,p.id).some(l=>l.item.projectTaskId===t.id&&rawPaid(l.item))}));
+ openDialog(dialogHead('Please update the dates')+'<form class="wallet-form">'+inputField('Project deadline','projectDate','','date',dateOf(p)?'required min="'+today()+'"':'min="'+today()+'"')+pending.map(({t,i,paid})=>'<div class="wallet-form"><strong>'+esc(taskName(t))+'</strong>'+(!t.done&&t.kind==='Checklist'?inputField('Deadline','taskDate'+i,'','date','min="'+today()+'" '+(t.deadline?'required':'')):'')+(budgetReady(t.budget)&&!paid?inputField('Payment month','taskMonth'+i,'','month','required min="'+actualMonth()+'"'):'')+'</div>').join('')+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="submit">Reactivate</button></div></form>');
+ const form=dialog.querySelector('form');form.onsubmit=async ev=>{ev.preventDefault();const v=Object.fromEntries(new FormData(form));
+  if(v.projectDate&&v.projectDate<today()||pending.some(({t,i,paid})=>!t.done&&t.deadline&&(!v['taskDate'+i]||v['taskDate'+i]<today())||v['taskDate'+i]&&v['taskDate'+i]<today()||budgetReady(t.budget)&&!paid&&(!v['taskMonth'+i]||v['taskMonth'+i]<actualMonth()))){showError(Error('Choose today or a future date.'));return;}
+  try{await commitWallet(data=>{const q=data.projects[index];q.tasks=normalizedTasks(q);q.status='In Progress';q.date=v.projectDate||'';q.history??=[];q.history.push({type:'Reactivated',date:today()});for(const {t,i,paid} of pending){if(!t.done&&t.kind==='Checklist')q.tasks[i].deadline=v['taskDate'+i]||'';if(budgetReady(t.budget)&&!paid)q.tasks[i].budget.month=v['taskMonth'+i];}syncProjectBudget(data,q);});setView(viewName);showProject(index);}catch(err){showError(err);}
+ };
 }
 const debtKey=x=>x.debtId||JSON.stringify([x.category||'IOU',x.group||'',nameOf(x)]);
 const sameDebt=(x,seed)=>debtKey(x)===debtKey(seed)||(!x.debtId&&!seed.debtId&&(x.group||'')===(seed.group||'')&&nameOf(x)===nameOf(seed));
@@ -722,6 +834,10 @@ dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
  if(b.hasAttribute('data-close'))dialog.close();
  else if(d.delete){const [k,i]=d.delete.split(':');trashEntry(k,Number(i));}
+ else if(d.taskAdd!==undefined)taskEditor(Number(d.taskAdd));
+ else if(d.taskEdit){const [p,i]=d.taskEdit.split(':');taskEditor(Number(p),Number(i));}
+ else if(d.taskDelete){const [p,i]=d.taskDelete.split(':');deleteTask(Number(p),Number(i));}
+ else if(d.reactivate!==undefined)reactivateProject(Number(d.reactivate));
  else if(d.debtMonth){const [i,m]=d.debtMonth.split(':');editDebtMonth(Number(i),m);}
  else if(d.debtAdjust!==undefined)editDebtBalance(Number(d.debtAdjust));
  else if(d.savingsAdjust!==undefined)editSavingsBalance(Number(d.savingsAdjust));
@@ -731,11 +847,16 @@ dialog.addEventListener('click',e=>{
  if(['date','startDate','endDate','serviceDate'].includes(n)){const dt=v?new Date(v.slice(0,10)+'T12:00:00'):new Date();const date=Number.isNaN(dt.getTime())?new Date():dt;fillDate(p,date.getFullYear(),date.getMonth());}
  else if(n==='time')fillTime(p,v);
  p.hidden=false;b.setAttribute('aria-expanded','true');
- }else if(w&&d.choice!==undefined){choosePicker(w,d.choice);if(w.dataset.pickerName==='category'){const form=dialog.querySelector('#walletEntry');if(form)syncEntryForm(form);}}
+ }else if(w&&d.choice!==undefined){choosePicker(w,d.choice);if(w.dataset.pickerName==='category'){const form=dialog.querySelector('#walletEntry');if(form){syncEntryForm(form);refreshSuggestions(form);}}}
  else if(w&&d.pickerMonth){const p=w.querySelector('.wallet-picker-options'),dt=new Date(Number(p.dataset.year),Number(p.dataset.month)+Number(d.pickerMonth),1);fillDate(p,dt.getFullYear(),dt.getMonth());}
  else if(w&&b.hasAttribute('data-time-set')){const h=w.querySelector('[data-hour]'),m=w.querySelector('[data-minute]');if(h.value===''||m.value==='')return;if(!h.reportValidity()||!m.reportValidity())return;choosePicker(w,String(h.value).padStart(2,'0')+':'+String(m.value).padStart(2,'0'));}
 });
-let dragged=null;
+let dragged=null,draggedTask=null;
+dialog.addEventListener('change',async e=>{const el=e.target;if(!el.hasAttribute('data-task-check')||saving)return;const [p,i]=el.dataset.taskCheck.split(':').map(Number),checked=el.checked;try{await commitWallet(data=>{const project=data.projects[p];project.tasks=normalizedTasks(project);project.tasks[i].done=checked;});setView(viewName);showProject(p);}catch(err){el.checked=!checked;showError(err);}});
+dialog.addEventListener('dragstart',e=>{const el=e.target.closest('[data-task-sort]');if(!el||saving)return;draggedTask={project:Number(el.dataset.projectIndex),index:Number(el.dataset.taskSort)};e.dataTransfer.setData('text/plain',String(draggedTask.index));e.dataTransfer.effectAllowed='move';});
+dialog.addEventListener('dragover',e=>{if(draggedTask&&e.target.closest('[data-task-sort]'))e.preventDefault();});
+dialog.addEventListener('drop',async e=>{const el=e.target.closest('[data-task-sort]');if(!draggedTask||!el)return;e.preventDefault();const {project,index}=draggedTask,target=Number(el.dataset.taskSort);draggedTask=null;if(index===target||project!==Number(el.dataset.projectIndex))return;try{await commitWallet(data=>{const p=data.projects[project];p.tasks=normalizedTasks(p);const [t]=p.tasks.splice(index,1);p.tasks.splice(target,0,t);});showProject(project);}catch(err){showError(err);}});
+dialog.addEventListener('dragend',()=>{draggedTask=null;});
 mainPage.addEventListener('dragstart',e=>{const b=e.target.closest('[data-sort-id]');if(!b||saving)return;dragged={id:b.dataset.sortId,scope:b.dataset.sortScope};e.dataTransfer.setData('text/plain',dragged.id);e.dataTransfer.effectAllowed='move';});
 mainPage.addEventListener('dragover',e=>{const b=e.target.closest('[data-sort-id]');if(dragged&&b?.dataset.sortScope===dragged.scope){e.preventDefault();e.dataTransfer.dropEffect='move';}});
 mainPage.addEventListener('drop',async e=>{const b=e.target.closest('[data-sort-id]');if(!dragged||b?.dataset.sortScope!==dragged.scope)return;e.preventDefault();const {id,scope}=dragged,target=b.dataset.sortId;dragged=null;if(id===target)return;try{await commitWallet(data=>{data.settings??={};data.settings.sortOrder??={};const ids=[...new Set([...sortItems(all().filter(x=>isSpace(x)===(scope==='space')),scope==='space').map(itemOrderKey)])];const from=ids.indexOf(id),to=ids.indexOf(target);if(from<0||to<0)throw Error('Item order changed.');ids.splice(from,1);ids.splice(to,0,id);data.settings.sortOrder[scope]=ids;});setView(viewName);}catch(err){showError(err);}});
