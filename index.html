@@ -617,7 +617,7 @@ function handleDetailClick(win,e){
  else if(d.debtAdjust!==undefined)editDebtBalance(Number(d.debtAdjust));
  else if(d.savingsAdjust!==undefined)editSavingsBalance(Number(d.savingsAdjust));
 }
-const dialogHead=heading=>'<div class="wallet-row"><h2>'+esc(heading)+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div>';
+const dialogHead=(heading,deleteRef='')=>'<div class="wallet-row"><h2>'+esc(heading)+'</h2><div class="wallet-actions">'+(deleteRef?'<button type="button" data-delete="'+esc(deleteRef)+'">Delete</button>':'')+'<button type="button" data-close>Close</button></div></div>';
 const showError=err=>{if(err?.code==='SESSION_EXPIRED'){refreshReconnect();return;}const message=err?.message||String(err||'Could not save.');const n=dialog.open&&(dialog.querySelector('[data-form-error]')||dialog.querySelector('[role=status]:not(.reconnect-notice span):not([data-save-progress] [role=status])'));if(n){n.textContent=message;n.hidden=false;n.scrollIntoView({block:'nearest'});}else alert(message);};
 const closeRefresh=()=>{dialog.close();setView(viewName);};
 const dragAttr=e=>' draggable="true" data-sort-id="'+esc(itemOrderKey(e))+'" data-sort-scope="'+(isSpace(e)?'space':'budget')+'"';
@@ -1011,7 +1011,7 @@ function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
  const c=ref?categoryOf(ref):'Expense',frequency=x.frequency||(info.recurring?'Monthly':'None');
  const accounts=[...new Set(list('savings').map(nameOf).filter(Boolean))];
  const expenseStatus=ref&&isPaid(ref)?'Paid':'Unpaid',spaceStatus=['Completed','Cancelled'].includes(x.status)?x.status:'In Progress';
- dialog.innerHTML='<form class="wallet-form" id="walletEntry" data-recurring="'+info.recurring+'" data-legacy-reminder="'+(x.reminderUnit==='Months')+'">'+dialogHead(e?'Edit Item':'Add Item')+
+ dialog.innerHTML='<form class="wallet-form" id="walletEntry" data-recurring="'+info.recurring+'" data-legacy-reminder="'+(x.reminderUnit==='Months')+'">'+dialogHead(e?'Edit Item':'Add Item',e?key+':'+index:'')+
  '<div class="wallet-row"><div class="wallet-actions"><button type="button" data-form-tab="basic" class="selected" aria-pressed="true">Basic</button><button type="button" data-form-tab="advanced" aria-pressed="false">Advance</button><button type="button" data-form-tab="contract" aria-pressed="false">Contract</button><button type="button" data-form-tab="deduction" aria-pressed="false">Deduction</button></div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="basic">'+
  picker('Category','category',c,[...new Set(['Expense','Income','Savings','IOU','My Space',c])])+
@@ -1029,7 +1029,7 @@ function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
  '<div class="recurrence-fields form-tab" data-form-panel="contract" hidden><div class="recurrence-fields field-full" id="contractRows">'+(x.contracts||[]).map(contractRow).join('')+'</div><div class="wallet-row field-full"><button type="button" data-contract-add>+ Add</button></div><div class="wallet-row field-full"><span>Total</span><strong id="contractTotal"></strong></div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="deduction" hidden><div id="deductionField" class="recurrence-fields field-full deduction-tab">'+picker('Saving','savingsAccount',x.savingsAccount||'',['',...accounts]) +inputField('Amount to use','savingsAmount',x.savingsAmount??(x.savingsAccount&&x.frequency!=='Weekly'&& !x.contracts?.length?amountOf(x)??'':''),'number','min="0" step="any"')+'</div></div>'+
  '<p class="muted" role="status" data-form-error aria-live="polite"></p>'+
- '<div class="wallet-actions entry-footer">'+(e?'<button type="button" data-delete="'+key+':'+index+'">Delete</button>':'')+'<button type="button" data-close>Cancel</button><button type="submit" data-save-entry>Save</button></div>'+
+ '<div class="wallet-actions entry-footer"><button type="button" data-close>Cancel</button><button type="submit" data-save-entry>Save</button></div>'+
  '<div class="wallet-picker-options scope-popup" data-scope-popup hidden><strong>Apply change</strong><div class="wallet-actions"><button type="button" data-save-scope="one">This payment only</button><button type="button" data-save-scope="future">This and future payments</button><button type="button" data-scope-cancel>Cancel</button></div></div></form>';
  const form=dialog.querySelector('form');
  const savingPicker=form.querySelector('[data-picker-name="savingsAccount"]');const emptySaving=savingPicker.querySelector('[data-choice=""]');if(emptySaving)emptySaving.textContent='Clear selection';if(!form.elements.savingsAccount.value)savingPicker.querySelector('.wallet-picker-button span').textContent='Select account';
@@ -1328,7 +1328,7 @@ function renderSavings(index,ym=currentMonth()){
 }
 function editSavingsBalance(index){
  const seed=list('savings')[index];if(!seed)return;const account=nameOf(seed),ym=currentMonth(),old=savingsBalance(all(),ym,account),group=seed.group||list('savings').find(a=>nameOf(a)===account&&String(a.group||'').trim())?.group||'';
- openDialog(dialogHead('Edit savings')+'<form class="wallet-form"><div class="recurrence-fields"><p>Savings</p>'+inputField('Group','group',group,'text','required')+inputField('Item','name',account,'text','required')+inputField('Amount','balance',old,'number','step="any"')+'<div class="field-full">'+textField('Note','notes','','3')+'</div></div><p class="muted" role="status"></p><div class="wallet-actions entry-footer"><button type="button" data-delete="savings:'+index+'">Delete</button><button type="button" data-close>Cancel</button><button type="submit">Save</button></div></form>');
+ openDialog(dialogHead('Edit savings','savings:'+index)+'<form class="wallet-form"><div class="recurrence-fields"><p>Savings</p>'+inputField('Group','group',group,'text','required')+inputField('Item','name',account,'text','required')+inputField('Amount','balance',old,'number','step="any"')+'<div class="field-full">'+textField('Note','notes','','3')+'</div></div><p class="muted" role="status"></p><div class="wallet-actions entry-footer"><button type="button" data-close>Cancel</button><button type="submit">Save</button></div></form>');
  const form=dialog.querySelector('form');form.onsubmit=async ev=>{
   ev.preventDefault();if(saving)return;const v=Object.fromEntries(new FormData(form)),name=String(v.name||'').trim(),group=String(v.group||'').trim(),n=v.balance===''?null:Number(v.balance);
   if(!name||!group||n!==null&&!Number.isFinite(n)){showError(Error('Check the group, item name and balance.'));return;}
