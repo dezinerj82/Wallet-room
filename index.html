@@ -53,6 +53,10 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-row { display:flex; align-items:center; justify-content:space-between; gap:var(--gap); }
 .wallet-header { background:transparent; color:var(--teal); border:0; padding:0; }
 .wallet-header button { color:var(--teal); }
+#mainPage button:not(.entry-row):not(.calendar-event),.wallet-dialog button { padding:5px 9px; }
+.wallet-actions { display:flex; align-items:center; justify-content:flex-end; gap:5px; flex-wrap:wrap; }
+.wallet-dialog .wallet-actions button { font-size:10px; }
+.wallet-dialog .wallet-row { align-items:flex-start; }
 .wallet-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); }
 .wallet-stat { display:flex; flex-direction:column; gap:calc(var(--gap) / 2); }
 .wallet-stat strong { font-size:var(--subtitle); font-weight:500; }
@@ -60,9 +64,9 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-stat:nth-child(2) { --accent:#8ebacb; --marker:#bad9e5; }
 .wallet-stat:nth-child(3) { --accent:#9bb887; --marker:#d0e1b9; }
 .wallet-stat:nth-child(4) { --accent:#c88c9d; --marker:#edc5d0; }
-.wallet-nav { display:flex; align-items:center; gap:var(--gap); }
-.wallet-nav button { background:transparent; white-space:nowrap; }
-.wallet-nav button[aria-selected="true"],button.selected { background:#dfe8e1; }
+.wallet-nav { display:flex; align-items:center; gap:5px; }
+.wallet-nav button { background:var(--orange); white-space:nowrap; }
+.wallet-nav button[aria-selected="true"],#mainPage button.selected { background:var(--orange); box-shadow:inset 0 0 0 1.5px #be7d37; }
 .wallet-workspace { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:var(--gap); flex:1; min-height:0; align-items:stretch; overflow:hidden; }
 .wallet-workspace:not([data-view="2 Months"]) { grid-template-columns:minmax(0,1fr); }
 .wallet-months { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); min-height:0; }
@@ -72,15 +76,16 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-panel { display:flex; flex-direction:column; gap:calc(var(--gap)/2); overflow:hidden; }
 .wallet-scroll { flex:1; min-height:0; overflow:auto; scrollbar-width:none; }
 .wallet-scroll::-webkit-scrollbar { display:none; }
-.scroll-buttons { display:flex; justify-content:center; gap:var(--gap); flex:none; }
-.scroll-buttons button { background:transparent; padding:2px; }
-.scroll-buttons svg { width:1.4em; height:1em; fill:var(--accent); stroke:var(--accent); stroke-width:4; stroke-linejoin:round; }
-.entry-row { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--gap)/2); padding:.55em 0; width:100%; text-align:left; background:none; border-radius:0; }
+.scroll-buttons { display:flex; justify-content:center; gap:5px; flex:none; }
+#mainPage .scroll-buttons button,#mainPage button.wallet-arrow,.wallet-dialog button.wallet-arrow { background:transparent; padding:5px; flex:none; }
+.scroll-buttons svg,.wallet-arrow svg,.wallet-picker-button svg { width:1.4em; height:1em; fill:#8ebacb; stroke:#8ebacb; stroke-width:4; stroke-linejoin:round; flex:none; }
+.entry-row { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--gap)/2); padding:7px; width:100%; text-align:left; background:none; border-radius:0; }
 .entry-row span:first-child { text-decoration:underline; text-decoration-color:var(--accent,#8ebacb); text-underline-offset:.3em; text-decoration-thickness:2px; }
 .muted { opacity:.5; font-size:.82em; }
 .space-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--gap); align-content:start; }
 .space-grid .entry-row { display:flex; flex-direction:column; align-items:flex-start; }
 .record-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); flex:1; min-height:0; }
+.record-grid.invisible-columns > .wallet-panel { background:none; border:0; padding:0; }
 .calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px; background:#e8eeee; }
 .calendar-cell { background:#fff; min-height:5em; padding:.4em; min-width:0; }
 .calendar-event { font-size:.82em; display:block; background:#edf5f6; border-radius:.4em; padding:.25em; margin-top:.3em; width:100%; text-align:left; overflow-wrap:anywhere; }
@@ -90,14 +95,26 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-dialog::backdrop { background:#194b5940; }
 .wallet-form { display:flex; flex-direction:column; gap:var(--gap); }
 .wallet-form label { display:flex; flex-direction:column; gap:.3em; min-width:0; }
-.wallet-form input:not([type=checkbox]),.wallet-form textarea,.wallet-form select { border:0; border-radius:.7em; padding:.6em; background:var(--paper); font:inherit; color:inherit; width:100%; }
+.wallet-form input:not([type=checkbox]),.wallet-form textarea,.wallet-form select,.wallet-form button.wallet-picker-button { border:1px solid #d3e2e5; border-radius:12px; padding:12px; background:var(--paper); font:inherit; color:inherit; width:100%; min-width:0; }
+.wallet-picker { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.wallet-form button.wallet-picker-button { justify-content:space-between; text-align:left; gap:5px; }
+.wallet-picker-button svg.wallet-field-icon { width:18px; height:18px; fill:none; stroke-width:2.5; stroke-linecap:round; }
+.wallet-picker-options { background:white; border:1px solid #8ebacb; border-radius:12px; padding:12px; box-shadow:0 5px 15px #194b5910; min-width:0; }
+.wallet-dialog button.wallet-choice { background:transparent; border-radius:7px; display:flex; width:100%; justify-content:flex-start; padding:7px; text-align:left; }
+.wallet-dialog button.wallet-choice:hover,.wallet-dialog button.wallet-choice[aria-selected="true"] { background:var(--cream); }
+.wallet-date-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; text-align:center; }
+.wallet-dialog .wallet-date-grid button { padding:5px 0; min-width:0; font-size:11px; }
+.wallet-time-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
+.wallet-time-grid input { text-align:center; }
+.wallet-picker-options .wallet-row { gap:5px; align-items:center; }
+.wallet-picker-options .wallet-actions { margin-top:5px; }
 .wallet-form .record-grid { flex:none; }
 @media (max-width:768px) {
  #loginCard { --unit:min(100vw / 412, 100dvh / 891, 1px); width:min(100%,calc(530 * var(--unit))); min-height:calc(390 * var(--unit)); }
  #mainPage { height:calc(891 * var(--unit) - 2 * var(--page)); max-width:100%; align-self:center; }
  .wallet-header h1 { font-size:var(--subtitle); }
  .wallet-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
- .wallet-nav { flex-wrap:wrap; gap:calc(var(--gap) / 2); }
+ .wallet-nav { flex-wrap:wrap; gap:5px; }
  .wallet-nav button { font-size:calc(16 * var(--unit)); }
  .wallet-workspace { grid-template-columns:minmax(0,1fr); }
  .wallet-side { display:none; }
@@ -118,7 +135,7 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 </div>
 </main>
 <main id="mainPage" hidden>
-<header class="wallet-card wallet-header wallet-row"><h1>Wallet Room</h1><button type="button" id="addItem">+ Add Item</button><button id="logout" type="button" hidden>Sign out</button></header>
+<header class="wallet-card wallet-header wallet-row"><h1>Wallet Room</h1><div class="wallet-actions"><button type="button" id="addItem">+ Add Item</button><button id="logout" type="button" hidden>Sign out</button></div></header>
 <section class="wallet-stats" aria-label="Summary">
 <div class="wallet-card wallet-stat"><span class="marker">Available</span><strong>—</strong></div>
 <div class="wallet-card wallet-stat"><span class="marker">Savings</span><strong>—</strong></div>
@@ -166,6 +183,8 @@ const amountOf=x=>x.amount??x.cost??x.estimatedCost;
 const isInactive=e=>e.key==='records'||e.item.active===false||['completed','cancelled','paid','inactive','cleared'].includes(String(e.item.status||'').toLowerCase());
 const isSpace=e=>e.key==='projects'||e.item.category==='My Space';
 const title=t=>'<h3><span class="marker">'+esc(t)+'</span></h3>';
+const triangle=dir=>'<svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+({up:'M3 18 L15 4 L27 18 Z',down:'M3 4 L15 18 L27 4 Z',left:'M23 3 L7 11 L23 19 Z',right:'M7 3 L23 11 L7 19 Z'}[dir])+'"/></svg>';
+const directionButton=(dir,attr,label)=>'<button type="button" class="wallet-arrow" '+attr+' aria-label="'+label+'">'+triangle(dir)+'</button>';
 const arrows='<div class="scroll-buttons">'+[-1,1].map(n=>'<button type="button" data-scroll="'+n+'" aria-label="'+(n<0?'Scroll up':'Scroll down')+'"><svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+(n<0?'M3 18 L15 4 L27 18 Z':'M3 4 L15 18 L27 4 Z')+'"/></svg></button>').join('')+'</div>';
 const panel=(heading,color,body)=>'<section class="wallet-card wallet-panel '+color+'">'+title(heading)+'<div class="wallet-scroll">'+body+'</div>'+arrows+'</section>';
 const row=(e,second)=>'<button type="button" class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(second??money(amountOf(e.item)))+'</small></button>';
@@ -183,14 +202,14 @@ function setView(view){
  }else if(view==='My Space'){
  walletContent.classList.add('wallet-card','wallet-panel','purple');walletContent.innerHTML=title('My Space')+'<div class="wallet-scroll space-grid">'+entries.filter(isSpace).map(e=>row(e,displayDate(dateOf(e.item)))).join('')+'</div>'+arrows;
  }else if(view==='Records'){
- walletContent.classList.add('wallet-panel');
+ walletContent.classList.add('wallet-card','wallet-panel');
  const grouped=items=>{const groups=new Map();for(const e of items){const k=recordsMode==='By Event'?nameOf(e.item):dateOf(e.item)||'No date';if(!groups.has(k))groups.set(k,[]);groups.get(k).push(e);}let pairs=[...groups];if(recordsMode==='By Date')pairs.sort((a,b)=>b[0].localeCompare(a[0]));return pairs.map(([k,es])=>'<div style="margin-bottom:1em"><strong>'+esc(recordsMode==='By Date'?displayDate(k):k)+'</strong>'+es.map(e=>recordsMode==='By Event'?'<button class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(displayDate(dateOf(e.item)))+'</span><small>'+esc(money(amountOf(e.item)))+'</small></button>':row(e)).join('')+'</div>').join('');};
- walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div>'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid">'+panel('Active','green',grouped(entries.filter(e=>!isInactive(e))))+panel('Inactive','pink',grouped(entries.filter(isInactive)))+'</div>';
+ walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div class="wallet-actions">'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid invisible-columns">'+panel('Active','green',grouped(entries.filter(e=>!isInactive(e))))+panel('Inactive','pink',grouped(entries.filter(isInactive)))+'</div>';
  }else if(view==='Calendar'){renderCalendar(entries);}
 }
 function renderCalendar(entries){
  walletContent.classList.add('wallet-card','wallet-panel');const y=calendarDate.getFullYear(),m=calendarDate.getMonth();
- const controls='<div class="wallet-row">'+title('Calendar')+'<div>'+['Month','Week','Day'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row"><button data-step="-1">‹</button><strong>'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong><button data-step="1">›</button></div>';
+ const controls='<div class="wallet-row">'+title('Calendar')+'<div class="wallet-actions">'+['Month','Week','Day'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row">'+directionButton('left','data-step="-1"','Previous')+'<strong>'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong>'+directionButton('right','data-step="1"','Next')+'</div>';
  const event=e=>'<button class="calendar-event" data-entry="'+e.key+':'+e.index+'">'+esc(e.item.time?e.item.time+' ':'')+esc(nameOf(e.item))+'</button>';
  let body='';
  if(calendarMode==='Month'){
@@ -203,17 +222,43 @@ function renderCalendar(entries){
  }
  walletContent.innerHTML=controls+'<div class="wallet-scroll">'+body+'</div>'+arrows;
 }
+const pickerIcon=n=>n==='date'?'<svg class="wallet-field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>':n==='time'?'<svg class="wallet-field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg>':triangle('down');
+function picker(label,n,v,choices){
+ return '<div class="wallet-picker" data-picker-name="'+n+'"><span>'+label+'</span><input type="hidden" name="'+n+'" value="'+esc(v)+'"><button type="button" class="wallet-picker-button" data-picker-toggle aria-expanded="false" aria-label="'+label+'"><span>'+esc(v||'Select '+label.toLowerCase())+'</span>'+pickerIcon(n)+'</button><div class="wallet-picker-options" hidden>'+ (choices?choices.map(c=>'<button type="button" class="wallet-choice" aria-selected="'+(c===v)+'" data-choice="'+esc(c)+'">'+esc(c)+'</button>').join(''):'')+'</div></div>';
+}
+function fillDate(p,y,m){
+ p.dataset.year=y;p.dataset.month=m;const first=new Date(y,m,1),count=new Date(y,m+1,0).getDate();
+ p.innerHTML='<div class="wallet-row">'+directionButton('left','data-picker-month="-1"','Previous month')+'<strong>'+esc(monthLabel(first))+'</strong>'+directionButton('right','data-picker-month="1"','Next month')+'</div><div class="wallet-date-grid">'+['S','M','T','W','T','F','S'].map(d=>'<small>'+d+'</small>').join('')+Array.from({length:first.getDay()},()=>'<span></span>').join('')+Array.from({length:count},(_,i)=>'<button type="button" data-choice="'+dayKey(new Date(y,m,i+1))+'">'+(i+1)+'</button>').join('')+'</div><div class="wallet-actions"><button type="button" data-choice="">Clear</button></div>';
+}
+function fillTime(p,value){
+ const parts=(value||'08:00').split(':');
+ p.innerHTML='<div class="wallet-time-grid"><label>Hour<input type="number" min="0" max="23" step="1" value="'+esc(parts[0])+'" data-hour></label><label>Minute<input type="number" min="0" max="59" step="1" value="'+esc(parts[1])+'" data-minute></label></div><div class="wallet-actions"><button type="button" data-choice="">Clear</button><button type="button" data-time-set>Set</button></div>';
+}
+function closePickers(){dialog.querySelectorAll('.wallet-picker-options').forEach(p=>{p.hidden=true;p.parentElement.querySelector('[data-picker-toggle]').setAttribute('aria-expanded','false');});}
+function choosePicker(w,value){w.querySelector('input[type=hidden]').value=value;w.querySelector('.wallet-picker-button span').textContent=value||'Select '+w.dataset.pickerName;w.querySelectorAll('.wallet-choice').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.choice===value)));closePickers();w.querySelector('[data-picker-toggle]').focus();}
 function openEntry(key,index,edit=false){
  const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{};
- if(e&&!edit){dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><button data-close>Close</button></div><p class="muted">'+esc(displayDate(dateOf(x)))+'</p><p>'+esc(money(amountOf(x)))+'</p><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+ (Array.isArray(x.tasks)?x.tasks.map(t=>'<p>'+esc(typeof t==='string'?t:t.text)+'</p>').join(''):'')+'<button data-edit="'+key+':'+index+'">Edit</button></div>';if(!dialog.open)dialog.showModal();return;}
+ if(e&&!edit){dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button><button type="button" data-edit="'+key+':'+index+'">Edit</button></div></div><p class="muted">'+esc(displayDate(dateOf(x)))+'</p><p>'+esc(money(amountOf(x)))+'</p><p style="white-space:pre-wrap">'+esc(x.notes||'')+'</p>'+ (Array.isArray(x.tasks)?x.tasks.map(t=>'<p>'+esc(typeof t==='string'?t:t.text)+'</p>').join(''):'')+'</div>';if(!dialog.open)dialog.showModal();return;}
  const category=x.category|| (key==='projects'?'My Space':key==='savings'?'Savings':key==='iou'?'IOU':'Expense');
  const field=(label,n,v='',type='text')=>'<label>'+label+'<input name="'+n+'" type="'+type+'" value="'+esc(v)+'" '+(n==='name'?'required':'')+(type==='number'?' step="1"':'')+'></label>';
- dialog.innerHTML='<form class="wallet-form" id="walletEntry"><div class="wallet-row"><h2>'+(e?'Edit Item':'Add Item')+'</h2><button type="button" data-close>Close</button></div><label>Category<select name="category">'+[...new Set(['Expense','Income','Savings','IOU','My Space',category])].map(c=>'<option '+(c===category?'selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label>'+field('Group','group',x.group)+field('Item','name',nameOf(x))+'<div class="record-grid">'+field('Amount (RM)','amount',amountOf(x)??'','number')+field('Date','date',dateOf(x),'date')+field('Time','time',x.time,'time')+'<label>Status<select name="status">'+[...new Set(['Saved','In progress','Completed','Cancelled',x.status||'Saved'])].map(c=>'<option '+(c===(x.status||'Saved')?'selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label></div><label>Notes<textarea name="notes" rows="3">'+esc(x.notes||'')+'</textarea></label><label>Checklist / Subtasks<textarea name="tasks" rows="2">'+esc((x.tasks||[]).map(t=>typeof t==='string'?t:t.text).join('\n'))+'</textarea></label>'+field('Contact','contact',x.contact)+field('Website','website',x.website)+ '<p class="muted" id="entryStatus" role="status"></p><div class="wallet-row"><button type="button" data-close>Cancel</button><button type="submit">Save Item</button></div></form>';
+ dialog.innerHTML='<form class="wallet-form" id="walletEntry"><div class="wallet-row"><h2>'+(e?'Edit Item':'Add Item')+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div>'+picker('Category','category',category,[...new Set(['Expense','Income','Savings','IOU','My Space',category])])+field('Group','group',x.group)+field('Item','name',nameOf(x))+'<div class="record-grid">'+field('Amount (RM)','amount',amountOf(x)??'','number')+picker('Date','date',dateOf(x))+picker('Time','time',x.time||'')+picker('Status','status',x.status||'Saved',[...new Set(['Saved','In progress','Completed','Cancelled',x.status||'Saved'])])+'</div><label>Notes<textarea name="notes" rows="3">'+esc(x.notes||'')+'</textarea></label><label>Checklist / Subtasks<textarea name="tasks" rows="2">'+esc((x.tasks||[]).map(t=>typeof t==='string'?t:t.text).join('\n'))+'</textarea></label>'+field('Contact','contact',x.contact)+field('Website','website',x.website)+ '<p class="muted" id="entryStatus" role="status"></p><div class="wallet-actions"><button type="button" data-close>Cancel</button><button type="submit">Save Item</button></div></form>';
  const form=dialog.querySelector('form');form.onsubmit=async event=>{event.preventDefault();if(saving)return;const values=Object.fromEntries(new FormData(form));const taskLines=values.tasks.split('\n').filter(t=>t.trim());const updated={...x,...values,name:values.name.trim(),amount:values.amount===''?null:Number(values.amount),tasks:taskLines.map(text=>({text,done:(x.tasks||[]).some(t=>t.text===text&&t.done)})),id:x.id||crypto.randomUUID()};const dest=key||({ 'My Space':'projects',Savings:'savings',IOU:'iou'}[values.category]||'items');const msg=dialog.querySelector('#entryStatus');saving=true;form.querySelector('button[type=submit]').disabled=true;logout.disabled=true;try{const current=generation,access=token,file=dataId;await navigator.locks.request('wallet-room-data:'+folderId,async()=>{const data=await readData(access,current,file);if(JSON.stringify(data[dest]||[])!==JSON.stringify(walletData[dest]||[]))throw Error('Records changed elsewhere. Please sign in again.');const arr=data[dest]||[];if(e)arr[index]=updated;else arr.push(updated);data[dest]=arr;await drive('upload/drive/v3/files/'+encodeURIComponent(file)+'?uploadType=media&fields=id',access,current,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});walletData=data;});dialog.close();setView(viewName);}catch(err){msg.textContent=err.message;}finally{saving=false;logout.disabled=false;form.querySelector('button[type=submit]').disabled=false;}};
  if(!dialog.open)dialog.showModal();
 }
 mainPage.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;if(d.view)setView(d.view);else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
-dialog.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||saving)return;if(b.hasAttribute('data-close'))dialog.close();else if(b.dataset.edit){const [k,i]=b.dataset.edit.split(':');openEntry(k,Number(i),true);}});
+dialog.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
+ if(b.hasAttribute('data-close'))dialog.close();
+ else if(d.edit){const [k,i]=d.edit.split(':');openEntry(k,Number(i),true);}
+ else if(w&&b.hasAttribute('data-picker-toggle')){
+ const p=w.querySelector('.wallet-picker-options'),was=p.hidden;closePickers();if(!was)return;const v=w.querySelector('input[type=hidden]').value,n=w.dataset.pickerName;
+ if(n==='date'){const dt=v?new Date(v.slice(0,10)+'T12:00:00'):new Date();const date=Number.isNaN(dt.getTime())?new Date():dt;fillDate(p,date.getFullYear(),date.getMonth());}
+ else if(n==='time')fillTime(p,v);
+ p.hidden=false;b.setAttribute('aria-expanded','true');
+ }else if(w&&d.choice!==undefined)choosePicker(w,d.choice);
+ else if(w&&d.pickerMonth){const p=w.querySelector('.wallet-picker-options'),dt=new Date(Number(p.dataset.year),Number(p.dataset.month)+Number(d.pickerMonth),1);fillDate(p,dt.getFullYear(),dt.getMonth());}
+ else if(w&&b.hasAttribute('data-time-set')){const h=w.querySelector('[data-hour]'),m=w.querySelector('[data-minute]');if(h.value===''||m.value==='')return;if(!h.reportValidity()||!m.reportValidity())return;choosePicker(w,String(h.value).padStart(2,'0')+':'+String(m.value).padStart(2,'0'));}
+});
 dialog.addEventListener('cancel',e=>{if(saving)e.preventDefault();});
 let client, token=null, generation=0, folderId=null, dataId=null, savedNote='', saving=false, ready=false;
 const test=document.getElementById('storageTest'), note=document.getElementById('testNote');
