@@ -363,7 +363,7 @@ function renderSummary(entries){
   const k=el.dataset.summary,account=el.dataset.savingsAccount,n=account?savingsBalance(entries,ym,account):v[k],a=el.querySelector('strong');a.innerHTML=accounting(n,k==='available'&&n<0);
   a.style.color=k==='available'&&n<1000?'#e65c5c':(k==='available'&&n<2000||account&&n<1000)?'#f29e9e':'';
  }
- document.getElementById('clearBill').hidden=today()<lastDay(ym);
+ document.getElementById('clearBill').hidden=false;
 }
 const categoryDest=c=>({'My Space':'projects',Savings:'savings',IOU:'iou'}[c]||'items');
 const weekdays=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -639,7 +639,7 @@ function renderMonthGroup(key,index,ym){
  return dialogHead(nameOf(e.item))+'<p class="muted">'+esc(tableDate(ym+'-01'))+'</p>'+members.map(x=>'<button class="entry-row" data-entry="'+x.key+':'+x.index+'"><span>'+esc(x.item.originMonth?tableDate(x.item.originMonth+'-01'):displayDate(dateOf(x.item)))+'</span><span>'+esc(statusLabel(x))+'</span>'+accounting(amountOf(x.item))+'</button>').join('')+'<div class="wallet-row"><strong>Total</strong>'+accounting(members.reduce((n,x)=>n+Number(amountOf(x.item)||0),0))+'</div>';
 }
 function clearMonth(){
- const ym=currentMonth();if(today()<lastDay(ym))return;
+ const ym=currentMonth();
  const bills=sortItems(all().filter(e=>dueBill(e)&&monthKey(dateOf(e.item))===ym));
  openDialog(dialogHead('Clear Bill — '+tableDate(ym+'-01'))+'<form id="clearMonthForm" class="wallet-form">'+bills.map((e,i)=>'<div class="wallet-row"><span>'+esc(nameOf(e.item))+' '+esc(e.item.originMonth?tableDate(e.item.originMonth+'-01'):'')+'</span>'+accounting(amountOf(e.item))+'<select required name="bill'+i+'" aria-label="'+esc(nameOf(e.item))+'"'+(isPaid(e)?' disabled':'')+'><option value="">Select</option><option value="Paid"'+(isPaid(e)?' selected':'')+'>Paid</option><option value="Unpaid">Unpaid</option></select></div>').join('')+'<p class="muted" role="status"></p><div class="wallet-actions"><button type="submit">Clear Bill</button></div></form>');
  const form=dialog.querySelector('form');form.onsubmit=async ev=>{
