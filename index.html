@@ -175,6 +175,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-form .summary-fields small { display:block; font-size:.82em; opacity:.5; }
 .wallet-form .summary-fields > div { overflow-wrap:anywhere; }
 .wallet-form [role=status]:empty { display:none; }
+.wallet-form [data-form-error]:not(:empty) { color:#c94f4f; opacity:.85; font-size:inherit; }
 .wallet-form .entry-footer { margin-top:auto; }
 .wallet-form .entry-footer [data-delete] { margin-right:auto; }
 .wallet-form .deduction-tab { align-content:start; }
@@ -354,6 +355,17 @@ function renderSummary(entries){
 const categoryDest=c=>({'My Space':'projects',Savings:'savings',IOU:'iou'}[c]||'items');
 const weekdays=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const validDate=d=>/^\d{4}-\d{2}-\d{2}$/.test(d||'')&&dayKey(new Date(d+'T12:00:00'))===d;
+function normalizeDate(value){
+ const v=String(value||'').trim();
+ return /^\d{8}$/.test(v)?v.slice(0,4)+'-'+v.slice(4,6)+'-'+v.slice(6):v;
+}
+function validateDateInput(input,format=false){
+ const v=normalizeDate(input.value);
+ if(format)input.value=v;
+ const message=v&&!validDate(v)?'Enter a valid '+(input.getAttribute('aria-label')||'date').toLowerCase()+' (YYYY-MM-DD).':'';
+ input.setCustomValidity(message);
+ return message;
+}
 const datePlus=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return dayKey(x);};
 const monthDate=(ym,day)=>ym+'-'+String(Math.min(Number(day)||1,Number(lastDay(ym).slice(8,10)))).padStart(2,'0');
 const horizon=()=>lastDay(shiftMonth([currentMonth(),actualMonth(),monthKey(dayKey(calendarDate))].sort().at(-1),24));
@@ -450,7 +462,7 @@ function openWindow(){
 }
 const openDialog=html=>{dialog.innerHTML='<div class="wallet-form">'+html+'</div>';openWindow();};
 const dialogHead=heading=>'<div class="wallet-row"><h2>'+esc(heading)+'</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div>';
-const showError=err=>{if(err?.code==='SESSION_EXPIRED'){refreshReconnect();return;}const message=err?.message||String(err||'Could not save.');const n=dialog.open&&dialog.querySelector('[role=status]:not(.reconnect-notice span):not([data-save-progress] [role=status])');if(n){n.textContent=message;n.scrollIntoView({block:'nearest'});}else alert(message);};
+const showError=err=>{if(err?.code==='SESSION_EXPIRED'){refreshReconnect();return;}const message=err?.message||String(err||'Could not save.');const n=dialog.open&&(dialog.querySelector('[data-form-error]')||dialog.querySelector('[role=status]:not(.reconnect-notice span):not([data-save-progress] [role=status])'));if(n){n.textContent=message;n.hidden=false;n.scrollIntoView({block:'nearest'});}else alert(message);};
 const closeRefresh=()=>{dialog.close();setView(viewName);};
 const dragAttr=e=>' draggable="true" data-sort-id="'+esc(itemOrderKey(e))+'" data-sort-scope="'+(isSpace(e)?'space':'budget')+'"';
 function showMonthGroup(key,index,ym){
@@ -680,10 +692,10 @@ dialog.addEventListener('focusin',e=>{if(e.target.matches('input[data-suggestion
 dialog.addEventListener('input',e=>{if(e.target.matches('input[data-suggestions]'))suggestInput(e.target);});
 dialog.addEventListener('change',e=>{
  if(e.target.matches('[data-direct-date]')){
-  const input=e.target;input.setCustomValidity(input.value&&!validDate(input.value)?'Enter a valid date (YYYY-MM-DD).':'');
+  validateDateInput(e.target,true);
  }
 });
-dialog.addEventListener('input',e=>{if(e.target.matches('[data-direct-date]')){const i=e.target;i.setCustomValidity(i.value&&!validDate(i.value)?'Enter a valid date (YYYY-MM-DD).':'');}});
+dialog.addEventListener('input',e=>{if(e.target.matches('[data-direct-date]'))validateDateInput(e.target);});
 document.addEventListener('pointerdown',e=>{if(dialog.open&&!e.target.closest('.wallet-picker,.wallet-picker-options,input[data-suggestions]'))closePickers();},true);
 dialog.addEventListener('scroll',e=>{if(!e.target.closest?.('.wallet-picker-options'))closePickers();},true);
 function showMainBill(date){
@@ -832,8 +844,8 @@ function openEntry(key,index,edit=false,presetDate=''){
  '<div id="reminderField">'+inputField('Reminder (days)','reminderValue',reminderDaysForForm(x),'number','min="0" step="1"')+'</div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="contract" hidden><div class="recurrence-fields field-full" id="contractRows">'+(x.contracts||[]).map(contractRow).join('')+'</div><div class="wallet-row field-full"><button type="button" data-contract-add>+ Add</button><span>Total (current month) <strong id="contractTotal"></strong></span></div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="deduction" hidden><div id="deductionField" class="recurrence-fields field-full deduction-tab">'+picker('Saving','savingsAccount',x.savingsAccount||'',['',...accounts]) +inputField('Amount to use','savingsAmount',x.savingsAmount??(x.savingsAccount&&x.frequency!=='Weekly'&& !x.contracts?.length?amountOf(x)??'':''),'number','min="0" step="any"')+'</div></div>'+
- '<p class="muted" role="status"></p>'+
- '<div class="wallet-actions entry-footer">'+(e?'<button type="button" data-delete="'+key+':'+index+'">Delete</button>':'')+'<button type="button" data-close>Cancel</button><button type="submit">Save</button></div>'+
+ '<p class="muted" role="status" data-form-error aria-live="polite"></p>'+
+ '<div class="wallet-actions entry-footer">'+(e?'<button type="button" data-delete="'+key+':'+index+'">Delete</button>':'')+'<button type="button" data-close>Cancel</button><button type="submit" data-save-entry>Save</button></div>'+
  '<div class="scope-popup" data-scope-popup hidden><strong>Apply change</strong><div class="wallet-actions"><button type="button" data-save-scope="one">This payment only</button><button type="button" data-save-scope="future">This and future payments</button><button type="button" data-scope-cancel>Cancel</button></div></div></form>';
  const form=dialog.querySelector('form');
  const savingPicker=form.querySelector('[data-picker-name="savingsAccount"]');const emptySaving=savingPicker.querySelector('[data-choice=""]');if(emptySaving)emptySaving.textContent='Clear selection';if(!form.elements.savingsAccount.value)savingPicker.querySelector('.wallet-picker-button span').textContent='Select account';
@@ -847,8 +859,9 @@ function openEntry(key,index,edit=false,presetDate=''){
  if(e&&key==='projects'&&['Completed','Cancelled'].includes(x.status))form.elements.spaceStatus.disabled=true;
  form.onsubmit=async ev=>{
   ev.preventDefault();if(saving)return;
-  const status=form.querySelector('[role=status]:not(.reconnect-notice span)');if(status)status.textContent='';
   try{
+  const status=form.querySelector('[data-form-error]');if(status)status.textContent='';
+  for(const input of form.querySelectorAll('[data-direct-date]'))if(!input.disabled){const message=validateDateInput(input,true);if(message){entryTab(form,input.closest('[data-form-panel]')?.dataset.formPanel||'basic');showError(Error(message));input.focus();return;}}
   const v=Object.fromEntries(new FormData(form)),category=v.category, dest=categoryDest(category),name=String(v.name||'').trim(),group=String(v.group||'').trim();
   const contracts=category==='Expense'?readContracts(form):[],contractChanged=JSON.stringify(contracts)!==JSON.stringify(x.contracts||[]);const hasContracts=contracts.length>0;
   if(hasContracts){v.frequency='Monthly';v.interval='1';v.endDate='';}
@@ -859,11 +872,11 @@ function openEntry(key,index,edit=false,presetDate=''){
   const date=v.date||'',week={};
   const contractPlan=hasContracts?contractSchedule(contracts,date,currentMonth()):null;
   if(!['Expense','Income','Savings','IOU','My Space'].includes(category)||!group||!name){entryTab(form,'basic');showError(Error('Enter category, group and item name.'));return;}
-  for(const field of form.querySelectorAll('input:not([type=hidden]),select,textarea')){if(!field.disabled&&!field.checkValidity()){entryTab(form,field.closest('[data-form-panel]')?.dataset.formPanel||'basic');field.reportValidity();showError(Error(field.validationMessage||'Check the highlighted field.'));return;}}
+  for(const field of form.querySelectorAll('input:not([type=hidden]),select,textarea')){if(!field.disabled&&!field.checkValidity()){entryTab(form,field.closest('[data-form-panel]')?.dataset.formPanel||'basic');showError(Error(field.validationMessage||'Check the highlighted field.'));field.focus();return;}}
   if(date&&!validDate(date)){showError(Error('Check the date.'));return;}
   if(category==='IOU'&&amount!==null&&amount<0){showError(Error('Check the amount.'));return;}
-  const saving=category==='Expense'?v.savingsAccount||'':'',savingAmount=v.savingsAmount==null||v.savingsAmount===''?null:Number(v.savingsAmount);
-  if(saving&&(savingAmount===null&&!(x.savingsAccount===saving&&x.savingsAmount==null)||savingAmount!==null&&(!Number.isFinite(savingAmount)||savingAmount<0))){entryTab(form,'deduction');showError(Error('Enter the amount to use from savings.'));return;}
+  const savingAccount=category==='Expense'?v.savingsAccount||'':'',savingAmount=v.savingsAmount==null||v.savingsAmount===''?null:Number(v.savingsAmount);
+  if(savingAccount&&(savingAmount===null&&!(x.savingsAccount===savingAccount&&x.savingsAmount==null)||savingAmount!==null&&(!Number.isFinite(savingAmount)||savingAmount<0))){entryTab(form,'deduction');showError(Error('Enter the amount to use from savings.'));return;}
   const interval=recurring?Number(v.interval||1):1;
   if(recurring&&(!Number.isInteger(interval)||interval<1||interval>1200)){showError(Error('Check the recurring interval.'));return;}
   if(!date&&recurring&&e&&info.recurring&&dateOf(x)&&v.scope==='future'){showError(Error('Set a date for future recurring payments.'));return;}
@@ -877,7 +890,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   if(recurring&&date&&!v.endDate&&(!e||!info.recurring||!dateOf(x)||v.scope==='future')&&!hasContracts)v.endDate=defaultRecurringEnd(date,v.frequency,interval,week);
   const updated={...x,id:x.id||crypto.randomUUID(),category,group,name,date,amount};
   if(['Expense','My Space'].includes(category)){updated.subject=v.subject||'';updated.time='';}
-  if(category==='Expense'){updated.mainBill=!!v.mainBill;updated.status=v.expenseStatus;updated.paid=v.expenseStatus==='Paid';updated.notes=v.notes||'';updated.savingsAccount=saving;if(saving&&savingAmount!==null)updated.savingsAmount=savingAmount;else delete updated.savingsAmount;}
+  if(category==='Expense'){updated.mainBill=!!v.mainBill;updated.status=v.expenseStatus;updated.paid=v.expenseStatus==='Paid';updated.notes=v.notes||'';updated.savingsAccount=savingAccount;if(savingAccount&&savingAmount!==null)updated.savingsAmount=savingAmount;else delete updated.savingsAmount;}
   else if(category==='My Space'){
    updated.status=e&&key==='projects'&&['Completed','Cancelled'].includes(x.status)?x.status:v.spaceStatus||'In Progress';updated.createdAt=x.createdAt||(!e?today():'');
    updated.tasks=normalizedTasks(x);updated.notes=v.notes||'';
