@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy | Wallet Room</title>
+<style>
+:root { --teal:#194b59; --orange:#76d6b8; --paper:#f4f6f5; --white:#fff; --unit:calc(.75 * min(100vw / 1920, 100dvh / 1080, 1px)); --card:calc(22 * var(--unit)); --gap:calc(21.3333 * var(--unit)); --radius:calc(32 * var(--unit)); }
+* { box-sizing:border-box; }
+body { margin:0; min-height:100dvh; padding:24px; background:var(--paper); color:var(--teal); font-family:'Google Sans',Arial,sans-serif; font-size:16px; line-height:1.55; }
+main { max-width:760px; margin:0 auto; background:var(--white); border:1px solid #8ebacb; border-radius:var(--radius); padding:max(20px,var(--card)); }
+header { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+h1 { font-size:28px; line-height:1.2; margin:0; font-weight:600; }
+h2 { font-size:18px; font-weight:600; margin:24px 0 6px; }
+p,ul { margin:0 0 10px; }
+ul { padding-left:22px; }
+a { color:inherit; text-underline-offset:3px; overflow-wrap:anywhere; }
+a.home { background:var(--orange); border-radius:9999px; padding:5px 9px; font-size:13px; text-decoration:none; }
+a:focus-visible { outline:3px solid #f7ff81; outline-offset:2px; }
+.updated { font-size:13px; opacity:.65; margin:10px 0 20px; }
+@media(max-width:600px){:root { --unit:calc(.75 * min(100vw / 412, 100dvh / 891, 1px)); }body { padding:12px; }h1 { font-size:24px; }}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Wallet Room — Privacy Policy</h1><a class="home" href="./">Wallet Room</a></header>
+<p class="updated">Last updated: 27 November 2026</p>
+<p>Wallet Room is a personal budgeting and planning web app. This policy explains what information the app accesses, how it uses that information, and how you can control your data.</p>
+<h2>1. Information we access</h2>
+<ul>
+<li>Google account information: your email address and Google Drive account identifier, used to identify your account and reconnect to the same account.</li>
+<li>Google authorization: a temporary access token that lets Wallet Room access its permitted Google Drive files. Wallet Room does not receive your Google password.</li>
+<li>Information you enter, including income, expenses, savings, debts, payment schedules, contracts, project notes, contacts and links entered manually, and app settings.</li>
+<li>Google Drive file and folder information needed to locate, create, read and update your Wallet Room records.</li>
+</ul>
+<h2>2. How we use your information</h2>
+<p>Wallet Room uses this information only to sign you in, manage your budget and projects, calculate totals and recurring payments, display reminders within the app, and save or restore your records. It does not connect to your bank or make payments on your behalf.</p>
+<p>Wallet Room requests the Google Drive <code>drive.file</code> permission, which limits file access to files created by or made available to the app. It does not request unrestricted access to your Drive, Gmail, Google Contacts or Google Calendar.</p>
+<h2>3. Where your data is stored</h2>
+<p>Your records are stored in your own Google Drive, in a folder named <strong>Wallet room</strong>, in a file named <code>wallet-data.json</code>. The app creates this folder and file if needed, reads them when you sign in, and updates the file when you save changes.</p>
+<p>The app runs in your browser and does not send your budget records to a separate Wallet Room server or to the public GitHub repository. Account information, authorization tokens and loaded records are held in browser memory during your session. Signing out clears the app's in-memory session and requests revocation of its Google access token.</p>
+<h2>4. Sharing and third-party services</h2>
+<p>Wallet Room does not sell your data, use it for advertising, or provide your budget records to advertisers or data brokers. Google provides authentication, Drive storage and the font service used on the main app. GitHub Pages hosts the website. These providers may process technical information, such as IP addresses, browser information and service logs, under their own privacy policies.</p>
+<p>Wallet Room does not change the sharing permissions of your Drive files. Anyone to whom you grant access to your data through Google Drive may be able to view it according to those permissions.</p>
+<p>See the <a href="https://policies.google.com/privacy">Google Privacy Policy</a> and <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</p>
+<h2>5. Data security</h2>
+<p>Wallet Room uses HTTPS and Google's authorization controls to communicate with Google Drive. Your Google account's security and file permissions help protect your records. Wallet Room does not add separate encryption to the contents of its JSON file. No online service can guarantee absolute security.</p>
+<h2>6. Data retention, deletion and access</h2>
+<p>Your records remain in your Google Drive until you delete them. You can view and download your data file directly from Drive, edit records within Wallet Room, and move deleted items to the app's Trash. Empty Trash removes those items from the app's Trash; some historical records or revisions may remain.</p>
+<p>To remove all stored Wallet Room data, sign out, delete the <code>wallet-data.json</code> file from Google Drive and permanently remove it from Drive Trash. Any copies or backups you created must be removed separately. Google's own retention practices may also apply.</p>
+<p>You can revoke Wallet Room's access at any time from your <a href="https://myaccount.google.com/connections">Google Account connections</a>. Revoking access does not delete the data file already stored in your Drive.</p>
+<h2>7. Google API Limited Use</h2>
+<p>Wallet Room's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>
+<h2>8. Changes and contact</h2>
+<p>This policy will be updated if Wallet Room's data handling changes. For privacy questions, contact the maintainer through the <a href="https://github.com/dezinerj82/Wallet-room">Wallet Room GitHub project</a>. Do not post personal or financial information publicly.</p>
+</main>
+</body>
+</html>
