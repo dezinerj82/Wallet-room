@@ -145,8 +145,8 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-form button.wallet-picker-button { justify-content:space-between; text-align:left; gap:5px; }
 .wallet-form select { appearance:none; padding-right:32px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 22'%3E%3Cpath d='M3 4 L15 18 L27 4 Z' fill='%238ebacb' stroke='%238ebacb' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; background-size:1.4em 1em; }
 .wallet-picker-button svg.wallet-field-icon { width:18px; height:18px; fill:none; stroke-width:2.5; stroke-linecap:round; }
-.wallet-picker-options { position:fixed; inset:auto; margin:0; z-index:110; background:white; color:var(--teal); font:inherit; border:1px solid #8ebacb; border-radius:12px; padding:12px; box-shadow:0 5px 15px #194b5920; min-width:0; overflow:auto; max-height:70dvh; }
-.wallet-dialog button.wallet-choice { background:transparent; border-radius:7px; display:flex; width:100%; justify-content:flex-start; padding:7px; text-align:left; }
+.wallet-picker-options { position:fixed; inset:auto; margin:0; z-index:110; background:white; color:var(--teal); font:inherit; border:1px solid #8ebacb; border-radius:var(--radius); padding:var(--card); box-shadow:0 5px 15px #194b5920; min-width:0; overflow:auto; max-height:70dvh; display:flex; flex-direction:column; gap:10px; }
+.wallet-dialog button.wallet-choice { background:transparent; border-radius:9999px; display:flex; width:100%; justify-content:flex-start; padding:7px; text-align:left; }
 .wallet-dialog button.wallet-choice:hover,.wallet-dialog button.wallet-choice[aria-selected="true"] { background:var(--cream); }
 .wallet-date-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:10px; text-align:center; }
 .wallet-dialog .wallet-date-grid button { padding:0; min-width:0; width:fit-content; justify-self:center; font-size:11px; background:transparent; }
@@ -187,7 +187,8 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-form .deduction-tab { align-content:start; }
 .wallet-form .deduction-tab .wallet-picker { grid-column:span 2; }
 .wallet-form .scope-popup { display:flex; flex-direction:column; gap:10px; }
-.wallet-form .scope-popup .wallet-actions { justify-content:flex-start; }
+.wallet-form .scope-popup .wallet-actions { flex-direction:column; align-items:stretch; justify-content:flex-start; }
+.wallet-form .scope-popup .wallet-actions button { width:100%; }
 .wallet-form .save-progress { height:calc(7 * var(--unit)); background:var(--cream); border-radius:9999px; overflow:hidden; }
 .wallet-form .save-progress > span { display:block; height:100%; width:35%; background:var(--orange); border-radius:inherit; animation:walletSaving 1.2s ease-in-out infinite alternate; }
 @keyframes walletSaving { from { transform:translateX(-100%); } to { transform:translateX(285%); } }
@@ -682,9 +683,10 @@ function pickerInput(w){return w.querySelector('input[type=hidden],input[data-di
 function hideFloating(p){if(p.matches(':popover-open'))p.hidePopover();p.hidden=true;}
 function positionFloating(p,anchor){
  const r=anchor.getBoundingClientRect(),w=document.documentElement.clientWidth,h=document.documentElement.clientHeight;
- p.style.width=Math.min(Math.max(r.width,180),w-16)+'px';p.style.maxHeight=Math.min(360,h-16)+'px';
- const ph=p.getBoundingClientRect().height,below=h-r.bottom-8,above=r.top-8;
- p.style.top=Math.max(8,below>=ph||below>=above?r.bottom+6:r.top-ph-6)+'px';p.style.left=Math.max(8,Math.min(r.left,w-p.getBoundingClientRect().width-8))+'px';
+ const scope=p.hasAttribute('data-scope-popup');
+ p.style.width=Math.min(Math.max(r.width,scope?260:180),w-16)+'px';p.style.maxHeight=Math.min(360,h-16)+'px';
+ const ph=p.getBoundingClientRect().height,pw=p.getBoundingClientRect().width,below=h-r.bottom-8,above=r.top-8;
+ p.style.top=Math.max(8,below>=ph||below>=above?r.bottom+6:r.top-ph-6)+'px';p.style.left=Math.max(8,Math.min(scope?r.right-pw:r.left,w-pw-8))+'px';
  if(below<ph&&above<ph)p.style.maxHeight=Math.max(80,Math.max(below,above))+'px';
 }
 function showFloating(p,anchor){
@@ -777,7 +779,7 @@ function syncContractForm(form){
  form.querySelector('#contractTotal').textContent=money(contractTotal(cs,currentMonth()));
 }
 function entryScopePrompt(form){
- closePickers();const p=form.querySelector('[data-scope-popup]');p.hidden=false;p.querySelector('[data-save-scope]').focus({preventScroll:true});p.scrollIntoView({block:'nearest'});
+ closePickers();const p=form.querySelector('[data-scope-popup]'),anchor=form.querySelector('[data-save-entry]');showFloating(p,anchor);p.querySelector('[data-save-scope]').focus({preventScroll:true});
 }
 function syncEntryForm(form){
  const c=form.elements.category.value;
@@ -861,7 +863,7 @@ function openEntry(key,index,edit=false,presetDate=''){
  '<div class="recurrence-fields form-tab" data-form-panel="deduction" hidden><div id="deductionField" class="recurrence-fields field-full deduction-tab">'+picker('Saving','savingsAccount',x.savingsAccount||'',['',...accounts]) +inputField('Amount to use','savingsAmount',x.savingsAmount??(x.savingsAccount&&x.frequency!=='Weekly'&& !x.contracts?.length?amountOf(x)??'':''),'number','min="0" step="any"')+'</div></div>'+
  '<p class="muted" role="status" data-form-error aria-live="polite"></p>'+
  '<div class="wallet-actions entry-footer">'+(e?'<button type="button" data-delete="'+key+':'+index+'">Delete</button>':'')+'<button type="button" data-close>Cancel</button><button type="submit" data-save-entry>Save</button></div>'+
- '<div class="scope-popup" data-scope-popup hidden><strong>Apply change</strong><div class="wallet-actions"><button type="button" data-save-scope="one">This payment only</button><button type="button" data-save-scope="future">This and future payments</button><button type="button" data-scope-cancel>Cancel</button></div></div></form>';
+ '<div class="wallet-picker-options scope-popup" data-scope-popup hidden><strong>Apply change</strong><div class="wallet-actions"><button type="button" data-save-scope="one">This payment only</button><button type="button" data-save-scope="future">This and future payments</button><button type="button" data-scope-cancel>Cancel</button></div></div></form>';
  const form=dialog.querySelector('form');
  const savingPicker=form.querySelector('[data-picker-name="savingsAccount"]');const emptySaving=savingPicker.querySelector('[data-choice=""]');if(emptySaving)emptySaving.textContent='Clear selection';if(!form.elements.savingsAccount.value)savingPicker.querySelector('.wallet-picker-button span').textContent='Select account';
  form.noValidate=true;
@@ -1168,8 +1170,8 @@ dialog.addEventListener('click',e=>{
  if(b.hasAttribute('data-contract-add')){const form=b.closest('#walletEntry');if(form){if(!readContracts(form).length){form.dataset.manualAmount=form.elements.amount.value;form.dataset.manualFrequency=form.elements.frequency.value;form.dataset.manualInterval=form.elements.interval.value;form.dataset.manualEnd=form.elements.endDate.value;}form.querySelector('#contractRows').insertAdjacentHTML('beforeend',contractRow());syncEntryForm(form);}}
  else if(b.hasAttribute('data-contract-remove')){const form=b.closest('#walletEntry');if(form){closePickers();b.closest('[data-contract-row]').remove();syncEntryForm(form);}}
  else if(d.formTab){const form=b.closest('#walletEntry');if(form)entryTab(form,d.formTab);}
- else if(d.saveScope){const form=b.closest('#walletEntry');if(form){form.dataset.saveScope=d.saveScope;form.querySelector('[data-scope-popup]').hidden=true;closePickers();form.requestSubmit();}}
- else if(b.hasAttribute('data-scope-cancel')){b.closest('[data-scope-popup]').hidden=true;}
+ else if(d.saveScope){const form=b.closest('#walletEntry');if(form){form.dataset.saveScope=d.saveScope;closePickers();form.requestSubmit();}}
+ else if(b.hasAttribute('data-scope-cancel')){closePickers();b.closest('#walletEntry')?.querySelector('[data-save-entry]')?.focus({preventScroll:true});}
  else if(w&&b.hasAttribute('data-add-option')){const p=w.querySelector('.wallet-picker-options');p.innerHTML='<input data-new-option placeholder="New '+(w.dataset.pickerName==='name'?'item':'group')+'"><button type="button" class="wallet-choice" data-add-value>Add</button>';p.querySelector('input').focus();}
  else if(w&&b.hasAttribute('data-add-value')){const value=w.querySelector('[data-new-option]').value.trim();if(value){choosePicker(w,value);entryChoiceChanged(w.closest('#walletEntry'),w.dataset.pickerName);}}
  else if(b.hasAttribute('data-suggest-value')){const p=b.closest('[data-suggestion-popup]'),input=p.previousElementSibling;input.value=b.dataset.suggestValue;closePickers();input.dispatchEvent(new Event('input',{bubbles:true}));closePickers();}
