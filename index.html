@@ -36,7 +36,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 #loginActions { display:grid; grid-template-columns:max-content; justify-content:center; row-gap:calc(10 * var(--unit)); max-width:100%; }
 #login .google-mark { font-size:calc(24 * var(--unit)); font-weight:400; line-height:1; flex-shrink:0; }
 #progress { width:100%; height:calc(7 * var(--unit)); margin-top:calc(14 * var(--unit)); background:var(--cream); border-radius:9999px; overflow:hidden; }
-#progressFill { height:100%; width:0; border-radius:inherit; background:var(--teal); transition:width .2s ease; }
+#progressFill { height:100%; width:0; border-radius:inherit; background:var(--orange); transition:width .2s ease; }
 #status { color:var(--teal); font-size:calc(10 * var(--unit)); overflow-wrap:anywhere; max-width:100%; width:0; min-width:100%; min-height:calc(16 * var(--unit)); opacity:.5; }
 #status.error { color:#a64b50; }
 #progress[hidden] { display:block !important; visibility:hidden; }
@@ -117,7 +117,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-dialog button.wallet-choice { background:transparent; border-radius:7px; display:flex; width:100%; justify-content:flex-start; padding:7px; text-align:left; }
 .wallet-dialog button.wallet-choice:hover,.wallet-dialog button.wallet-choice[aria-selected="true"] { background:var(--cream); }
 .wallet-date-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:10px; text-align:center; }
-.wallet-dialog .wallet-date-grid button { padding:5px 0; min-width:0; font-size:11px; }
+.wallet-dialog .wallet-date-grid button { padding:0; min-width:0; width:fit-content; justify-self:center; font-size:11px; }
 .wallet-time-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
 .wallet-time-grid input { text-align:center; }
 .wallet-picker-options .wallet-row { gap:10px; align-items:center; }
