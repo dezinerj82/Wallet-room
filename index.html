@@ -598,7 +598,7 @@ function showFloating(p,anchor){
  positionFloating(p,anchor);
 }
 function closePickers(){dialog.querySelectorAll('.wallet-picker-options').forEach(p=>{hideFloating(p);p.parentElement.querySelector('[data-picker-toggle]')?.setAttribute('aria-expanded','false');});}
-function choosePicker(w,value){pickerInput(w).value=value;const span=w.querySelector('.wallet-picker-button span');if(span)span.textContent=value||'Select '+w.dataset.pickerName;w.querySelectorAll('.wallet-choice').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.choice===value)));closePickers();w.querySelector('[data-picker-toggle]').focus();}
+function choosePicker(w,value){const input=pickerInput(w);input.value=value;input.setCustomValidity('');const span=w.querySelector('.wallet-picker-button span');if(span)span.textContent=value||'Select '+w.dataset.pickerName;w.querySelectorAll('.wallet-choice').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.choice===value)));closePickers();w.querySelector('[data-picker-toggle]').focus();}
 function suggestInput(input){
  const values=[...document.getElementById(input.dataset.suggestions)?.options||[]].map(o=>o.value);
  const found=values.filter(v=>v.toLowerCase().includes(input.value.toLowerCase())&&v!==input.value);
@@ -616,9 +616,9 @@ dialog.addEventListener('change',e=>{
   if(input.name==='serviceDate'&&input.form?.id==='walletEntry'&&!input.validationMessage)syncService(input.form);
  }
 });
-dialog.addEventListener('input',e=>{if(e.target.matches('[data-direct-date]'))e.target.setCustomValidity('');});
+dialog.addEventListener('input',e=>{if(e.target.matches('[data-direct-date]')){const i=e.target;i.setCustomValidity(i.value&&!validDate(i.value)?'Enter a valid date (YYYY-MM-DD).':'');}});
 document.addEventListener('pointerdown',e=>{if(dialog.open&&!e.target.closest('.wallet-picker,.wallet-picker-options,input[data-suggestions]'))closePickers();},true);
-dialog.addEventListener('scroll',()=>closePickers(),true);
+dialog.addEventListener('scroll',e=>{if(!e.target.closest?.('.wallet-picker-options'))closePickers();},true);
 function showMainBill(date){
  const entries=all().filter(e=>baseBill(e)&&scheduledBill(e)&&dateOf(e.item).slice(0,10)===date);
  dialog.innerHTML='<div class="wallet-form"><div class="wallet-row"><h2>Main bill</h2><div class="wallet-actions"><button type="button" data-close>Close</button></div></div><p class="muted">'+esc(displayDate(date))+'</p>'+entries.map(e=>row(e,money(amountOf(e.item))+' · '+statusLabel(e))).join('')+'</div>';openWindow();
