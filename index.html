@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap">
 <style>
 :root {
- --teal:#194b59; --orange:#ffb458; --cream:#fcebd9; --paper:#f4f6f5; --sage:#dfe8e1; --rose:#efdddd; --white:#fff;
+ --teal:#194b59; --orange:#76d6b8; --extra-bill:#fcffcd; --button-outline:#f7ff81; --cream:#fcebd9; --paper:#f4f6f5; --sage:#dfe8e1; --rose:#efdddd; --white:#fff;
  --unit:calc(.75 * min(100vw / 1920, 100dvh / 1080, 1px));
  --title:calc(42.6667 * var(--unit));
  --subtitle:calc(29.3333 * var(--unit));
@@ -29,7 +29,8 @@ h1 { font-size:var(--title); font-weight:600; line-height:1.2; }
 h2 { font-size:var(--subtitle); font-weight:500; }
 button { font:inherit; color:inherit; border:0; border-radius:9999px; padding:var(--pill); background:var(--orange); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:var(--pill); }
 button:disabled { cursor:default; opacity:.65; }
-button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194b5938; }
+button:not(:disabled):is(:hover,:active,:focus-visible),.wallet-nav button[aria-selected="true"],#mainPage button.selected { box-shadow:inset 0 0 0 3px var(--button-outline); }
+button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 #loginCard { --unit:min(100vw / 1024, 100dvh / 768, 1px); background:var(--white); border-radius:calc(32 * var(--unit)); padding:var(--card); width:calc(530 * var(--unit)); min-height:calc(390 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:calc(32 * var(--unit)); text-align:center; }
 #login { font-size:calc(18 * var(--unit)); min-height:calc(56 * var(--unit)); padding:calc(14 * var(--unit)) calc(28 * var(--unit)); gap:calc(18 * var(--unit)); width:100%; }
 #loginActions { display:grid; grid-template-columns:max-content; justify-content:center; row-gap:calc(10 * var(--unit)); max-width:100%; }
@@ -66,7 +67,7 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-stat:nth-child(4) { --accent:#c88c9d; --marker:#edc5d0; }
 .wallet-nav { display:flex; align-items:center; gap:10px; }
 .wallet-nav button { background:var(--orange); white-space:nowrap; }
-.wallet-nav button[aria-selected="true"],#mainPage button.selected { background:var(--orange); box-shadow:inset 0 0 0 1.5px #be7d37; }
+.wallet-nav button[aria-selected="true"],#mainPage button.selected { background:var(--orange); }
 .wallet-workspace { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:var(--gap); flex:1; min-height:0; align-items:stretch; overflow:hidden; }
 .wallet-workspace:not([data-view="2 Months"]) { grid-template-columns:minmax(0,1fr); }
 .wallet-months { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); min-height:0; }
@@ -89,13 +90,19 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .space-grid .entry-row > :last-child { text-align:right; white-space:nowrap; }
 .record-grid .record-summary { display:grid; grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1fr)); gap:5px; align-items:center; }
 .record-summary > :not(:first-child) { text-align:center; overflow-wrap:anywhere; }
+.record-summary > :last-child { text-align:right; }
 .record-summary > :first-child { overflow-wrap:anywhere; }
 .record-summary small { font-size:inherit; }
 .record-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); flex:1; min-height:0; }
 .record-grid.invisible-columns > .wallet-panel { background:none; border:0; padding:4px 7px; }
+.record-grid.invisible-columns > .wallet-panel > h3 { font-size:15px; }
+.wallet-card.inactive { --accent:#b8b8b8; --marker:#e5e5e5; color:#666; }
+.record-grid.invisible-columns > .inactive .record-summary { background:#eee; color:#666; border-radius:7px; margin-bottom:5px; }
+.record-date-group { margin-bottom:1em; }
+.entry-row .marker.extra-bill { --marker:var(--extra-bill); }
 .calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px; background:#e8eeee; }
 .calendar-cell { background:#fff; min-height:5em; padding:.4em; min-width:0; }
-.calendar-event { font-size:.82em; display:block; background:#edf5f6; border-radius:.4em; padding:.25em; margin-top:.3em; width:100%; text-align:left; overflow-wrap:anywhere; }
+.calendar-event { font-size:.82em; display:block; background:#edf5f6; border-radius:9999px; padding:0 4px; margin-top:.3em; width:fit-content; max-width:100%; text-align:left; overflow-wrap:anywhere; }
 .calendar-hours { display:grid; grid-template-columns:3.5em repeat(var(--days),minmax(0,1fr)); gap:1px; background:#e8eeee; }
 .calendar-hours > div { background:white; min-width:0; padding:.3em; min-height:3em; }
 .wallet-dialog { border:1px solid #ab96c6; border-radius:var(--radius); color:var(--teal); background:#fff; width:min(90vw,42em); max-height:85dvh; padding:var(--card); font:inherit; }
@@ -116,7 +123,7 @@ button:focus-visible { outline:none; box-shadow:0 0 0 calc(4 * var(--unit)) #194
 .wallet-picker-options .wallet-row { gap:10px; align-items:center; }
 .wallet-picker-options .wallet-actions { margin-top:5px; }
 .wallet-form .record-grid { flex:none; }
-.calendar-event.extra { background:var(--cream); }
+.calendar-event.extra { background:var(--extra-bill); }
 .wallet-form .recurrence-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); }
 @media (max-width:768px) {
  #loginCard { --unit:min(100vw / 412, 100dvh / 891, 1px); width:min(100%,calc(530 * var(--unit))); min-height:calc(390 * var(--unit)); }
@@ -216,10 +223,12 @@ function monthlyEntries(entries,ym){
  const same=entries.filter(e=>!isSpace(e)&&monthKey(dateOf(e.item))===ym);
  const result=[];
  for(const e of same){
-  if(isBalance(e)){if(hasAmount(e))result.push({e,amount:Number(amountOf(e.item))});continue;}
-  const group=result.find(x=>!isBalance(x.e)&&seriesKey(x.e)===seriesKey(e));
-  if(group){group.amount+=Number(amountOf(e.item)||0);if(baseBill(e)&&!baseBill(group.e))group.e=e;}
-  else result.push({e,amount:Number(amountOf(e.item)||0)});
+  if(!hasAmount(e))continue;
+  const extra=!baseBill(e)&&!isBalance(e);
+  if(extra||isBalance(e)){result.push({e,amount:Number(amountOf(e.item)),extra});continue;}
+  const group=result.find(x=>!x.extra&&!isBalance(x.e)&&seriesKey(x.e)===seriesKey(e));
+  if(group)group.amount+=Number(amountOf(e.item));
+  else result.push({e,amount:Number(amountOf(e.item)),extra:false});
  }
  return result.filter(x=>x.amount!==0);
 }
@@ -228,22 +237,28 @@ const triangle=dir=>'<svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+({up
 const directionButton=(dir,attr,label)=>'<button type="button" class="wallet-arrow" '+attr+' aria-label="'+label+'">'+triangle(dir)+'</button>';
 const arrows='<div class="scroll-buttons">'+[-1,1].map(n=>'<button type="button" data-scroll="'+n+'" aria-label="'+(n<0?'Scroll up':'Scroll down')+'"><svg viewBox="0 0 30 22" aria-hidden="true"><path d="'+(n<0?'M3 18 L15 4 L27 18 Z':'M3 4 L15 18 L27 4 Z')+'"/></svg></button>').join('')+'</div>';
 const panel=(heading,color,body)=>'<section class="wallet-card wallet-panel '+color+'">'+title(heading)+'<div class="wallet-scroll">'+body+'</div>'+arrows+'</section>';
-const row=(e,second)=>'<button type="button" class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(second??money(amountOf(e.item)))+'</small></button>';
+const row=(e,second,extra=false)=>'<button type="button" class="entry-row" data-entry="'+e.key+':'+e.index+'"><span'+(extra?' class="marker extra-bill"':'')+'>'+esc(nameOf(e.item))+'</span><small'+(extra?' class="marker extra-bill"':'')+'>'+esc(second??money(amountOf(e.item)))+'</small></button>';
 const spaceRow=e=>'<button type="button" class="entry-row" data-entry="'+e.key+':'+e.index+'"><span>'+esc(nameOf(e.item))+'</span><span>'+esc(e.item.subject||'')+'</span><small>'+esc(tableDate(dateOf(e.item)))+'</small></button>';
 function recordRows(items,entries){
- if(recordsMode==='By Date'){
-  const groups=new Map();for(const e of items){const k=monthKey(dateOf(e.item))||'No date';if(!groups.has(k))groups.set(k,[]);groups.get(k).push(e);}
-  return [...groups].sort((a,b)=>b[0].localeCompare(a[0])).map(([k,es])=>'<div style="margin-bottom:1em"><strong>'+esc(k==='No date'?k:tableDate(k+'-01'))+'</strong>'+es.map(e=>row(e)).join('')+'</div>').join('');
- }
- const seen=new Set();return items.map(e=>{
-  const info=seriesInfo(e,entries),id=info.recurring?seriesKey(e):e.key+':'+e.index;
-  if(seen.has(id))return '';seen.add(id);
+ const seen=new Set(),rows=[];
+ for(const e of items){
+  const info=seriesInfo(e,entries);
+  const id=info.recurring?JSON.stringify([seriesKey(e),info.first.item.id||info.first.key+':'+info.first.index]):e.key+':'+e.index;
+  if(seen.has(id))continue;seen.add(id);
   const members=info.members.filter(x=>isInactive(x)===isInactive(e));
   const thisMonth=members.find(x=>monthKey(dateOf(x.item))===currentMonth());
   const chosen=thisMonth||(!info.recurring?e:isInactive(e)?members.at(-1):members[0])||e;
   const amount=info.recurring&&!thisMonth&&!isInactive(e)?null:amountOf(chosen.item);
-  return '<button type="button" class="entry-row record-summary" data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(info.recurring?info.start:dateOf(e.item)))+'</small><small>'+esc(info.recurring?(tableDate(info.end)||'Ongoing'):'')+'</small><small>'+esc(money(amount))+'</small></button>';
- }).join('');
+  const start=info.recurring?info.start:dateOf(e.item);
+  const end=info.recurring?info.end:'';
+  const group=info.recurring&&!end?'Ongoing':monthKey(end||start)||'No date';
+  const html='<button type="button" class="entry-row record-summary" data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(start))+'</small><small>'+esc(info.recurring?(tableDate(end)||'Ongoing'):'')+'</small><small>'+esc(money(amount))+'</small></button>';
+  rows.push({group,html});
+ }
+ if(recordsMode!=='By Date')return rows.map(r=>r.html).join('');
+ const groups=new Map();for(const r of rows){if(!groups.has(r.group))groups.set(r.group,[]);groups.get(r.group).push(r.html);}
+ const order=k=>k==='No date'?0:k==='Ongoing'?1:2;
+ return [...groups].sort((a,b)=>order(a[0])-order(b[0])||a[0].localeCompare(b[0])).map(([k,rs])=>'<div class="record-date-group"><strong>'+esc(order(k)<2?k:tableDate(k+'-01'))+'</strong>'+rs.join('')+'</div>').join('');
 }
 function setView(view){
  viewName=view;
@@ -254,19 +269,19 @@ function setView(view){
  const entries=all().filter(e=>nameOf(e.item));
  if(view==='2 Months'){
  const now=new Date();
- walletContent.innerHTML=[0,1].map((offset)=>{const d=new Date(now.getFullYear(),now.getMonth()+offset,1);return panel(monthLabel(d),offset?'green':'',monthlyEntries(entries,dayKey(d).slice(0,7)).map(x=>row(x.e,money(x.amount))).join(''));}).join('');
+ walletContent.innerHTML=[0,1].map((offset)=>{const d=new Date(now.getFullYear(),now.getMonth()+offset,1);return panel(monthLabel(d),offset?'green':'',monthlyEntries(entries,dayKey(d).slice(0,7)).map(x=>row(x.e,money(x.amount),x.extra)).join(''));}).join('');
  walletSide.innerHTML=panel('My Space','purple',entries.filter(isSpace).map(e=>row(e,tableDate(dateOf(e.item)))).join(''))+panel('Records','orange',entries.filter(isInactive).map(e=>row(e)).join(''));
  }else if(view==='My Space'){
  walletContent.classList.add('wallet-card','wallet-panel','purple');walletContent.innerHTML=title('My Space')+'<div class="wallet-scroll space-grid">'+entries.filter(isSpace).map(spaceRow).join('')+'</div>'+arrows;
  }else if(view==='Records'){
  walletContent.classList.add('wallet-card','wallet-panel');
- walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div class="wallet-actions">'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid invisible-columns">'+panel('Active','green',recordRows(entries.filter(e=>!isInactive(e)),entries))+panel('Inactive','pink',recordRows(entries.filter(isInactive),entries))+'</div>';
+ walletContent.innerHTML='<div class="wallet-row">'+title('Records')+'<div class="wallet-actions">'+['By Event','By Date'].map(m=>'<button class="'+(m===recordsMode?'selected':'')+'" data-mode="'+m+'">'+m+'</button>').join('')+'</div></div><div class="record-grid invisible-columns">'+panel('Active','green',recordRows(entries.filter(e=>!isInactive(e)),entries))+panel('Inactive','inactive',recordRows(entries.filter(isInactive),entries))+'</div>';
  }else if(view==='Calendar'){renderCalendar(entries);}
 }
 function renderCalendar(entries){
  walletContent.classList.add('wallet-card','wallet-panel');const y=calendarDate.getFullYear(),m=calendarDate.getMonth();
  const controls='<div class="wallet-row">'+title('Calendar')+'<div class="wallet-actions">'+['Month','Week'].map(v=>'<button data-cal="'+v+'" class="'+(calendarMode===v?'selected':'')+'">'+v+'</button>').join('')+'</div></div><div class="wallet-row">'+directionButton('left','data-step="-1"','Previous')+'<strong class="calendar-heading">'+esc(calendarMode==='Month'?monthLabel(calendarDate):displayDate(dayKey(calendarDate)))+'</strong>'+directionButton('right','data-step="1"','Next')+'</div>';
- const event=e=>'<button class="calendar-event'+(e.key==='items'?' extra':'')+'" data-entry="'+e.key+':'+e.index+'">'+esc(e.item.time?e.item.time+' ':'')+esc(nameOf(e.item))+(e.key==='items'&&hasAmount(e)?' '+esc(money(amountOf(e.item))):'')+'</button>';
+ const event=e=>'<button class="calendar-event extra" data-entry="'+e.key+':'+e.index+'">'+esc(e.item.time?e.item.time+' ':'')+esc(nameOf(e.item))+(e.key==='items'&&hasAmount(e)?' '+esc(money(amountOf(e.item))):'')+'</button>';
  const eventsForDate=(d,h=null,month=false)=>{
   const date=dayKey(d),es=entries.filter(e=>dateOf(e.item).slice(0,10)===date&&!isBalance(e)&&!(e.key==='items'&&!hasAmount(e)));
   const defaults=es.filter(baseBill);
