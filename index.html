@@ -62,7 +62,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-stat { display:flex; flex-direction:column; gap:calc(var(--gap) / 2); }
 .wallet-stat strong { font-size:var(--subtitle); font-weight:500; color:var(--marker); }
 .wallet-stat[data-summary="available"] { --accent:#d5a268; --marker:#f3d29d; }
-.wallet-stat[data-savings-account] { --accent:#8ebacb; --marker:#bad9e5; }
+.wallet-stat[data-savings-account] { --accent:#8ebacb; --marker:#bad9e5; cursor:pointer; }
 .wallet-stat[data-summary="income"] { --accent:#9bb887; --marker:#d0e1b9; }
 .wallet-stat[data-summary="iou"] { --accent:#c88c9d; --marker:#edc5d0; }
 .wallet-nav { display:flex; align-items:center; gap:10px; }
@@ -228,8 +228,8 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 <section class="wallet-stats" aria-label="Summary">
 <div class="wallet-card wallet-stat" data-summary="income"><span class="marker">Income</span><strong>—</strong></div>
 <div class="wallet-card wallet-stat" data-summary="available"><span class="marker">Available</span><strong>—</strong></div>
-<div class="wallet-card wallet-stat" data-summary="isaac" data-savings-account="Isaac"><span class="marker">Isaac</span><strong>—</strong></div>
-<div class="wallet-card wallet-stat" data-summary="rainny" data-savings-account="Rainny day"><span class="marker">Rainny day</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat" data-summary="isaac" data-savings-account="Isaac" role="button" tabindex="0" aria-label="Isaac savings balance"><span class="marker">Isaac</span><strong>—</strong></div>
+<div class="wallet-card wallet-stat" data-summary="rainny" data-savings-account="Rainny day" role="button" tabindex="0" aria-label="Rainny day savings balance"><span class="marker">Rainny day</span><strong>—</strong></div>
 <div class="wallet-card wallet-stat" data-summary="iou"><span class="marker">IOU</span><strong>—</strong></div>
 </section>
 <nav class="wallet-nav" role="tablist" aria-label="Wallet views">
@@ -294,7 +294,7 @@ const savingsKey=e=>String(e.item.accountId||'legacy:'+nameOf(e.item));
 const itemOrderKey=e=>isSpace(e)?String(e.item.id||seriesKey(e)):e.key==='savings'?'savings:'+savingsKey(e):seriesKey(e);
 const ordered=es=>es.slice().sort((a,b)=>String(dateOf(a.item)).localeCompare(String(dateOf(b.item))));
 const currentMonth=()=>{const m=walletData?.settings?.budgetMonth;if(/^\d{4}-\d{2}$/.test(m||''))return m;const open=all().filter(e=>dueBill(e)&&!isPaid(e)&&monthKey(dateOf(e.item))&&monthKey(dateOf(e.item))<=actualMonth()).map(e=>monthKey(dateOf(e.item))).sort();return open[0]||actualMonth();};
-const isInactive=e=>e.key==='savings'?false:e.key==='records'||e.item.active===false||['completed','cancelled','inactive','carried forward'].includes(stateOf(e))||(isPaid(e)&&dateOf(e.item).slice(0,10)<today())||(!isSpace(e)&&!scheduledBill(e)&&!e.item.recurring&&dateOf(e.item)&&monthKey(dateOf(e.item))<currentMonth());
+const isInactive=e=>e.key==='savings'?(isSavingsContribution(e)&&(excluded(e)||!!dateOf(e.item)&&monthKey(dateOf(e.item))<currentMonth())):e.key==='records'||e.item.active===false||['completed','cancelled','inactive','carried forward'].includes(stateOf(e))||(isPaid(e)&&dateOf(e.item).slice(0,10)<today())||(!isSpace(e)&&!scheduledBill(e)&&!e.item.recurring&&dateOf(e.item)&&monthKey(dateOf(e.item))<currentMonth());
 const statusLabel=e=>isSpace(e)?(['saved',''].includes(stateOf(e))?'In Progress':e.item.status):excluded(e)?e.item.status:scheduledBill(e)?isPaid(e)?'Paid':hasAmount(e)?'Unpaid':'In progress':(e.item.recurring||importedBase(e))?'In progress':isInactive(e)?'Completed':'';
 function seriesFor(e,entries=all()){
  if(e.key==='savings')return entries.filter(x=>x.key==='savings'&&nameOf(x.item)===nameOf(e.item));
@@ -317,13 +317,13 @@ const sortItems=(es,space=false)=>{
  return es.slice().sort((a,b)=>(rank.get(itemOrderKey(a))??Number.MAX_SAFE_INTEGER)-(rank.get(itemOrderKey(b))??Number.MAX_SAFE_INTEGER));
 };
 function monthlyEntries(entries,ym){
- const same=sortItems(entries.filter(e=>scheduledBill(e)&&monthKey(dateOf(e.item))===ym));
+ const same=sortItems(entries.filter(e=>plannedBill(e)&&monthKey(dateOf(e.item))===ym));
  const result=[];
  for(const e of same){
   const group=result.find(x=>seriesKey(x.e)===seriesKey(e));
-  const extra=scheduledBill(e)&&!baseBill(e);
+  const extra=plannedBill(e)&&!plannedMain(e);
   const a=amountOf(e.item),n=a==null||a===''?null:Number(a);
-  if(group){if(n!==null)group.amount=(group.amount??0)+n;group.extra||=extra;group.members.push(e);if(baseBill(e)&&!baseBill(group.e))group.e=e;}
+  if(group){if(n!==null)group.amount=(group.amount??0)+n;group.extra||=extra;group.members.push(e);if(plannedMain(e)&&!plannedMain(group.e))group.e=e;}
   else result.push({e,amount:n,extra,members:[e]});
  }
   const order=sortItems(result.map(x=>x.e));return order.map(e=>result.find(x=>x.e===e));
@@ -336,6 +336,8 @@ function savingsPart(item){
  return Number.isFinite(n)?Math.min(Math.max(0,amount),Math.max(0,n)):0;
 }
 function isSavingsContribution(e){return e.key==='savings'&&e.item.kind==='contribution';}
+function plannedBill(e){return scheduledBill(e)||(isSavingsContribution(e)&&!excluded(e));}
+function plannedMain(e){return baseBill(e)||isSavingsContribution(e)&&!e.item.carryOf;}
 function savingsBalance(entries,ym,account=null){
  const accounts=new Map();
  for(const e of ordered(entries.filter(e=>e.key==='savings'&&!excluded(e)&&dateOf(e.item)&&monthKey(dateOf(e.item))<=ym))){
@@ -449,9 +451,9 @@ function weeklyDueDate(e,ym=monthKey(dateOf(e.item)),data=walletData){
 }
 function calendarBillGroups(entries){
  const groups=new Map();
- for(const e of entries.filter(e=>scheduledBill(e)||e.item.serviceEvent)){
+ for(const e of entries.filter(e=>plannedBill(e)||e.item.serviceEvent)){
   if(!validDate(dateOf(e.item)))continue;
-  const weekly=isWeeklyBill(e),date=weekly?weeklyDueDate(e):dateOf(e.item),main=baseBill(e);
+  const weekly=isWeeklyBill(e),date=weekly?weeklyDueDate(e):dateOf(e.item),main=plannedMain(e);
   const key=weekly?JSON.stringify([e.item.seriesId||e.item.ruleId||seriesKey(e),date,main]):e.key+':'+e.index;
   if(!groups.has(key))groups.set(key,{e,date,weekly,main,members:[],amount:null});
   const g=groups.get(key),amount=amountOf(e.item);g.members.push(e);if(amount!=null&&amount!=='')g.amount=(g.amount??0)+Number(amount);
@@ -628,7 +630,7 @@ const closeRefresh=()=>{dialog.close();setView(viewName);};
 const dragAttr=e=>' draggable="true" data-sort-id="'+esc(itemOrderKey(e))+'" data-sort-scope="'+(isSpace(e)?'space':'budget')+'"';
 function showMonthGroup(key,index,ym){
  const e={key,index,item:list(key)[index]};if(!e.item)return;
- if(key==='savings'){showSavings(index,ym);return;}
+ if(key==='savings'&&!isSavingsContribution(e)){showSavings(index,ym);return;}
  const members=monthlyEntries(all(),ym).find(x=>seriesKey(x.e)===seriesKey(e))?.members||[e];
  if(members.length&&members.every(isWeeklyBill)&&members.every(a=>a.item.seriesId===members[0].item.seriesId)){showItemSummary(e.key,e.index,false,true);return;}
  if(members.length===1){openEntry(members[0].key,members[0].index);return;}
@@ -744,16 +746,16 @@ function seriesMonthAmount(info,chosen){
 }
 function recordRows(items,entries,compact=false){
  const seen=new Set(),groups=new Map();
- for(const e of sortItems(items)){
-  const info=seriesInfo(e,entries),id=e.key==='savings'?'account:'+nameOf(e.item):info.recurring?JSON.stringify([seriesKey(e),info.first.item.id||info.first.key+':'+info.first.index]):e.key+':'+e.index;
+ for(const e of sortItems(items.filter(e=>e.key!=='savings'||isSavingsContribution(e)))){
+  const contribution=isSavingsContribution(e),info=contribution?contributionSeries(e,entries):seriesInfo(e,entries),id=contribution?(e.item.seriesId?'contribution:'+e.item.seriesId:'contribution:'+e.index):info.recurring?JSON.stringify([seriesKey(e),info.first.item.id||info.first.key+':'+info.first.index]):e.key+':'+e.index;
   if(seen.has(id))continue;seen.add(id);
   const members=info.members.filter(x=>isInactive(x)===isInactive(e));
-  const chosen=e.key==='savings'?accountRepresentative(info.members,currentMonth())||e:members.find(x=>monthKey(dateOf(x.item))===currentMonth())||(compact?members.find(x=>monthKey(dateOf(x.item))>currentMonth()):null)||members.at(-1)||e;
-  const st=e.key==='savings'?'':info.recurring&&!isInactive(e)?'In progress':statusLabel(chosen);
-  const date=e.key==='savings'?(dateOf(chosen.item)&&monthKey(dateOf(chosen.item))<=currentMonth()?dateOf(chosen.item):''):info.recurring?(info.end||info.start):dateOf(chosen.item);
+  const chosen=members.find(x=>monthKey(dateOf(x.item))===currentMonth())||(compact?members.find(x=>monthKey(dateOf(x.item))>currentMonth()):null)||members.at(-1)||e;
+  const st=contribution?(isInactive(chosen)?'Completed':'In progress'):info.recurring&&!isInactive(e)?'In progress':statusLabel(chosen);
+  const date=contribution?dateOf(chosen.item):info.recurring?(info.end||info.start):dateOf(chosen.item);
   const dateGroup=!date?'No date':info.recurring?'Recurring':monthKey(date)||'No date';
   const group=recordsMode==='By Event'?categoryOf(e):dateGroup;
-  const amount=e.key==='savings'?savingsBalance(entries,currentMonth(),nameOf(e.item)):info.recurring&&chosen.item.frequency==='Weekly'?seriesMonthAmount(info,chosen):amountOf(chosen.item);
+  const amount=info.recurring&&chosen.item.frequency==='Weekly'?seriesMonthAmount(info,chosen):amountOf(chosen.item);
   const html=compact?'<button type="button" class="entry-row" data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span>'+accounting(amount)+'</button>':'<button type="button" class="entry-row record-summary"'+(recordsMode==='By Event'?dragAttr(e):'')+' data-series="'+chosen.key+':'+chosen.index+'"><span>'+esc(nameOf(e.item))+'</span><small>'+esc(tableDate(date)||'No date')+'</small><small>'+esc(st)+'</small>'+accounting(amount)+'</button>';
   if(!groups.has(group))groups.set(group,[]);groups.get(group).push(html);
  }
@@ -876,25 +878,25 @@ function renderMainBill(date){
 function recurrenceLabel(x,fallback='None'){const f=x.frequency||fallback,n=Number(x.interval)||1;return ['Weekly','Monthly','Yearly'].includes(f)?'Every '+n+' '+({Weekly:'week',Monthly:'month',Yearly:'year'}[f])+(n===1?'':'s'):f;}
 function showItemSummary(key,index,series=false,weeklyMonth=false){openDetail('item',key,index,series,weeklyMonth);}
 function renderItemSummary(key,index,series=false,weeklyMonth=false){
- const x=list(key)[index];if(!x)return;const ref={key,index,item:x},info=seriesInfo(ref),category=categoryOf(ref);
+ const x=list(key)[index];if(!x)return;const ref={key,index,item:x},info=isSavingsContribution(ref)?contributionSeries(ref):seriesInfo(ref),category=categoryOf(ref);
  const field=(label,value,full=false)=>value!==null&&value!==undefined&&value!==''?'<div'+(full?' class="field-full"':'')+'><small>'+esc(label)+'</small><span>'+esc(value)+'</span></div>':'';
  const weekly=weeklyMonth||series&&isWeeklyBill(ref),monthMembers=weekly?info.members.filter(e=>monthKey(dateOf(e.item))===monthKey(dateOf(x))&&scheduledBill(e)):[];
- const date=weekly?displayDate(weeklyDueDate(ref)):series?(info.end?displayDate(info.end):displayDate(info.start)):displayDate(dateOf(x)),amount=weekly?seriesMonthAmount(info,ref):amountOf(x);
+ const date=weekly?displayDate(weeklyDueDate(ref)):series&&!isSavingsContribution(ref)?(info.end?displayDate(info.end):displayDate(info.start)):displayDate(dateOf(x)),amount=weekly?seriesMonthAmount(info,ref):amountOf(x);
  const fields=field('Category',category)+field('Group',x.group)+field('Type',category==='Expense'?(baseBill(ref)?'Main':'Extra'):'')+
- field(series&&!weekly?'End date':'Date',date)+field('Status',weekly?(monthMembers.every(isPaid)?'Paid':'Unpaid'):series?'In progress':statusLabel(ref))+field('Amount',amount==null?'':money(amount))+
+ field(series&&!weekly&&!isSavingsContribution(ref)?'End date':'Date',date)+field('Status',weekly?(monthMembers.every(isPaid)?'Paid':'Unpaid'):series?'In progress':statusLabel(ref))+field('Amount',amount==null?'':money(amount))+
  field('Label',x.subject,true)+field('Note',x.notes,true)+field('Recurring',series||weekly?recurrenceLabel(x,importedBase(ref)?'Monthly':'Recurring'):'',true)+field('Saving',x.savingsAccount)+field('Amount to use',x.savingsAccount?money(savingsPart(x)):'');
- return '<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-delete="'+key+':'+index+'">Delete</button><button type="button" data-edit="'+key+':'+index+'"'+(weekly?' data-weekly-edit':'')+'>Edit</button><button type="button" data-close>Close</button></div></div><div class="recurrence-fields summary-fields">'+fields+'</div>'+(info.recurring?'<div class="wallet-actions" style="justify-content:center"><button type="button" data-schedule="'+key+':'+index+'">Payment schedule</button></div>':'');
+ return '<div class="wallet-row"><h2>'+esc(nameOf(x))+'</h2><div class="wallet-actions"><button type="button" data-delete="'+(isSavingsContribution(ref)?'contribution':key)+':'+index+'">Delete</button><button type="button" data-edit="'+key+':'+index+'"'+(weekly?' data-weekly-edit':'')+'>Edit</button><button type="button" data-close>Close</button></div></div><div class="recurrence-fields summary-fields">'+fields+'</div>'+(info.recurring?'<div class="wallet-actions" style="justify-content:center"><button type="button" data-schedule="'+key+':'+index+'">Payment schedule</button></div>':'');
 }
 function showSeries(key,index){
- const e={key,index,item:list(key)[index]};if(!e.item)return;const info=seriesInfo(e);
+ const e={key,index,item:list(key)[index]};if(!e.item)return;const info=isSavingsContribution(e)?contributionSeries(e):seriesInfo(e);
  if(!info.recurring){openEntry(key,index);return;}
- if(key==='savings'){showSavings(index);return;}
+ if(key==='savings'&&!isSavingsContribution(e)){showSavings(index);return;}
  if(key==='iou'){showIOU(key,index);return;}
  showItemSummary(key,index,true);
 }
 function showSchedule(key,index){openDetail('schedule',key,index);}
 function renderSchedule(key,index){
- const e={key,index,item:list(key)[index]};if(!e.item)return;const info=seriesInfo(e);
+ const e={key,index,item:list(key)[index]};if(!e.item)return;const info=isSavingsContribution(e)?contributionSeries(e):seriesInfo(e);
  return dialogHead(nameOf(e.item))+'<p>'+esc(recurrenceLabel(e.item,'Monthly'))+'</p>'+info.members.slice().reverse().map(x=>'<button type="button" class="entry-row" data-entry="'+x.key+':'+x.index+'"><span>'+esc(displayDate(dateOf(x.item))||'No date')+'</span><span>'+esc(statusLabel(x))+'</span>'+accounting(amountOf(x.item))+'</button>').join('');
 }
 const inputField=(label,n,v='',type='text',attrs='')=>'<label>'+esc(label)+'<input name="'+n+'" type="'+type+'" value="'+esc(v)+'" '+attrs+'></label>';
@@ -1010,7 +1012,7 @@ function openEntry(key,index,edit=false,presetDate='',weeklyEdit=false){
  if(e&&!edit){
   if(key==='projects'){showProject(index);return;}
   if(key==='iou'){showIOU(key,index);return;}
-  if(key==='savings'){showSavings(index);return;}
+  if(key==='savings'&&!isSavingsContribution(ref)){showSavings(index);return;}
   showItemSummary(key,index);
   return;
  }
@@ -1372,7 +1374,9 @@ function editSavingsBalance(index){
  };
 }
 
-mainPage.addEventListener('click',e=>{const b=e.target.closest('button');const replacing=b?(b.id==='addItem'||b.id==='clearBill'||b.hasAttribute('data-empty-trash')||b.hasAttribute('data-restore-selected')):e.target.closest('[data-add-date]');if(replacing&&dialog.open&&dialog.querySelector('form')){if(!confirm('Close the current form without saving?'))return;dialog.close();}if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.selectTrash!==undefined){selectTrash(Number(d.selectTrash));return;}if(b.hasAttribute('data-restore-selected')){if(trashSelection>=0&&list('trash')[trashSelection])restoreTrash(trashSelection);return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.weeklySummary){const [k,i]=d.weeklySummary.split(':');showItemSummary(k,Number(i),false,true);}else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
+function openSavingsCard(account){if(saving)return;const rows=all().filter(e=>e.key==='savings'&&nameOf(e.item)===account);const chosen=accountRepresentative(rows,currentMonth());if(chosen)showSavings(chosen.index);}
+mainPage.addEventListener('keydown',e=>{const card=e.target.closest('[data-savings-account]');if(card&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openSavingsCard(card.dataset.savingsAccount);}});
+mainPage.addEventListener('click',e=>{const accountCard=e.target.closest('[data-savings-account]');if(accountCard){openSavingsCard(accountCard.dataset.savingsAccount);return;}const b=e.target.closest('button');const replacing=b?(b.id==='addItem'||b.id==='clearBill'||b.hasAttribute('data-empty-trash')||b.hasAttribute('data-restore-selected')):e.target.closest('[data-add-date]');if(replacing&&dialog.open&&dialog.querySelector('form')){if(!confirm('Close the current form without saving?'))return;dialog.close();}if(!b){const cell=e.target.closest('[data-add-date]');if(cell&&!saving)openEntry(null,null,false,cell.dataset.addDate);return;}if(saving)return;const d=b.dataset;if(b.id==='clearBill'){clearMonth();return;}if(d.monthGroup){const [k,i,m]=d.monthGroup.split(':');showMonthGroup(k,Number(i),m);return;}if(d.selectTrash!==undefined){selectTrash(Number(d.selectTrash));return;}if(b.hasAttribute('data-restore-selected')){if(trashSelection>=0&&list('trash')[trashSelection])restoreTrash(trashSelection);return;}if(b.hasAttribute('data-empty-trash')){if(list('trash').length&&confirm('Permanently delete everything in Trash?'))commitWallet(data=>{data.trash=[];}).then(()=>setView('Trash')).catch(showError);return;}if(d.view){if(d.view==='Calendar'&&calendarMode==='Week'&&viewName!=='Calendar')calendarDate=new Date();setView(d.view);}else if(d.mode){recordsMode=d.mode;setView('Records');}else if(d.cal){if(d.cal==='Week'&&calendarMode!=='Week')calendarDate=new Date();calendarMode=d.cal;setView('Calendar');}else if(d.step){const n=Number(d.step);if(calendarMode==='Month'){calendarDate.setDate(1);calendarDate.setMonth(calendarDate.getMonth()+n);}else calendarDate.setDate(calendarDate.getDate()+n*(calendarMode==='Week'?7:1));setView('Calendar');}else if(d.scroll){b.closest('.wallet-panel').querySelector('.wallet-scroll')?.scrollBy({top:Number(d.scroll)*180,behavior:'smooth'});}else if(d.mainBill)showMainBill(d.mainBill);else if(d.weeklySummary){const [k,i]=d.weeklySummary.split(':');showItemSummary(k,Number(i),false,true);}else if(d.series){const [k,i]=d.series.split(':');showSeries(k,Number(i));}else if(d.entry){const [k,i]=d.entry.split(':');openEntry(k,Number(i));}else if(b.id==='addItem')openEntry();});
 dialog.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||saving)return;const d=b.dataset,w=b.closest('.wallet-picker');
  if(d.renewRule){handleRenewal(d.renewRule,d.renewAction);}
