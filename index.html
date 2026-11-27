@@ -390,7 +390,7 @@ function cutRecurring(data,e,from){
 function newRule(data,x,id){
  data.settings??={};data.settings.recurringRules??=[];
  const template={...x};for(const k of ['id','ruleId','seriesId','scheduledDate','status','paid','source','originMonth','carryOf','carriedTo','clearedOn','frequency','weekdays','startDate','endDate'])delete template[k];
- data.settings.recurringRules.push({id:crypto.randomUUID(),seriesId:id||crypto.randomUUID(),date:x.date,endDate:x.endDate||'',frequency:x.frequency,interval:Number(x.interval)||1,weekdays:x.weekdays||{},template});
+ data.settings.recurringRules.push({id:crypto.randomUUID(),seriesId:id||crypto.randomUUID(),date:x.date,endDate:x.endDate||defaultRecurringEnd(x.date,x.frequency,x.interval||1,x.weekdays||{}),frequency:x.frequency,interval:Number(x.interval)||1,weekdays:x.weekdays||{},template});
 }
 async function commitWallet(change){
  if(saving||!ready||reconnecting)throw Error('Please finish the current action.');
@@ -639,7 +639,6 @@ dialog.addEventListener('input',e=>{if(e.target.matches('input[data-suggestions]
 dialog.addEventListener('change',e=>{
  if(e.target.matches('[data-direct-date]')){
   const input=e.target;input.setCustomValidity(input.value&&!validDate(input.value)?'Enter a valid date (YYYY-MM-DD).':'');
-  if(input.name==='serviceDate'&&input.form?.id==='walletEntry'&&!input.validationMessage)syncService(input.form);
  }
 });
 dialog.addEventListener('input',e=>{if(e.target.matches('[data-direct-date]')){const i=e.target;i.setCustomValidity(i.value&&!validDate(i.value)?'Enter a valid date (YYYY-MM-DD).':'');}});
@@ -698,10 +697,8 @@ function syncEntryForm(form){
  toggle('endField',(c==='Expense'||c==='Income')&&frequency!=='None');
  toggle('intervalField',(c==='Expense'||c==='Income')&&frequency!=='None');
  toggle('weeklyField',(c==='Expense'||c==='Income')&&frequency==='Weekly');
- toggle('serviceField',c==='Expense');
- toggle('serviceEveryField',c==='Expense');
- toggle('reminderField',c==='Expense');
- toggle('reminderUnitField',c==='Expense'&&form.dataset.legacyReminder==='true');
+ toggle('reminderField',c==='Expense'||c==='Income');
+ form.querySelector('#intervalField label').firstChild.textContent='Every ('+({Weekly:'weeks',Monthly:'months',Yearly:'years'}[frequency]||'months')+')';
  toggle('notesField',true);
  toggle('spaceFields',c==='My Space');
  const advanced=form.querySelector('[data-form-tab="advanced"]');advanced.hidden=!(c==='Expense'||c==='Income');if(advanced.hidden&&!form.querySelector('[data-form-panel="advanced"]').hidden)entryTab(form,'basic');
@@ -711,12 +708,28 @@ function syncEntryForm(form){
  const deduction=form.querySelector('[data-deduction-status]');deduction.textContent=c==='Expense'&&form.elements.savingsAccount.value!=='Salary'?'Deduction: '+form.elements.savingsAccount.value:'';
  refreshSuggestions(form);
 }
-function serviceNext(date,months){const n=Number(months);return validDate(date)&&Number.isInteger(n)&&n>=1&&n<=1200?monthDate(shiftMonth(monthKey(date),n),date.slice(8,10)):'';}
-function syncService(form){
- if(form.elements.category.value!=='Expense')return;
- const d=serviceNext(form.elements.serviceDate.value,form.elements.serviceMonths.value);if(!d)return;
- form.elements.date.value=d;form.elements.date.setCustomValidity('');
- form.elements.frequency.value='Monthly';form.elements.interval.value=form.elements.serviceMonths.value;form.dataset.serviceChanged='true';syncEntryForm(form);
+function defaultRecurringEnd(date,frequency,interval=1,week={}){
+ if(!validDate(date)||!['Monthly','Yearly','Weekly'].includes(frequency))return '';
+ const n=Number(interval);if(!Number.isInteger(n)||n<1||n>1200)return '';
+ const anniversary=monthDate(shiftMonth(monthKey(date),12),date.slice(8,10));
+ let last=date;
+ if(frequency==='Weekly'){
+  for(let i=0,d=date;d<anniversary&&i<367;i++,d=datePlus(date,i)){
+   if(Math.floor(i/7)%n===0&&Object.hasOwn(week,new Date(d+'T12:00:00').getDay()))last=d;
+  }
+ }else{
+  const step=n*(frequency==='Yearly'?12:1);
+  for(let i=step;i<12;i+=step){const d=monthDate(shiftMonth(monthKey(date),i),date.slice(8,10));if(d<anniversary)last=d;}
+ }
+ return last;
+}
+function reminderDaysForForm(x){
+ const v=x.reminderValue??x.reminderDays;if(v==null||v==='')return '';
+ if(x.reminderUnit!=='Months')return v;
+ const date=dateOf(x);
+ if(!validDate(date))return '';
+ const earlier=monthDate(shiftMonth(monthKey(date),-Number(v)),date.slice(8,10));
+ return Math.round((new Date(date+'T12:00:00')-new Date(earlier+'T12:00:00'))/86400000);
 }
 function openEntry(key,index,edit=false,presetDate=''){
  const e=key?list(key)[index]:null;if(key&&!e)return;const x=e||{date:presetDate},ref=e?{key,index,item:e}:null,info=ref?seriesInfo(ref):{recurring:false,start:'',end:''};
@@ -743,19 +756,17 @@ function openEntry(key,index,edit=false,presetDate=''){
  '<div id="spaceFields" class="field-full recurrence-fields">'+inputField('Contact','contact',x.contact||'')+inputField('Website','website',x.website||'')+(e?'':'<div class="field-full" id="projectSuggestions"></div>')+'</div>'+
  '<div class="field-full" id="notesField">'+textField('Note','notes',x.notes||'')+'</div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="advanced" hidden>'+
- '<div id="recurrenceField">'+selectField('Recurring','frequency',[['None','None'],['Yearly','Years'],['Monthly','Months'],['Weekly','Weeks']],frequency)+'</div><div id="intervalField">'+inputField('Every','interval',x.interval||1,'number','min="1" max="1200" step="1"')+'</div><div id="endField">'+picker('End date','endDate',info.end||x.endDate||'')+'</div>'+
+ '<div id="recurrenceField">'+selectField('Recurring','frequency',[['None','None'],['Yearly','Years'],['Monthly','Months'],['Weekly','Weeks']],frequency)+'</div><div id="intervalField">'+inputField('Every (months)','interval',x.interval||1,'number','min="1" max="1200" step="1"')+'</div><div id="endField">'+picker('End date','endDate',info.end||x.endDate||'')+'</div>'+
  '<div id="weeklyField" class="wallet-form field-full">'+weekdays.map((d,i)=>'<div class="wallet-row"><label><span><input type="checkbox" name="week'+i+'" '+(Object.hasOwn(x.weekdays||{},i)?'checked':'')+'> '+d+'</span></label>'+inputField('Price','price'+i,x.weekdays?.[i]??'','number','min="0" step="any"')+'</div>').join('')+'</div>'+
- '<div id="serviceField">'+picker('Last service','serviceDate',x.serviceDate||'')+'</div><div id="serviceEveryField">'+inputField('Every (months)','serviceMonths',x.serviceMonths||'','number','min="1" max="1200" step="1"')+'</div>'+
- '<div id="reminderField">'+inputField(x.reminderUnit==='Months'?'Reminder (months)':'Reminder (days)','reminderValue',x.reminderValue??x.reminderDays??'','number','min="0" step="1"')+'</div><div id="reminderUnitField">'+selectField('Unit','reminderUnit',[['Days','Days'],['Months','Months']],x.reminderUnit||'Days')+'</div></div>'+
+ '<div id="reminderField">'+inputField('Reminder (days)','reminderValue',reminderDaysForForm(x),'number','min="0" step="1"')+'</div></div>'+
  '<p class="muted" data-deduction-status></p><p class="muted" role="status"></p>'+
  '<div class="wallet-actions entry-footer">'+(e?'<button type="button" data-delete="'+key+':'+index+'">Delete</button>':'')+'<button type="button" data-close>Cancel</button><button type="submit">Save</button></div>'+
  '<div class="wallet-picker-options scope-popup" data-scope-popup hidden><strong>Apply change</strong><button type="button" data-save-scope="one">This payment only</button><button type="button" data-save-scope="future">This and future payments</button><button type="button" data-scope-cancel>Cancel</button></div></form>';
  const form=dialog.querySelector('form');
  form.noValidate=true;
  form.elements.frequency.onchange=()=>syncEntryForm(form);
- form.elements.serviceMonths.oninput=()=>syncService(form);
  form.elements.subject.oninput=()=>refreshSuggestions(form);
- form.elements.reminderUnit.onchange=()=>{form.querySelector('#reminderField label').firstChild.textContent='Reminder ('+form.elements.reminderUnit.value.toLowerCase()+')';};
+ form.elements.reminderValue.oninput=()=>{form.dataset.reminderEdited='true';};
  syncEntryForm(form);refreshSuggestions(form);
  if(e&&key==='projects'&&['Completed','Cancelled'].includes(x.status))form.elements.spaceStatus.disabled=true;
  form.onsubmit=async ev=>{
@@ -779,9 +790,10 @@ function openEntry(key,index,edit=false,presetDate=''){
    if(!Object.keys(week).length){showError(Error('Select at least one day.'));return;}
   }
   if(e&&info.recurring&&key==='items'&&dest==='items'&&!scope){entryScopePrompt(form);return;}
+  if(recurring&&date&&!v.endDate&&(!e||!info.recurring||!dateOf(x)||v.scope==='future'))v.endDate=defaultRecurringEnd(date,v.frequency,interval,week);
   const updated={...x,id:x.id||crypto.randomUUID(),category,group,name,date,amount};
   if(['Expense','My Space'].includes(category)){updated.subject=v.subject||'';updated.time='';}
-  if(category==='Expense'){updated.mainBill=!!v.mainBill;updated.status=v.expenseStatus;updated.paid=v.expenseStatus==='Paid';updated.notes=v.notes||'';updated.savingsAccount=v.savingsAccount==='Salary'?'':v.savingsAccount||'';updated.serviceDate=v.serviceDate||'';updated.serviceMonths=v.serviceMonths?Number(v.serviceMonths):null;updated.serviceSchedule=!!(x.serviceSchedule||form.dataset.serviceChanged==='true')&&!!serviceNext(updated.serviceDate,updated.serviceMonths);updated.reminderValue=v.reminderValue===''?null:Number(v.reminderValue);updated.reminderUnit=v.reminderUnit||'Days';updated.reminderDays=updated.reminderUnit==='Days'?updated.reminderValue:null;}
+  if(category==='Expense'){updated.mainBill=!!v.mainBill;updated.status=v.expenseStatus;updated.paid=v.expenseStatus==='Paid';updated.notes=v.notes||'';updated.savingsAccount=v.savingsAccount==='Salary'?'':v.savingsAccount||'';}
   else if(category==='My Space'){
    updated.status=e&&key==='projects'&&['Completed','Cancelled'].includes(x.status)?x.status:v.spaceStatus||'In Progress';updated.createdAt=x.createdAt||(!e?today():'');
    updated.tasks=normalizedTasks(x);updated.notes=v.notes||'';
@@ -791,6 +803,7 @@ function openEntry(key,index,edit=false,presetDate=''){
   }else if(category==='Savings'){updated.notes=v.notes||'';if(!e)updated.kind='contribution';delete updated.status;delete updated.paid;}
   else if(category==='IOU'){updated.notes=v.notes||'';updated.status=isPaid(ref||{item:{}})?'Paid':'Unpaid';updated.paid=updated.status==='Paid';updated.debtId=x.debtId||crypto.randomUUID();}
   else{updated.notes=v.notes||'';delete updated.status;delete updated.paid;}
+  if(['Expense','Income'].includes(category)&&!(x.reminderUnit==='Months'&&form.dataset.reminderEdited!=='true')){updated.reminderValue=v.reminderValue===''||v.reminderValue==null?null:Number(v.reminderValue);updated.reminderUnit='Days';updated.reminderDays=updated.reminderValue;}
   if(category!=='Expense')delete updated.mainBill;
   updated.recurring=recurring;updated.interval=interval;updated.frequency=recurring?v.frequency:'None';updated.endDate=recurring?v.endDate||'':'';updated.weekdays=week;
   const match=all().find(a=>a.key==='items'&&categoryOf(a)===category&&(a.item.group||'')===group&&nameOf(a.item)===name&&seriesInfo(a).recurring&&!excluded(a)&&!isPaid(a)&&dateOf(a.item)>=date);
@@ -812,7 +825,7 @@ function openEntry(key,index,edit=false,presetDate=''){
     if(dest==='savings'){const existing=accountRows(data,name);if(existing.length){const g=existing.find(a=>String(a.group||'').trim())?.group;if(g&&g!==group)throw Error('A savings account with this name already exists. Edit its group in Records.');updated.accountId=existing.find(a=>a.accountId)?.accountId||crypto.randomUUID();for(const row of existing){row.accountId=updated.accountId;row.group=group;row.recurring=false;}}else updated.accountId=crypto.randomUUID();}
     if(debtMatch){adjustDebt(data,debtMatch.item,amount,date,debtMode,updated.paid);return;}
     if((date&&e&&info.recurring&&key==='items'&&dest==='items'&&v.scope==='future'&&dateOf(x))||replace){
-     const original=replace||ref,cutFrom=form.dataset.serviceChanged==='true'?[date,original.item.scheduledDate||dateOf(original.item)].filter(Boolean).sort()[0]:date,series=cutRecurring(data,original,cutFrom);
+     const original=replace||ref,series=cutRecurring(data,original,date);
      if(recurring)newRule(data,updated,series);else{delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;updated.id=crypto.randomUUID();data.items.push(updated);}
     }else if(recurring&&date&&(!e||!info.recurring||!dateOf(x)&&!x.ruleId||key!=='items')){
      if(e){if(key==='projects')removeProjectLinks(data,x.id);data[key].splice(index,1);}
@@ -1042,7 +1055,7 @@ dialog.addEventListener('click',e=>{
  if(['date','startDate','endDate','serviceDate'].includes(n)){const dt=v?new Date(v.slice(0,10)+'T12:00:00'):new Date();const date=Number.isNaN(dt.getTime())?new Date():dt;fillDate(p,date.getFullYear(),date.getMonth());}
  else if(n==='time')fillTime(p,v);
  showFloating(p,w.querySelector('.wallet-date-input')||b);b.setAttribute('aria-expanded','true');
- }else if(w&&d.choice!==undefined){choosePicker(w,d.choice);if(['category','serviceDate','group','name','savingsAccount'].includes(w.dataset.pickerName)){const form=dialog.querySelector('#walletEntry');if(form){if(w.dataset.pickerName==='serviceDate')syncService(form);else entryChoiceChanged(form,w.dataset.pickerName);if(w.dataset.pickerName==='savingsAccount')w.querySelector('.wallet-picker-button span').textContent='Deduction';}}}
+ }else if(w&&d.choice!==undefined){choosePicker(w,d.choice);if(['category','group','name','savingsAccount'].includes(w.dataset.pickerName)){const form=dialog.querySelector('#walletEntry');if(form){entryChoiceChanged(form,w.dataset.pickerName);if(w.dataset.pickerName==='savingsAccount')w.querySelector('.wallet-picker-button span').textContent='Deduction';}}}
  else if(w&&b.hasAttribute('data-go-month'))goPickerMonth(w.querySelector('.wallet-picker-options'));
  else if(w&&d.pickerMonth){const p=w.querySelector('.wallet-picker-options'),dt=new Date(Number(p.dataset.year),Number(p.dataset.month)+Number(d.pickerMonth),1);fillDate(p,dt.getFullYear(),dt.getMonth());}
  else if(w&&b.hasAttribute('data-time-set')){const h=w.querySelector('[data-hour]'),m=w.querySelector('[data-minute]');if(h.value===''||m.value==='')return;if(!h.reportValidity()||!m.reportValidity())return;choosePicker(w,String(h.value).padStart(2,'0')+':'+String(m.value).padStart(2,'0'));}
