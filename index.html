@@ -31,7 +31,7 @@ button { font:inherit; color:inherit; border:0; border-radius:9999px; padding:va
 button:disabled { cursor:default; opacity:.65; }
 button:not(:disabled):not(.entry-row):is(:hover,:active,:focus-visible),.wallet-nav button[aria-selected="true"],#mainPage button.selected { box-shadow:inset 0 0 0 3px var(--button-outline); }
 button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
-#loginCard { --unit:min(100vw / 1024, 100dvh / 768, 1px); background:var(--white); border-radius:calc(32 * var(--unit)); padding:var(--card); width:calc(530 * var(--unit)); min-height:calc(390 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:calc(32 * var(--unit)); text-align:center; }
+#loginCard { --unit:min(100vw / 1024, 100dvh / 768, 1px); --title:calc(32 * var(--unit)); background:var(--white); border-radius:calc(32 * var(--unit)); padding:var(--card); width:calc(530 * var(--unit)); min-height:calc(390 * var(--unit)); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:calc(32 * var(--unit)); text-align:center; }
 #login { font-size:calc(18 * var(--unit)); min-height:calc(56 * var(--unit)); padding:calc(14 * var(--unit)) calc(28 * var(--unit)); gap:calc(18 * var(--unit)); width:100%; }
 #loginActions { display:grid; grid-template-columns:max-content; justify-content:center; row-gap:calc(10 * var(--unit)); max-width:100%; }
 #login .google-mark { font-size:calc(24 * var(--unit)); font-weight:400; line-height:1; flex-shrink:0; }
