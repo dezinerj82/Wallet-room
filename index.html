@@ -156,7 +156,8 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-date-input { display:flex; align-items:center; gap:5px; border:1px solid #d3e2e5; border-radius:12px; background:var(--paper); }
 .wallet-form .wallet-date-input input { border:0; background:transparent; }
 .wallet-form .wallet-date-input button { background:transparent; flex:none; }
-.wallet-date-input svg { width:18px; height:18px; fill:none; stroke:#8ebacb; stroke-width:2.5; stroke-linecap:round; }
+.wallet-date-input svg { width:18px; height:18px; fill:#8ebacb; stroke:#8ebacb; stroke-width:4; stroke-linejoin:round; stroke-linecap:round; }
+.wallet-date-input svg.wallet-field-icon { fill:none; stroke-width:2.5; }
 .wallet-dialog .wallet-picker-options .wallet-choice { min-height:2em; }
 .wallet-form .reconnect-notice { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
 .wallet-form .reconnect-notice span { font-size:10px; opacity:.5; }
@@ -167,6 +168,11 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .wallet-form .record-grid { flex:none; }
 .calendar-event.extra { background:var(--extra-bill); }
 .wallet-form .recurrence-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--gap); align-content:start; }
+.wallet-form #weeklyField { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); }
+.wallet-form #weeklyField input[type=checkbox] { accent-color:var(--orange); }
+.wallet-form [data-contract-row] > .wallet-row { align-items:flex-end; }
+.wallet-form button[data-contract-remove] { background:transparent; align-self:flex-end; margin-bottom:8px; padding:5px; }
+.wallet-form button[data-contract-remove] svg { width:1.4em; height:1.4em; stroke:#8ebacb; stroke-width:5; stroke-linecap:round; fill:none; }
 .wallet-form .field-full { grid-column:1/-1; }
 .wallet-form .main-check { align-self:end; min-height:2.7em; justify-content:center; }
 .wallet-form .main-check input { accent-color:var(--orange); }
@@ -187,7 +193,7 @@ button:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 @keyframes walletSaving { from { transform:translateX(-100%); } to { transform:translateX(285%); } }
 @media(prefers-reduced-motion:reduce){.wallet-form .save-progress > span{animation:none;width:100%;}}
 .wallet-form .wallet-choice[data-add-option] { background:var(--orange); justify-content:center; border-radius:9999px; }
-@media(max-width:600px){.wallet-form .recurrence-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }.wallet-dialog:has(#walletEntry) { width:94vw; }} 
+@media(max-width:600px){.wallet-form .recurrence-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }.wallet-form #weeklyField { grid-template-columns:repeat(3,minmax(0,1fr)); }.wallet-dialog:has(#walletEntry) { width:94vw; }} 
 @media (max-width:768px) {
  #loginCard { --unit:min(100vw / 412, 100dvh / 891, 1px); width:min(100%,calc(530 * var(--unit))); min-height:calc(390 * var(--unit)); }
  #mainPage { height:calc(891 * var(--unit) - 2 * var(--page)); max-width:100%; align-self:center; }
@@ -376,6 +382,14 @@ function contractSchedule(contracts,date,open){
  const first=contracts.filter(c=>monthKey(c.end)>=floor).map(c=>[floor,monthKey(c.start)].sort().at(-1)).sort()[0];
  return {date:first?monthDate(first,validDate(date)?date.slice(8,10):contracts.map(c=>c.start).sort()[0].slice(8,10)):'',end:end?lastDay(monthKey(end)):'',cut:floor+'-01'};
 }
+function weeklyMonthStart(date){return validDate(date)?monthKey(date)+'-01':date;}
+function weeklyExpansionStart(data,r,rules){
+ const floor=weeklyMonthStart(r.date),open=data.settings?.budgetMonth||currentMonth();
+ if(r.frequency!=='Weekly'||r.fullWeekMonth||monthKey(floor)<open)return r.date;
+ // Do not backfill over a previous rule or an already revised period.
+ if(rules.some(other=>other!==r&&other.seriesId===r.seriesId&&other.date<r.date&&(!other.endDate||other.endDate>=floor)))return r.date;
+ return floor;
+}
 function expandRecurring(data,until){
  data.settings??={};data.items??=[];
  const rules=data.settings.recurringRules||[],suppressed=new Set(data.settings.suppressedOccurrences||[]);
@@ -383,10 +397,10 @@ function expandRecurring(data,until){
  for(const r of rules){
   if(!validDate(r.date)||!['Weekly','Monthly','Yearly'].includes(r.frequency))continue;
   const interval=Math.max(1,Math.min(1200,Math.trunc(Number(r.interval)||1))),limit=[until,r.frequency==='Weekly'?datePlus(r.date,6):r.date].sort().at(-1);
-  const end=[limit,r.endDate||limit].sort()[0];
-  if(end<r.date)continue;
+  const end=[limit,r.endDate||limit].sort()[0],start=weeklyExpansionStart(data,r,rules);
+  if(end<start)continue;
   const emit=(d,amount)=>{
-   if(d<r.date||d>end)return;
+   if(d<start||d>end)return;
    if(r.template.contracts?.length){const ym=monthKey(d);if(!activeContracts(r.template.contracts,ym).length)return;if(data.items.some(x=>x.seriesId===r.seriesId&&rawPaid(x)&&monthKey(x.scheduledDate||dateOf(x))===ym))return;amount=contractTotal(r.template.contracts,ym);}
    const id='occ:'+r.id+':'+d;
    if(ids.has(id)||suppressed.has(id)||protectedDates.has(r.seriesId+':'+d))return;
@@ -396,7 +410,7 @@ function expandRecurring(data,until){
    data.items.push(x);
   };
   if(r.frequency==='Weekly'){
-   for(let d=r.date,i=0;d<=end&&i<37000;d=datePlus(d,1),i++){const w=new Date(d+'T12:00:00').getDay();if(Math.floor(i/7)%interval===0&&Object.hasOwn(r.weekdays||{},w))emit(d,r.weekdays[w]);}
+   for(let d=start,i=Math.round((new Date(start+'T12:00:00')-new Date(r.date+'T12:00:00'))/86400000);d<=end&&i<37000;d=datePlus(d,1),i++){const w=new Date(d+'T12:00:00').getDay();if(Math.floor(i/7)%interval===0&&Object.hasOwn(r.weekdays||{},w))emit(d,r.weekdays[w]);}
   }else{
    const step=(r.frequency==='Yearly'?12:1)*interval;
    for(let ym=monthKey(r.date),i=0;ym<=monthKey(end)&&i<1200;ym=shiftMonth(ym,step),i++)emit(monthDate(ym,r.date.slice(8,10)),r.template.amount);
@@ -423,7 +437,8 @@ function cutRecurring(data,e,from){
 function newRule(data,x,id){
  data.settings??={};data.settings.recurringRules??=[];
  const template={...x};for(const k of ['id','ruleId','seriesId','scheduledDate','status','paid','source','originMonth','carryOf','carriedTo','clearedOn','frequency','weekdays','startDate','endDate'])delete template[k];
- data.settings.recurringRules.push({id:crypto.randomUUID(),seriesId:id||crypto.randomUUID(),date:x.date,endDate:x.endDate||defaultRecurringEnd(x.date,x.frequency,x.interval||1,x.weekdays||{}),frequency:x.frequency,interval:Number(x.interval)||1,weekdays:x.weekdays||{},template});
+ const date=x.frequency==='Weekly'?weeklyMonthStart(x.date):x.date;
+ data.settings.recurringRules.push({id:crypto.randomUUID(),seriesId:id||crypto.randomUUID(),date,fullWeekMonth:x.frequency==='Weekly',endDate:x.endDate||defaultRecurringEnd(date,x.frequency,x.interval||1,x.weekdays||{}),frequency:x.frequency,interval:Number(x.interval)||1,weekdays:x.weekdays||{},template});
 }
 function saveProgress(active){
  if(!dialog.open)return;
@@ -744,7 +759,7 @@ function entryChoiceChanged(form,n){
 let contractFieldId=0;
 function contractRow(c={}){
  const id=++contractFieldId;
- return '<div class="recurrence-fields field-full" data-contract-row><div class="wallet-row field-full"><div style="flex:1">'+inputField('Label','contractLabel'+id,c.label||'')+'</div><button type="button" data-contract-remove aria-label="Remove contract">Remove</button></div>'+picker('Contract start','contractStart'+id,c.start||'')+picker('Contract end','contractEnd'+id,c.end||'')+inputField('Amount','contractAmount'+id,c.amount??'','number','min="0" step="any"')+'</div>';
+ return '<div class="recurrence-fields field-full" data-contract-row><div class="wallet-row field-full"><div style="flex:1">'+inputField('Label','contractLabel'+id,c.label||'')+'</div><button type="button" data-contract-remove aria-label="Remove contract"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18"/></svg></button></div>'+picker('Contract start','contractStart'+id,c.start||'')+picker('Contract end','contractEnd'+id,c.end||'')+inputField('Amount','contractAmount'+id,c.amount??'','number','min="0" step="any"')+'</div>';
 }
 function readContracts(form){
  return [...form.querySelectorAll('[data-contract-row]')].map(row=>({label:row.querySelector('[name^=contractLabel]').value.trim(),start:row.querySelector('[name^=contractStart]').value,end:row.querySelector('[name^=contractEnd]').value,amount:row.querySelector('[name^=contractAmount]').value})).map(c=>({...c,amount:c.amount===''?null:Number(c.amount)}));
@@ -840,7 +855,7 @@ function openEntry(key,index,edit=false,presetDate=''){
  '<div class="field-full" id="notesField">'+textField('Note','notes',x.notes||'')+'</div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="advanced" hidden>'+
  '<div id="recurrenceField">'+selectField('Recurring','frequency',[['None','None'],['Yearly','Years'],['Monthly','Months'],['Weekly','Weeks']],frequency)+'</div><div id="intervalField">'+inputField('Every (months)','interval',x.interval||1,'number','min="1" max="1200" step="1"')+'</div><div id="endField">'+picker('End date','endDate',info.end||x.endDate||'')+'</div>'+
- '<div id="weeklyField" class="wallet-form field-full">'+weekdays.map((d,i)=>'<div class="wallet-row"><label><span><input type="checkbox" name="week'+i+'" '+(Object.hasOwn(x.weekdays||{},i)?'checked':'')+'> '+d+'</span></label>'+inputField('Price','price'+i,x.weekdays?.[i]??'','number','min="0" step="any"')+'</div>').join('')+'</div>'+
+ '<div id="weeklyField" class="field-full">'+[1,2,3,4,5,6,0].map(i=>'<label><span><input type="checkbox" name="week'+i+'" '+(Object.hasOwn(x.weekdays||{},i)?'checked':'')+'> '+weekdays[i]+'</span><input type="number" name="price'+i+'" aria-label="'+weekdays[i]+' amount" placeholder="Amount" min="0" step="any" value="'+esc(x.weekdays?.[i]??'')+'"></label>').join('')+'</div>'+
  '<div id="reminderField">'+inputField('Reminder (days)','reminderValue',reminderDaysForForm(x),'number','min="0" step="1"')+'</div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="contract" hidden><div class="recurrence-fields field-full" id="contractRows">'+(x.contracts||[]).map(contractRow).join('')+'</div><div class="wallet-row field-full"><button type="button" data-contract-add>+ Add</button></div><div class="wallet-row field-full"><span>Total</span><strong id="contractTotal"></strong></div></div>'+
  '<div class="recurrence-fields form-tab" data-form-panel="deduction" hidden><div id="deductionField" class="recurrence-fields field-full deduction-tab">'+picker('Saving','savingsAccount',x.savingsAccount||'',['',...accounts]) +inputField('Amount to use','savingsAmount',x.savingsAmount??(x.savingsAccount&&x.frequency!=='Weekly'&& !x.contracts?.length?amountOf(x)??'':''),'number','min="0" step="any"')+'</div></div>'+
@@ -887,7 +902,7 @@ function openEntry(key,index,edit=false,presetDate=''){
    if(!Object.keys(week).length){showError(Error('Select at least one day.'));return;}
   }
   if(e&&info.recurring&&key==='items'&&dest==='items'&&!scope&&!contractChanged){entryScopePrompt(form);return;}
-  if(recurring&&date&&!v.endDate&&(!e||!info.recurring||!dateOf(x)||v.scope==='future')&&!hasContracts)v.endDate=defaultRecurringEnd(date,v.frequency,interval,week);
+  if(recurring&&date&&!v.endDate&&(!e||!info.recurring||!dateOf(x)||v.scope==='future')&&!hasContracts)v.endDate=defaultRecurringEnd(v.frequency==='Weekly'?weeklyMonthStart(date):date,v.frequency,interval,week);
   const updated={...x,id:x.id||crypto.randomUUID(),category,group,name,date,amount};
   if(['Expense','My Space'].includes(category)){updated.subject=v.subject||'';updated.time='';}
   if(category==='Expense'){updated.mainBill=!!v.mainBill;updated.status=v.expenseStatus;updated.paid=v.expenseStatus==='Paid';updated.notes=v.notes||'';updated.savingsAccount=savingAccount;if(savingAccount&&savingAmount!==null)updated.savingsAmount=savingAmount;else delete updated.savingsAmount;}
@@ -940,7 +955,7 @@ function openEntry(key,index,edit=false,presetDate=''){
      return;
     }
     if((date&&e&&info.recurring&&key==='items'&&dest==='items'&&v.scope==='future'&&dateOf(x))||replace){
-     const original=replace||ref,series=cutRecurring(data,original,date);
+     const original=replace||ref,from=recurring&&v.frequency==='Weekly'?weeklyMonthStart(date):date,series=cutRecurring(data,original,from);
      if(recurring)newRule(data,updated,series);else{delete updated.seriesId;delete updated.ruleId;delete updated.scheduledDate;updated.id=crypto.randomUUID();data.items.push(updated);}
     }else if(recurring&&date&&(!e||!info.recurring||!dateOf(x)&&!x.ruleId||key!=='items')){
      if(e){if(key==='projects')removeProjectLinks(data,x.id);data[key].splice(index,1);}
